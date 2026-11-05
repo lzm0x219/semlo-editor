@@ -1,0 +1,68 @@
+.semlo-editor-toolbar-color-control {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 5px;
+}
+
+.semlo-editor-toolbar-color-control:hover {
+  background: #f5f5f5;
+}
+
+.semlo-editor-toolbar-color-apply,
+.semlo-editor-toolbar-color-arrow {
+  display: inline-grid;
+  place-items: center;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1f1f1f;
+  cursor: pointer;
+}
+
+.semlo-editor-toolbar-color-apply {
+  position: relative;
+  width: 27px;
+}
+
+.semlo-editor-toolbar-color-glyph {
+  display: grid;
+  place-items: center;
+  height: 20px;
+  font:
+    14px/1 Georgia,
+    serif;
+}
+
+.semlo-editor-toolbar-color-swatch {
+  position: absolute;
+  bottom: 5px;
+  width: 14px;
+  height: 2px;
+}
+
+.semlo-editor-toolbar-color-arrow {
+  width: 16px;
+}
+
+.semlo-editor-toolbar-color-arrow::after {
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-top-color: #a5a5a5;
+  transform: translateY(2px);
+  content: "";
+}
+
+.semlo-editor-toolbar-color-apply:focus-visible,
+.semlo-editor-toolbar-color-arrow:focus-visible {
+  outline: 2px solid #7ebd97;
+  outline-offset: 1px;
+}
+
+.semlo-editor-toolbar-color-apply:disabled,
+.semlo-editor-toolbar-color-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}

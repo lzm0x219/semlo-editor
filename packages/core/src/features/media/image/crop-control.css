@@ -1,0 +1,125 @@
+.semlo-editor-image-crop-control {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.semlo-editor-image-crop-selection {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed #4389ee;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  cursor: move;
+  outline: none;
+}
+
+.semlo-editor-image-crop-selection:focus-visible {
+  outline: 2px solid #4389ee;
+  outline-offset: 2px;
+}
+
+.semlo-editor-image-crop-handle {
+  position: absolute;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.semlo-editor-image-crop-handle::before {
+  position: absolute;
+  inset: 2px;
+  border: 0 solid #4389ee;
+  content: "";
+}
+
+.semlo-editor-image-crop-handle:focus-visible {
+  outline: 2px solid #4389ee;
+  outline-offset: 1px;
+}
+
+.semlo-editor-image-crop-handle--nw {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+.semlo-editor-image-crop-handle--n {
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+.semlo-editor-image-crop-handle--ne {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+.semlo-editor-image-crop-handle--e {
+  top: 50%;
+  right: -9px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+.semlo-editor-image-crop-handle--se {
+  right: -9px;
+  bottom: -9px;
+  cursor: nwse-resize;
+}
+.semlo-editor-image-crop-handle--s {
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+.semlo-editor-image-crop-handle--sw {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+.semlo-editor-image-crop-handle--w {
+  top: 50%;
+  left: -9px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+.semlo-editor-image-crop-handle--nw::before {
+  border-top-width: 3px;
+  border-left-width: 3px;
+  border-top-left-radius: 3px;
+}
+.semlo-editor-image-crop-handle--n::before {
+  inset: 7px 0;
+  border-top-width: 3px;
+}
+.semlo-editor-image-crop-handle--ne::before {
+  border-top-width: 3px;
+  border-right-width: 3px;
+  border-top-right-radius: 3px;
+}
+.semlo-editor-image-crop-handle--e::before {
+  inset: 0 7px;
+  border-left-width: 3px;
+}
+.semlo-editor-image-crop-handle--se::before {
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  border-bottom-right-radius: 3px;
+}
+.semlo-editor-image-crop-handle--s::before {
+  inset: 7px 0;
+  border-top-width: 3px;
+}
+.semlo-editor-image-crop-handle--sw::before {
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+  border-bottom-left-radius: 3px;
+}
+.semlo-editor-image-crop-handle--w::before {
+  inset: 0 7px;
+  border-left-width: 3px;
+}

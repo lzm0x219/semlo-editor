@@ -1,0 +1,246 @@
+.semlo-editor-table-toolbar {
+  position: fixed;
+  z-index: 1201;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  padding: 5px 7px;
+  border: 1px solid #efefef;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 5px 20px #00000016;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-table-toolbar[hidden],
+.semlo-editor-table-toolbar-button[hidden],
+.semlo-editor-table-return[hidden] {
+  display: none;
+}
+.semlo-editor-table-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-table-toolbar-button:hover,
+.semlo-editor-table-toolbar-button:focus-visible,
+.semlo-editor-table-toolbar-button[aria-pressed="true"],
+.semlo-editor-table-toolbar-button[aria-expanded="true"] {
+  outline: 0;
+  background: #f2f4f3;
+}
+.semlo-editor-table-toolbar-button > span:first-child {
+  font-size: 16px;
+}
+.semlo-editor-table-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #ededed;
+}
+.semlo-editor-table-header-menu,
+.semlo-editor-table-color-menu {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #eaeaea;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 5px 20px #00000018;
+}
+.semlo-editor-table-header-menu {
+  top: calc(100% + 4px);
+  right: 0;
+  width: 162px;
+  padding: 4px 0;
+}
+.semlo-editor-table-header-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-table-header-menu > button:hover,
+.semlo-editor-table-header-menu > button:focus-visible {
+  outline: none;
+  background: #f3f4f3;
+}
+.semlo-editor-table-header-menu > button > span:nth-child(2) {
+  flex: 1;
+}
+.semlo-editor-table-switch {
+  position: relative;
+  width: 27px;
+  height: 16px;
+  border-radius: 9px;
+  background: #b6bab8;
+}
+.semlo-editor-table-switch::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+[aria-checked="true"] > .semlo-editor-table-switch {
+  background: #49b57a;
+}
+[aria-checked="true"] > .semlo-editor-table-switch::after {
+  left: 13px;
+}
+.semlo-editor-table-color-menu {
+  top: 0;
+  left: calc(100% + 6px);
+  width: 204px;
+  padding: 12px;
+}
+.semlo-editor-table-color-menu-left {
+  right: calc(100% + 6px);
+  left: auto;
+}
+.semlo-editor-table-color-swatches {
+  display: flex;
+  gap: 8px;
+}
+.semlo-editor-table-color-swatches button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.semlo-editor-table-color-swatches button[aria-pressed="true"] {
+  border-color: #7d9bbd;
+}
+.semlo-editor-table-color-label {
+  margin-top: 14px;
+  color: #333;
+}
+.semlo-editor-table-color-custom {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+.semlo-editor-table-color-custom label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #777;
+  font-size: 11px;
+}
+.semlo-editor-table-color-custom input {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+table[data-semlo-editor-table-header-row="true"] > tbody > tr:first-child > :is(td, th),
+table[data-semlo-editor-table-header-column="true"]:not([data-semlo-editor-table-header-cells="true"]):not(
+    .ProseMirror table
+  )
+  > tbody
+  > tr
+  > :is(td, th):first-child,
+table[data-semlo-editor-table-header-column="true"][data-semlo-editor-table-header-cells="true"]
+  > tbody
+  > tr
+  > :is(td, th)[data-semlo-editor-header-cell="true"],
+.semlo-editor-prose table > tbody > tr > :is(td, th)[data-semlo-editor-header-cell="true"] {
+  background-color: var(--semlo-editor-table-head-bg, #fafafa);
+  color: var(--semlo-editor-table-head-color, #262626);
+  font-weight: 600;
+}
+table[data-semlo-editor-table-border-hidden="true"] :is(td, th) {
+  border-color: transparent;
+}
+.semlo-editor:not(.semlo-editor-readonly)
+  .semlo-editor-prose
+  table[data-semlo-editor-table-border-hidden="true"]
+  :is(td, th) {
+  border: 1px dashed #e7e9e8;
+}
+.semlo-editor-prose table[data-semlo-editor-table-fit="true"] {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.semlo-editor-table-return {
+  flex: 0 0 52px;
+  width: fit-content;
+  padding: 0 24px;
+  border: 0;
+  background: #fff;
+  color: #444;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  cursor: pointer;
+}
+.semlo-editor.semlo-editor-table-maximized {
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+.semlo-editor.semlo-editor-table-maximized .semlo-editor-editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fafafa;
+}
+.semlo-editor.semlo-editor-table-maximized .semlo-editor-content {
+  min-height: 100%;
+  padding: 24px 40px;
+}
+.semlo-editor.semlo-editor-table-maximized
+  .semlo-editor-prose
+  > :not(.semlo-editor-table-max-active):not(:has(.semlo-editor-table-max-active)) {
+  display: none !important;
+}
+.semlo-editor.semlo-editor-table-maximized
+  .semlo-editor-prose
+  :not(.semlo-editor-table-max-active):has(.semlo-editor-table-max-active)
+  > :not(.semlo-editor-table-max-active):not(:has(.semlo-editor-table-max-active)) {
+  display: none !important;
+}
+.semlo-editor.semlo-editor-table-maximized .semlo-editor-outline {
+  display: none !important;
+}
+
+.semlo-editor-prose:not(:focus) .semlo-editor-table-code-boundary {
+  visibility: hidden;
+}

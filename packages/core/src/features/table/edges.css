@@ -1,0 +1,76 @@
+.semlo-editor-table-edges {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  pointer-events: none;
+}
+.semlo-editor-prose .selectedCell::after {
+  background: rgb(92 153 226 / 19%);
+}
+.semlo-editor-table-edge-band,
+.semlo-editor-table-edge-action,
+.semlo-editor-table-edge-indicator {
+  position: fixed;
+  box-sizing: border-box;
+}
+.semlo-editor-table-edge-band {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: #f1f3f2;
+  color: transparent;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+.semlo-editor-table-edge-band svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  pointer-events: none;
+}
+.semlo-editor-table-edge-band:hover,
+.semlo-editor-table-edge-band:focus-visible {
+  background: #dfe8e3;
+  color: #9aa6a0;
+  outline: 0;
+}
+.semlo-editor-table-edge-band[aria-pressed="true"] {
+  background: #76a9ed;
+  color: #fff;
+}
+.semlo-editor-table-edge-action {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid #e6e9e7;
+  border-radius: 4px;
+  background: #fff;
+  color: #68746d;
+  box-shadow: 0 1px 4px #0000000d;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.semlo-editor-table-edge-action:hover,
+.semlo-editor-table-edge-action:focus-visible {
+  outline: 0;
+  border-color: #b9d9c7;
+  color: #2ca86b;
+}
+.semlo-editor-table-edge-action svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.semlo-editor-table-edge-indicator {
+  z-index: 1;
+  border-radius: 2px;
+  background: #568feb;
+  pointer-events: none;
+}

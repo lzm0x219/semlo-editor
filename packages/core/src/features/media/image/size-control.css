@@ -1,0 +1,294 @@
+.semlo-editor-image-size-control {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 9%);
+  color: #262626;
+  font:
+    13px/1.4 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  white-space: nowrap;
+}
+.semlo-editor-image-size-control > button {
+  flex: 0 0 auto;
+}
+.semlo-editor-image-size-control[hidden],
+.semlo-editor-image-rotate-toggle[hidden],
+.semlo-editor-image-size-panel[hidden],
+.semlo-editor-image-style-toggle[hidden],
+.semlo-editor-image-style-panel[hidden] {
+  display: none;
+}
+.semlo-editor-image-rotate-toggle,
+.semlo-editor-image-size-toggle,
+.semlo-editor-image-style-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-image-rotate-toggle:hover,
+.semlo-editor-image-size-toggle:hover,
+.semlo-editor-image-size-toggle[aria-expanded="true"],
+.semlo-editor-image-style-toggle:hover,
+.semlo-editor-image-style-toggle[aria-expanded="true"] {
+  background: #f3f3f3;
+}
+.semlo-editor-image-rotate-toggle svg,
+.semlo-editor-image-size-toggle svg,
+.semlo-editor-image-style-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-image-size-panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  box-sizing: border-box;
+  width: 262px;
+  padding: 16px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+.semlo-editor-image-style-panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  box-sizing: border-box;
+  width: 150px;
+  padding: 5px;
+  border: 1px solid #ededed;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+.semlo-editor-image-style-panel button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: 32px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-image-style-panel button:hover,
+.semlo-editor-image-style-panel button:focus-visible {
+  background: #f4f4f4;
+}
+.semlo-editor-image-style-check {
+  width: 16px;
+  color: #26a65b;
+  visibility: hidden;
+}
+.semlo-editor-image-style-panel button[aria-checked="true"] .semlo-editor-image-style-check {
+  visibility: visible;
+}
+.semlo-editor-image-size-fields {
+  display: flex;
+  gap: 12px;
+}
+.semlo-editor-image-size-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.semlo-editor-image-size-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  outline: none;
+  color: #262626;
+  background: #fff;
+  font: inherit;
+  appearance: textfield;
+}
+.semlo-editor-image-size-field input::-webkit-inner-spin-button,
+.semlo-editor-image-size-field input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+.semlo-editor-image-size-field input:focus {
+  border-color: #57a975;
+}
+.semlo-editor-image-size-field input:disabled {
+  color: #aaa;
+  background: #f7f7f7;
+}
+.semlo-editor-image-size-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 16px;
+  padding: 0;
+  border-radius: 6px;
+  background: #f4f5f5;
+}
+.semlo-editor-image-size-presets button {
+  position: relative;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.semlo-editor-image-size-presets button:hover:not(:disabled):not([aria-checked="true"]) {
+  color: #8a8f8d;
+}
+.semlo-editor-image-size-presets button:not(:first-child):not([aria-checked="true"])::before {
+  position: absolute;
+  top: 8px;
+  left: -1px;
+  width: 1px;
+  height: 16px;
+  background: #d9d9d9;
+  content: "";
+}
+.semlo-editor-image-size-presets button[aria-checked="true"] {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #d8dad9;
+}
+.semlo-editor-image-size-presets button:disabled {
+  color: #bfbfbf;
+  cursor: default;
+}
+.semlo-editor-image-size-control button:focus-visible {
+  outline: 2px solid #429d69;
+  outline-offset: 1px;
+}
+@media (max-width: 380px) {
+  .semlo-editor-image-size-control > button {
+    padding-right: 4px;
+    padding-left: 4px;
+    gap: 2px;
+  }
+  .semlo-editor-image-size-toggle > span:not([aria-hidden]),
+  .semlo-editor-image-style-toggle > span:not([aria-hidden]),
+  .semlo-editor-image-caption-toggle > span:not([aria-hidden]) {
+    display: none;
+  }
+}
+
+.semlo-editor-image-batch-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-image-batch-toggle:hover,
+.semlo-editor-image-batch-toggle[aria-expanded="true"] {
+  background: #f3f3f3;
+}
+.semlo-editor-image-batch-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+.semlo-editor-image-batch-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  min-width: 166px;
+  padding: 4px 0;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+}
+.semlo-editor-image-batch-menu[hidden] {
+  display: none;
+}
+.semlo-editor-image-batch-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 16px;
+  border: 0;
+  color: #595959;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-image-batch-menu button:hover {
+  background: #f5f5f5;
+}
+
+.semlo-editor-image-batch-notice {
+  position: fixed;
+  z-index: 1200;
+  top: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  color: #262626;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  font:
+    14px/20px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  white-space: nowrap;
+}
+.semlo-editor-image-batch-notice span {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+  background: #52c781;
+  font-size: 11px;
+}

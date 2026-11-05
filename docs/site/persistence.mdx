@@ -1,0 +1,133 @@
+---
+title: 保存与恢复内容
+description: 使用编辑器快照保存文档，并处理恢复、切换文档和外部展示。
+---
+
+import FeatureDemo from "../components/FeatureDemo";
+
+# 保存与恢复内容
+
+semlo-editor 不提供存储服务。应用需要从编辑器获取内容，将它保存到自己的存储，并在下次打开时传回编辑器。
+
+<FeatureDemo examples={["start"]} />
+
+## 选择保存格式
+
+每次内容变更时，`onChange`（Vue 中为 `change`）收到一个 `EditorSnapshot`：
+
+| 字段   | 用途                           | 注意事项                                 |
+| ------ | ------------------------------ | ---------------------------------------- |
+| `json` | 保存和恢复可编辑文档           | 推荐作为编辑内容的存储格式。             |
+| `html` | 在其他页面展示或作为 HTML 输入 | 公式等内容脱离编辑器展示时需要额外处理。 |
+| `text` | 纯文本处理，如摘要或索引       | 不包含完整文档结构，不能用于无损恢复。   |
+
+也可以随时调用 `editor.getSnapshot()` 获取当前快照。数据表等结构化内容会随文档 JSON 和 HTML 保存；图片、附件与音视频通常保存的是地址，文件本身由应用的上传服务管理。
+
+## 示例：保存在当前浏览器
+
+以下示例使用 `localStorage` 展示完整流程。它只适合本机演示：清除站点数据会删除内容，也不会跨设备同步。
+
+```html
+<div id="editor"></div>
+<button id="save" type="button">保存</button>
+```
+
+```ts
+import { createEditor } from "@semlo-editor/core";
+import type { EditorContent } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const key = "semlo-editor-document";
+const host = document.querySelector<HTMLElement>("#editor");
+const save = document.querySelector<HTMLButtonElement>("#save");
+if (!host || !save) throw new Error("缺少编辑器或保存按钮");
+
+let content: EditorContent | undefined;
+try {
+  const stored = localStorage.getItem(key);
+  if (stored) content = JSON.parse(stored) as EditorContent;
+} catch (error) {
+  console.error("无法读取本地文档", error);
+  throw error; // 停止初始化，避免用空文档覆盖原始数据。
+}
+
+let editor: ReturnType<typeof createEditor>;
+try {
+  editor = createEditor({
+    element: host,
+    content,
+    onError: (error) => console.error("编辑器错误", error),
+  });
+} catch (error) {
+  console.error("无法恢复文档，请保留原始数据并处理格式", error);
+  throw error;
+}
+
+save.addEventListener("click", () => {
+  try {
+    localStorage.setItem(key, JSON.stringify(editor.getSnapshot().json));
+  } catch (error) {
+    console.error("保存失败", error);
+  }
+});
+
+// 页面卸载时调用 editor.destroy()，并移除应用自己注册的监听器。
+```
+
+实际应用可以在 `onChange` 中安排保存，但应自行处理保存失败、写入顺序和未完成的请求。不要假设变更回调意味着数据已经持久化。
+
+## 恢复或替换内容
+
+首次创建时传入 `content`；已有实例可以使用 `setContent`：
+
+```ts
+editor.setContent(savedDocument);
+```
+
+创建编辑器时，JSON 中无效的节点结构、未被当前扩展声明的节点或标记及其属性会导致初始化抛出异常；失败时编辑器会清理已创建的资源。请捕获异常并保留原始数据，检查数据格式及所需扩展后再重试。`onError` 不负责报告这类初始化异常。普通 HTML 初始化仍按现有规则宽松导入，未识别的结构或属性可能被忽略，导入结果应由应用确认。
+
+当前内容没有统一的格式版本或自动迁移机制。应用应保存原始内容，并自行记录所用编辑器版本、扩展和备份；升级后先在副本上验证读取、编辑及再保存。不要假定当前版本可以识别或无损处理未来版本的所有内容。
+
+数据表的 JSON 和 HTML 载荷会单独校验：载荷损坏、超出容量，或包含当前实现无法保留的嵌套数据时，初始化会抛出异常。HTML 中被识别为数据表的内容也遵循这一规则。保留原始内容并处理错误后再重试，不要用空数据表覆盖它。
+
+`setContent()` 不触发 `onChange`；应用主动写入后需要保存时，应自行安排保存。无效内容会通过 `onError` 报告，原文档保持不变。语义相同的文档经过规范化比较后不会重复替换。
+
+如果应用在同一编辑器事务提交前同步替换不同内容，`setContent()` 会抛出 `ReentrantTransactionError`。应等待当前事务结束后，依据当前状态决定是否替换；如果编辑器在事务提交前被销毁或卸载，事务会抛出 `TransactionAbortedError`。错误处理和底层集成边界见[控制器 API](/controller-api#editor)。
+
+切换到另一篇文档时，先处理当前文档的保存，再销毁并重新创建编辑器。框架中可按文档 ID 重新挂载组件，避免沿用上一篇文档的撤销历史，详见[框架适配](/frameworks#更新配置与切换文档)。
+
+## 标题折叠视图状态
+
+标题折叠默认只存在于当前编辑器实例，刷新或重新挂载后不会恢复。若应用有明确的文档 ID 和内容版本，可以提供适配器保存折叠位置。折叠不改变文档 JSON、HTML、撤销历史或 `onChange`；只读模式同样可使用该适配器。
+
+```ts
+import { createEditor } from "@semlo-editor/core";
+import type { HeadingFoldPreferences } from "@semlo-editor/core";
+
+// ID 和版本由应用提供；不同内容必须使用不同版本。
+const documentId = "document-42";
+const revision = "revision-7";
+const key = (id: string, version: string) => `heading-fold:${JSON.stringify([id, version])}`;
+
+const editor = createEditor({
+  element: host,
+  content,
+  headingFoldPreferences: {
+    documentId,
+    revision,
+    load: (id, version) => {
+      const value = localStorage.getItem(key(id, version));
+      return value ? (JSON.parse(value) as HeadingFoldPreferences) : null;
+    },
+    save: (id, version, state) => localStorage.setItem(key(id, version), JSON.stringify(state)),
+  },
+});
+```
+
+宿主必须保证相同 ID 和版本始终对应相同的规范化文档；库无法识别错误复用的版本。实例中的文档内容一旦改变，旧版本的保存自动停用，已有折叠状态仍在该实例内随编辑映射，但不会迁移到新版本。保存新内容后，宿主需以新版本重新创建实例，才能继续持久化折叠状态。`load` 和 `save` 是同步接口；宿主若在 `save` 中启动异步写入，需自行处理失败和写入顺序。同步存储失败时编辑器继续使用内存状态。此接口不定义跨用户或协作同步行为。
+
+## 在编辑器之外展示 HTML
+
+使用 `getSnapshot().html` 获取 HTML。公式输出保留 TeX 源码和标记，脱离编辑器后需要接入方渲染；字体名称随文档保存，但字体文件不会随文档提供。直接调用底层 Tiptap 实例的 `getHTML()` 或 `commands.setContent()` 不会处理 semlo-editor 的文档级字体包装信息。
+
+展示来自不可信来源的 HTML 时，应按应用的安全策略处理；编辑器的输出并不替代展示端的安全处理。其他内容格式与界面状态的区别见[核心概念](/concepts)。

@@ -1,0 +1,159 @@
+.semlo-editor-block-handle {
+  position: fixed;
+  z-index: 1090;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #a3aaa6;
+  cursor: grab;
+}
+.semlo-editor-block-handle[hidden],
+.semlo-editor-block-drop-indicator[hidden] {
+  display: none;
+}
+.semlo-editor-block-handle svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.semlo-editor-block-handle:hover,
+.semlo-editor-block-handle[aria-expanded="true"] {
+  background: #f0f2f1;
+  color: #56615b;
+}
+.semlo-editor-block-handle:focus-visible {
+  outline: 2px solid #52b881;
+  outline-offset: 1px;
+}
+.semlo-editor-block-handle.is-dragging {
+  cursor: grabbing;
+}
+/* Keep both heading controls reachable when the surrounding gutter is narrow. */
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-handle-inset,
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-fold-inset {
+  box-sizing: border-box;
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-fold-inset > .semlo-editor-heading-fold-toggle {
+  left: var(--semlo-editor-block-inset-offset, 0px);
+}
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-fold-inset.semlo-editor-block-handle-inset {
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 56px);
+}
+.semlo-editor-prose
+  .semlo-editor-heading-foldable.semlo-editor-block-fold-inset.semlo-editor-block-handle-inset
+  > .semlo-editor-heading-fold-toggle {
+  left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-fold-stacked {
+  min-height: 52px;
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
+.semlo-editor-prose .semlo-editor-heading-foldable.semlo-editor-block-fold-stacked > .semlo-editor-heading-fold-toggle {
+  top: 0;
+  left: var(--semlo-editor-block-inset-offset, 0px);
+}
+.semlo-editor-prose .semlo-editor-block-actions-selected {
+  background: #e8f3ff !important;
+  border-radius: 3px;
+}
+.semlo-editor-block-menu,
+.semlo-editor-block-submenu {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  width: 170px;
+  max-height: min(500px, calc(100vh - 8px));
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0000001c;
+  color: #262626;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-block-submenu {
+  width: 170px;
+}
+.semlo-editor-block-menu {
+  width: 182px;
+}
+.semlo-editor-block-menu-separator {
+  height: 1px;
+  margin: 4px -5px;
+  background: #f0f0f0;
+}
+.semlo-editor-block-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-block-menu > .semlo-editor-block-menu-item {
+  min-height: 36px;
+}
+.semlo-editor-block-menu-item svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+.semlo-editor-block-menu-item .semlo-editor-block-menu-label {
+  flex: 1;
+  color: inherit;
+  font: inherit;
+}
+.semlo-editor-block-menu-item:hover,
+.semlo-editor-block-menu-item:focus-visible {
+  outline: none;
+  background: #f1f3f2;
+}
+.semlo-editor-block-menu-item:disabled {
+  color: #bbb;
+  cursor: not-allowed;
+}
+.semlo-editor-block-menu-item .semlo-editor-block-menu-arrow {
+  color: #999;
+  font-size: 18px;
+}
+.semlo-editor-block-submenu-note {
+  padding: 6px 9px;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.semlo-editor-block-menu-status {
+  padding: 4px 9px;
+  color: #bd4242;
+  line-height: 1.4;
+}
+.semlo-editor-block-menu-status:empty {
+  display: none;
+}
+.semlo-editor-block-drop-indicator {
+  position: fixed;
+  z-index: 1190;
+  height: 2px;
+  border-radius: 2px;
+  background: #4b9ff5;
+  pointer-events: none;
+  transform: translateY(-1px);
+}

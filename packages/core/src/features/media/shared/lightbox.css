@@ -1,0 +1,240 @@
+.semlo-editor-gallery-lightbox,
+.semlo-editor-gallery-lightbox * {
+  box-sizing: border-box;
+}
+
+.semlo-editor-gallery-lightbox {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  background: rgb(0 0 0 / 80%);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.semlo-editor-gallery-lightbox:focus {
+  outline: none;
+}
+
+.semlo-editor-gallery-lightbox button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #e8e8e8;
+  font: inherit;
+  cursor: pointer;
+}
+
+.semlo-editor-gallery-lightbox button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+
+.semlo-editor-gallery-lightbox button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.semlo-editor-gallery-lightbox button:disabled {
+  color: rgb(255 255 255 / 35%);
+  cursor: not-allowed;
+}
+
+.semlo-editor-gallery-lightbox button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-close {
+  position: absolute;
+  z-index: 1;
+  top: 32px;
+  right: 32px;
+  width: 48px;
+  height: 48px;
+}
+
+.semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-close svg {
+  width: 32px;
+  height: 32px;
+}
+
+.semlo-editor-gallery-lightbox-stage {
+  position: absolute;
+  inset: 0 0 60px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  touch-action: none;
+}
+
+.semlo-editor-gallery-lightbox-stage.can-pan {
+  cursor: grab;
+}
+
+.semlo-editor-gallery-lightbox-stage.panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.semlo-editor-gallery-lightbox-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-width: 100%;
+  height: max-content;
+  min-height: 100%;
+  padding: 44px 32px 20px;
+}
+
+.semlo-editor-gallery-lightbox-image-frame {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.semlo-editor-gallery-lightbox-image {
+  display: block;
+  flex: 0 0 auto;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
+
+.semlo-editor-gallery-lightbox-image-frame[hidden],
+.semlo-editor-gallery-lightbox-image[hidden],
+.semlo-editor-gallery-lightbox-loading[hidden] {
+  display: none;
+}
+
+.semlo-editor-gallery-lightbox-loading {
+  color: #bfbfbf;
+  font-size: 14px;
+}
+
+.semlo-editor-gallery-lightbox-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 12px;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  background: rgb(37 37 37);
+}
+
+.semlo-editor-gallery-lightbox-controls button {
+  position: relative;
+}
+
+.semlo-editor-gallery-lightbox-controls button::after {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 75%);
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 12px;
+  line-height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.semlo-editor-gallery-lightbox-controls button:hover::after,
+.semlo-editor-gallery-lightbox-controls button:focus-visible::after {
+  opacity: 1;
+}
+
+.semlo-editor-gallery-lightbox-counter {
+  min-width: 48px;
+  color: #eee;
+  font-size: 13px;
+  line-height: 36px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.semlo-editor-gallery-lightbox-separator {
+  flex: 0 0 1px;
+  height: 20px;
+  margin: 0 10px;
+  border-left: 1px solid #383838;
+}
+
+.semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-actual-size {
+  width: 42px;
+  font-size: 13px;
+}
+
+.semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-actual-size[aria-pressed="true"],
+.semlo-editor-gallery-lightbox-controls button[aria-label="最佳大小"][aria-pressed="true"] {
+  background: rgb(69 69 69);
+}
+
+@media (max-width: 400px) {
+  .semlo-editor-gallery-lightbox-controls {
+    top: calc(100% - 74px);
+    bottom: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 11px;
+    width: max-content;
+    max-width: calc(100% - 64px);
+    padding: 12px;
+  }
+
+  .semlo-editor-gallery-lightbox-controls button,
+  .semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-actual-size,
+  .semlo-editor-gallery-lightbox-counter {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .semlo-editor-gallery-lightbox-separator {
+    margin: 0 8px;
+  }
+}
+
+@media (min-width: 401px) {
+  .semlo-editor-gallery-lightbox-controls {
+    gap: 0;
+  }
+
+  .semlo-editor-gallery-lightbox-controls button,
+  .semlo-editor-gallery-lightbox .semlo-editor-gallery-lightbox-controls .semlo-editor-gallery-lightbox-actual-size {
+    width: 32px;
+    height: 32px;
+    margin: 0 6px;
+    transform: translateY(-1px);
+  }
+
+  .semlo-editor-gallery-lightbox-controls button:first-child,
+  .semlo-editor-gallery-lightbox-counter + button {
+    transform: translateY(1px);
+  }
+
+  .semlo-editor-gallery-lightbox-counter {
+    min-width: 0;
+    height: 34px;
+    margin: 0 2px;
+    font-size: 16px;
+    line-height: 34px;
+  }
+}

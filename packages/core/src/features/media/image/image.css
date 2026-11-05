@@ -1,0 +1,307 @@
+/* Image selection, resize handles and actions */
+.semlo-editor-prose .semlo-editor-image-node {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: text-bottom;
+}
+.semlo-editor-prose .semlo-editor-image-media {
+  display: flex;
+  max-width: 100%;
+  flex-direction: column;
+}
+.semlo-editor-prose .semlo-editor-image-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+.semlo-editor-prose .semlo-editor-image-frame > .semlo-editor-image-link {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+}
+.semlo-editor-prose .semlo-editor-image-frame > .semlo-editor-image-link[hidden] {
+  display: none;
+}
+.semlo-editor-prose .semlo-editor-image-frame > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+}
+.semlo-editor-prose .semlo-editor-image-frame > img[hidden] {
+  display: none;
+}
+.semlo-editor-image-error {
+  display: flex;
+  width: 100px;
+  max-width: 100%;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: 2px;
+  color: #999;
+  background: #f4f5f5;
+  font:
+    12px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-image-error[hidden] {
+  display: none;
+}
+.semlo-editor-image-error svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-image-frame > img[data-semlo-editor-image-style="border"] {
+  border: 1px solid #e7e9e8;
+  box-sizing: border-box;
+}
+.semlo-editor-image-frame > img[data-semlo-editor-image-style="shadow"] {
+  box-shadow: 0 3px 6px rgb(0 0 0 / 12%);
+}
+.semlo-editor-image-frame.has-crop[data-semlo-editor-image-style="border"] {
+  border: 1px solid #e7e9e8;
+  box-sizing: border-box;
+}
+.semlo-editor-image-frame.has-crop[data-semlo-editor-image-style="shadow"] {
+  box-shadow: 0 3px 6px rgb(0 0 0 / 12%);
+}
+.semlo-editor-image-frame.has-crop > img[data-semlo-editor-image-style] {
+  border: 0;
+  box-shadow: none;
+}
+.semlo-editor-image-align-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-image-align-toggle:hover,
+.semlo-editor-image-align-toggle[aria-expanded="true"] {
+  background: #f3f3f3;
+}
+.semlo-editor-image-align-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.semlo-editor-image-align-panel {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 2px);
+  right: 0;
+  min-width: 126px;
+  padding: 4px;
+  border: 1px solid #ededed;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+.semlo-editor-image-align-panel[hidden] {
+  display: none;
+}
+.semlo-editor-image-align-panel button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 3px;
+  color: #262626;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-image-align-panel button:hover {
+  background: #f5f5f5;
+}
+.semlo-editor-image-align-panel button > span:first-child {
+  width: 14px;
+  visibility: hidden;
+}
+.semlo-editor-image-align-panel button[aria-checked="true"] > span:first-child {
+  visibility: visible;
+}
+.semlo-editor-image-frame.is-selected {
+  outline: 1px solid #4096ff;
+}
+.semlo-editor-image-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.semlo-editor-image-controls[hidden] {
+  display: none;
+}
+.semlo-editor-image-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #0009;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+.semlo-editor-image-toolbar[hidden] {
+  display: none;
+}
+.semlo-editor-image-frame:hover .semlo-editor-image-toolbar,
+.semlo-editor-image-frame:focus-within .semlo-editor-image-toolbar,
+.semlo-editor-image-frame.is-selected .semlo-editor-image-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+.semlo-editor-image-frame.is-cropping .semlo-editor-image-toolbar {
+  display: none;
+}
+.semlo-editor-image-action {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 23px;
+  padding: 3px;
+  border: 0;
+  border-radius: 3px;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+}
+.semlo-editor-image-action:hover {
+  background: #ffffff28;
+}
+.semlo-editor-image-action[hidden] {
+  display: none;
+}
+.semlo-editor-image-action svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-image-copy-menu {
+  position: absolute;
+  z-index: 3;
+  top: 38px;
+  right: 8px;
+  min-width: 112px;
+  padding: 4px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 14px #0002;
+  line-height: normal;
+}
+.semlo-editor-image-copy-menu[hidden] {
+  display: none;
+}
+.semlo-editor-image-copy-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #262626;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-image-copy-option:hover {
+  background: #f5f5f5;
+}
+.semlo-editor-image-copy-option svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-image-feedback {
+  position: absolute;
+  top: -29px;
+  right: 0;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #333d;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.semlo-editor-image-handle {
+  position: absolute;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #4096ff;
+  pointer-events: auto;
+  touch-action: none;
+}
+.semlo-editor-image-handle-top-left {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+.semlo-editor-image-handle-top-right {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+.semlo-editor-image-handle-bottom-left {
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
+}
+.semlo-editor-image-handle-bottom-right {
+  bottom: -7px;
+  right: -7px;
+  cursor: nwse-resize;
+}
+.semlo-editor-image-handle:focus-visible {
+  outline: 2px solid #185ab3;
+  outline-offset: 1px;
+}
+.semlo-editor-image-node.is-resizing {
+  user-select: none;
+}

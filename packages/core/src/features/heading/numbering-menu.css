@@ -1,0 +1,81 @@
+.semlo-editor-heading-numbering-menu {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 1100;
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 9%);
+}
+
+.semlo-editor-heading-numbering-options {
+  display: flex;
+  gap: 7px;
+}
+
+.semlo-editor-heading-numbering-choice {
+  box-sizing: border-box;
+  flex: 0 0 84px;
+  width: 84px;
+  height: 85px;
+  padding: 6px 8px;
+  border: 1px solid #e5e6e7;
+  border-radius: 5px;
+  background: #fff;
+  color: #262626;
+  cursor: pointer;
+  text-align: left;
+}
+
+.semlo-editor-heading-numbering-choice[aria-checked="true"] {
+  border-color: #438bf1;
+}
+
+.semlo-editor-heading-numbering-choice:focus-visible {
+  outline: 2px solid #438bf1;
+  outline-offset: 2px;
+}
+
+.semlo-editor-heading-numbering-preview {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.semlo-editor-heading-numbering-preview-row {
+  display: flex;
+  height: 12px;
+  flex: 0 0 12px;
+  align-items: center;
+  gap: 4px;
+}
+
+.semlo-editor-heading-numbering-preview-number {
+  flex: 0 0 auto;
+  font:
+    10px / 12px -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  white-space: nowrap;
+}
+
+.semlo-editor-heading-numbering-preview-bar,
+.semlo-editor-heading-numbering-preview-rule {
+  display: block;
+  border-radius: 1px;
+  background: #e8e9e9;
+}
+
+.semlo-editor-heading-numbering-preview-bar {
+  height: 7px;
+  flex: 1 1 auto;
+}
+
+.semlo-editor-heading-numbering-preview-rule {
+  height: 4px;
+  flex: 0 0 4px;
+}

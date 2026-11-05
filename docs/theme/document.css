@@ -1,0 +1,320 @@
+/* A reading surface for documentation; the home page keeps its own visual system. */
+.rp-doc-layout__container {
+  --rp-sidebar-width: 272px;
+  --rp-outline-width: 216px;
+  --rp-content-max-width: 1000px;
+  --rp-content-padding-x: clamp(44px, 5vw, 76px);
+  --rp-content-padding-y: 54px;
+  --rp-sidebar-margin-left: max(0px, calc((100vw - var(--rp-content-max-width)) / 2 - var(--rp-sidebar-width)));
+  --rp-outline-margin-right: max(0px, calc((100vw - var(--rp-content-max-width)) / 2 - var(--rp-outline-width)));
+  --rp-c-link: #286347;
+  --rp-c-brand: #286347;
+  --rp-code-block-border: 0;
+  --rp-code-block-shadow: none;
+  --rp-code-block-bg: #f1f3f0;
+  --rp-code-title-bg: #e9ece8;
+  --shiki-foreground: #273b32;
+  --shiki-token-keyword: #81584d;
+  --shiki-token-string-expression: #3c7353;
+  --shiki-token-string: #3c7353;
+  --shiki-token-function: #546784;
+  --shiki-token-constant: #526c83;
+  --shiki-token-comment: #67766b;
+  --shiki-token-parameter: #805f48;
+  --shiki-token-punctuation: #35433a;
+  color: #28332d;
+}
+.dark .rp-doc-layout__container {
+  --rp-c-link: #a9d9b8;
+  --rp-c-brand: #a9d9b8;
+  --rp-code-block-bg: #202b25;
+  --rp-code-title-bg: #2a3730;
+  --shiki-foreground: #e0ebe2;
+  --shiki-token-keyword: #e4b29f;
+  --shiki-token-string-expression: #a7d6ad;
+  --shiki-token-string: #a7d6ad;
+  --shiki-token-function: #b8c9e6;
+  --shiki-token-constant: #b8c9e6;
+  --shiki-token-comment: #afc2b3;
+  --shiki-token-parameter: #e9c59e;
+  --shiki-token-punctuation: #d6e3d8;
+  color: #dce8de;
+}
+
+/* Shared navbar changes apply only when a documentation layout is present. */
+html:has(.rp-doc-layout__container) .rp-nav {
+  background: #fbfcfa;
+  color: #253b2e;
+}
+html:has(.rp-doc-layout__container) .rp-nav .rp-search-button {
+  background: #edf1ed;
+}
+html.dark:has(.rp-doc-layout__container) .rp-nav {
+  background: #17231c;
+  color: #e4eee5;
+}
+html.dark:has(.rp-doc-layout__container) .rp-nav .rp-search-button {
+  background: #2a3a30;
+}
+
+.semlo-editor-doc-context {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 28px;
+  color: #64786a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.semlo-editor-doc-context .rp-link {
+  color: #52695a;
+  text-decoration: none;
+}
+.semlo-editor-doc-context .rp-link:hover {
+  color: #286347;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dark .semlo-editor-doc-context,
+.dark .semlo-editor-doc-context .rp-link {
+  color: #b0c5b4;
+}
+
+.rp-doc-layout__doc-container {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+.rp-doc-layout__container .rspress-doc {
+  position: relative;
+}
+.rp-doc-layout__container .rspress-doc > h1 {
+  margin: 0 0 26px;
+  padding-right: 190px;
+  color: #202f27;
+  font-family: "Songti SC", "Noto Serif CJK SC", "STSong", Georgia, serif;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.rp-doc-layout__container .rspress-doc > h2 {
+  margin-top: 58px;
+  margin-bottom: 18px;
+  color: #24382b;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+.rp-doc-layout__container .rspress-doc > h2:first-of-type::before {
+  display: none;
+}
+.rp-doc-layout__container .rspress-doc > h3 {
+  color: #304238;
+  font-size: 18px;
+}
+.rp-doc-layout__container .rspress-doc > p,
+.rp-doc-layout__container .rspress-doc > ul,
+.rp-doc-layout__container .rspress-doc > ol {
+  color: #34423a;
+  line-height: 1.85;
+}
+.rp-doc-layout__container .rspress-doc > p:first-of-type {
+  font-size: 17px;
+  color: #394e40;
+}
+.dark .rp-doc-layout__container .rspress-doc > h1,
+.dark .rp-doc-layout__container .rspress-doc > h2,
+.dark .rp-doc-layout__container .rspress-doc > h3 {
+  color: #edf3ec;
+}
+.dark .rp-doc-layout__container .rspress-doc > p,
+.dark .rp-doc-layout__container .rspress-doc > ul,
+.dark .rp-doc-layout__container .rspress-doc > ol {
+  color: #d0ded3;
+}
+
+/* Keep the copy action close to the title without interrupting the reading flow. */
+.rp-doc-layout__container .rspress-doc > .rp-llms-container {
+  position: absolute;
+  top: 2px;
+  right: 0;
+}
+.rp-doc-layout__container .rp-llms-button {
+  border: 0;
+  background: #f0f3ef;
+  color: #506457;
+}
+.rp-doc-layout__container .rp-llms-button:hover {
+  background: #e4ebe4;
+}
+.dark .rp-doc-layout__container .rp-llms-button {
+  background: #293a2e;
+  color: #d8e7da;
+}
+.dark .rp-doc-layout__container .rp-llms-button:hover {
+  background: #354b3b;
+}
+
+.rp-doc-layout__container .rp-outline {
+  border: 0;
+}
+.rp-doc-layout__container .rp-outline__title {
+  color: #485e4d;
+  font-size: 13px;
+  font-weight: 650;
+}
+.rp-doc-layout__container .rp-toc-item {
+  margin-top: 0;
+}
+.rp-doc-layout__container .rp-toc-item__text {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 5px;
+  color: #637166;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rp-doc-layout__container .rp-toc-item--active::before {
+  display: none;
+}
+.rp-doc-layout__container .rp-toc-item--active .rp-toc-item__text {
+  color: #286347;
+  background: #edf3ed;
+  font-weight: 650;
+}
+.rp-doc-layout__container .rp-toc-item__text:hover {
+  color: #286347;
+}
+.dark .rp-doc-layout__container .rp-outline__title {
+  color: #bad0bd;
+}
+.dark .rp-doc-layout__container .rp-toc-item__text {
+  color: #b8c8ba;
+}
+.dark .rp-doc-layout__container .rp-toc-item--active .rp-toc-item__text {
+  background: #2c4333;
+  color: #d2ecd7;
+}
+
+.rp-doc-layout__container .rp-codeblock {
+  margin: 26px 0;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.rp-doc-layout__container .rp-codeblock__content :where(code) {
+  line-height: 1.8;
+}
+.rp-doc-layout__container .rp-codeblock__content pre:focus-visible {
+  outline: 2px solid #378451;
+  outline-offset: -2px;
+}
+.rp-doc-layout__container .rp-codeblock__content__scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #99aa9c transparent;
+}
+.rp-doc-layout__container .rp-codeblock__content__scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+.rp-doc-layout__container .rp-codeblock__content__scroll-container::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background: #99aa9c;
+}
+.rp-doc-layout__container .rspress-doc > .rp-table-scroll-container {
+  margin-block: 26px;
+}
+.rp-doc-layout__container .rp-doc-footer__divider {
+  background: #e8ede7;
+}
+.rp-doc-layout__container .rp-prev-next-page__item {
+  color: #304c39;
+}
+.rp-doc-layout__container .rp-prev-next-page__item:hover {
+  background: #f1f5f0;
+  opacity: 1;
+}
+.rp-doc-layout__container .rp-prev-next-page__item__desc {
+  color: #596d5e;
+}
+.dark .rp-doc-layout__container .rp-doc-footer__divider {
+  background: #34463a;
+}
+.dark .rp-doc-layout__container .rp-prev-next-page__item {
+  color: #cee4d3;
+}
+.dark .rp-doc-layout__container .rp-prev-next-page__item:hover {
+  background: #283b2d;
+}
+.dark .rp-doc-layout__container .rp-prev-next-page__item__desc {
+  color: #abc3b0;
+}
+.rp-doc-layout__container ::selection {
+  background: #c9e5ce;
+  color: #1c3825;
+}
+.rp-doc-layout__container .semlo-editor-doc-context a:focus-visible,
+.rp-doc-layout__container .rp-toc-item:focus-visible,
+.rp-doc-layout__container .rp-prev-next-page__item:focus-visible {
+  outline: 2px solid #378451;
+  outline-offset: 3px;
+}
+
+@media (max-width: 1279px) {
+  .rp-doc-layout__container {
+    --rp-content-padding-x: 36px;
+    --rp-content-padding-y: 42px;
+  }
+  .rp-doc-layout__container .rp-doc-layout__outline {
+    background: var(--rp-c-bg);
+  }
+}
+@media (max-width: 768px) {
+  .rp-doc-layout__container {
+    --rp-content-padding-x: 22px;
+    --rp-content-padding-y: 32px;
+  }
+  .semlo-editor-doc-context {
+    margin-bottom: 20px;
+  }
+  .rp-doc-layout__container .rspress-doc > h1 {
+    padding-right: 0;
+    font-size: 30px;
+  }
+  .rp-doc-layout__container .rspress-doc > .rp-llms-container {
+    position: static;
+    margin-bottom: 24px;
+  }
+  .rp-doc-layout__container .rspress-doc > h2 {
+    margin-top: 44px;
+    font-size: 21px;
+  }
+  .rp-doc-layout__container .rspress-doc > p,
+  .rp-doc-layout__container .rspress-doc > ul,
+  .rp-doc-layout__container .rspress-doc > ol {
+    line-height: 1.75;
+  }
+}
+
+.rp-doc-layout__container .rp-codeblock[data-horizontal-scroll]::after {
+  content: "可横向滚动";
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #e0e8e0;
+  color: #425d49;
+  font-size: 11px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.rp-doc-layout__container .rp-codeblock[data-horizontal-scroll] .rp-codeblock__content__scroll-container {
+  padding-bottom: 22px;
+}
+.dark .rp-doc-layout__container .rp-codeblock[data-horizontal-scroll]::after {
+  background: #405549;
+  color: #e0eee2;
+}

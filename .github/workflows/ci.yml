@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: 类型、规范与构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - run: mise exec -- pnpm install --frozen-lockfile
+      - run: mise exec -- pnpm build
+      - run: mise exec -- pnpm typecheck
+      - run: mise exec -- pnpm lint
+      - run: mise exec -- pnpm format:check
+      - run: mise exec -- pnpm build:demo
+      - run: mise exec -- pnpm docs:build
+
+  browser-tests:
+    name: 完整浏览器回归
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - run: mise exec -- pnpm install --frozen-lockfile
+      - run: mise exec -- pnpm exec playwright install --with-deps chromium
+      - run: mise exec -- pnpm test
+
+  cross-browser-smoke:
+    name: Firefox 与 WebKit 烟雾检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - run: mise exec -- pnpm install --frozen-lockfile
+      - run: mise exec -- pnpm build
+      - run: mise exec -- pnpm exec playwright install --with-deps firefox webkit
+      - run: mise exec -- node tests/browser/cross-browser/smoke.ts

@@ -1,0 +1,76 @@
+{
+  "name": "@semlo-editor/core",
+  "version": "0.0.0-devlpment",
+  "private": true,
+  "description": "A framework-independent rich text editor core",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "scripts": {
+    "build": "rslib build && node scripts/copy-style.ts"
+  },
+  "dependencies": {
+    "@codemirror/commands": "catalog:",
+    "@codemirror/lang-cpp": "catalog:",
+    "@codemirror/lang-css": "catalog:",
+    "@codemirror/lang-go": "catalog:",
+    "@codemirror/lang-html": "catalog:",
+    "@codemirror/lang-java": "catalog:",
+    "@codemirror/lang-javascript": "catalog:",
+    "@codemirror/lang-json": "catalog:",
+    "@codemirror/lang-less": "catalog:",
+    "@codemirror/lang-markdown": "catalog:",
+    "@codemirror/lang-php": "catalog:",
+    "@codemirror/lang-python": "catalog:",
+    "@codemirror/lang-rust": "catalog:",
+    "@codemirror/lang-sass": "catalog:",
+    "@codemirror/lang-sql": "catalog:",
+    "@codemirror/lang-vue": "catalog:",
+    "@codemirror/lang-xml": "catalog:",
+    "@codemirror/lang-yaml": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/legacy-modes": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@lezer/highlight": "catalog:",
+    "@lezer/php-legacy": "catalog:",
+    "@plantuml/core": "catalog:",
+    "@tiptap/core": "catalog:",
+    "@tiptap/extension-bubble-menu": "catalog:",
+    "@tiptap/extension-code-block-lowlight": "catalog:",
+    "@tiptap/extension-details": "catalog:",
+    "@tiptap/extension-highlight": "catalog:",
+    "@tiptap/extension-image": "catalog:",
+    "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/extension-subscript": "catalog:",
+    "@tiptap/extension-superscript": "catalog:",
+    "@tiptap/extension-table": "catalog:",
+    "@tiptap/extension-task-item": "catalog:",
+    "@tiptap/extension-task-list": "catalog:",
+    "@tiptap/extension-text-align": "catalog:",
+    "@tiptap/extension-text-style": "catalog:",
+    "@tiptap/pm": "catalog:",
+    "@tiptap/starter-kit": "catalog:",
+    "@tiptap/suggestion": "catalog:",
+    "@viz-js/viz": "catalog:",
+    "dompurify": "catalog:",
+    "emojibase-data": "catalog:",
+    "flowchart.js": "catalog:",
+    "highlight.js": "catalog:",
+    "katex": "catalog:",
+    "lowlight": "catalog:",
+    "lunar-typescript": "catalog:",
+    "pele": "catalog:"
+  },
+  "devDependencies": {
+    "@rslib/core": "catalog:",
+    "typescript": "catalog:"
+  }
+}

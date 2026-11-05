@@ -1,0 +1,25 @@
+{
+  "name": "@semlo-editor/demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd .. && rsbuild dev --config demo/rsbuild.config.ts --host 127.0.0.1",
+    "build": "cd .. && rsbuild build --config demo/rsbuild.config.ts",
+    "preview": "cd .. && rsbuild preview --config demo/rsbuild.config.ts --host 127.0.0.1"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "catalog:",
+    "@semlo-editor/core": "workspace:*",
+    "@semlo-editor/react": "workspace:*",
+    "@semlo-editor/solid": "workspace:*",
+    "@semlo-editor/vue": "workspace:*",
+    "@tiptap/core": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "katex": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "solid-js": "catalog:",
+    "vue": "catalog:"
+  }
+}

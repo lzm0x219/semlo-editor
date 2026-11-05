@@ -1,0 +1,116 @@
+.semlo-editor-mindmap {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  min-height: 80px;
+  padding: 32px;
+  overflow: auto;
+  border: 1px solid #e2e4e6;
+  border-radius: 4px;
+  background: white;
+}
+.semlo-editor-mindmap-branch {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.semlo-editor-mindmap-children {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-left: 48px;
+}
+.semlo-editor-mindmap-label-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.semlo-editor-mindmap-label,
+.semlo-editor-mindmap-input {
+  box-sizing: border-box;
+  min-width: 65px;
+  max-width: 240px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-bottom: 3px solid #a48ed5;
+  background: white;
+  color: #252525;
+  font: inherit;
+  text-align: center;
+}
+.semlo-editor-mindmap-root > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-label {
+  border: 0;
+  border-radius: 4px;
+  background: #f0f1f1;
+  font-weight: 600;
+}
+.semlo-editor-mindmap-label[aria-pressed="true"],
+.semlo-editor-mindmap-input {
+  outline: 1px solid #8ea5dc;
+}
+
+.semlo-editor-mindmap-add {
+  position: absolute;
+  left: 100%;
+  bottom: -6px;
+  z-index: 1;
+  border: 0;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  color: white;
+  background: #aaa;
+  cursor: pointer;
+}
+
+.semlo-editor-mindmap-collapse {
+  position: absolute;
+  left: 100%;
+  bottom: -6px;
+  z-index: 2;
+  border: 0;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  color: white;
+  background: #a48ed5;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-label-wrap.has-children .semlo-editor-mindmap-add {
+  left: calc(100% + 20px);
+}
+
+.semlo-editor-canvas-height-handle {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 8px;
+  border-radius: 4px;
+  background: #d0d2d2;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 5;
+}
+.semlo-editor-canvas-height-handle[aria-disabled="true"] {
+  display: none;
+}
+
+.semlo-editor-mindmap-content {
+  position: relative;
+  flex: none;
+}
+.semlo-editor-mindmap-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.semlo-editor-mindmap-label-wrap {
+  z-index: 1;
+}

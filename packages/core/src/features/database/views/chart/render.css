@@ -1,0 +1,168 @@
+.semlo-editor-database-chart-render {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+  color: #262626;
+}
+.semlo-editor-database-chart-render[data-chart-legend="left"],
+.semlo-editor-database-chart-render[data-chart-legend="right"] {
+  flex-direction: row;
+}
+.semlo-editor-database-chart-svg {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.semlo-editor-chart-grid-line {
+  stroke: #dedede;
+  stroke-width: 1;
+}
+.semlo-editor-chart-axis-label {
+  fill: #929292;
+  font:
+    11px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.semlo-editor-chart-bar-label {
+  fill: #fff;
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.semlo-editor-chart-funnel-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.semlo-editor-chart-funnel-shapes,
+.semlo-editor-chart-funnel-labels {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.semlo-editor-chart-funnel-labels {
+  pointer-events: none;
+}
+.semlo-editor-chart-funnel-label {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+.semlo-editor-chart-funnel-label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-chart-funnel-guides {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.semlo-editor-chart-funnel-guide {
+  position: absolute;
+  right: 75px;
+  height: 0;
+  border-top: 1px solid #b6b6b6;
+}
+.semlo-editor-chart-funnel-percent {
+  position: absolute;
+  left: calc(100% - 70px);
+  color: #777;
+  font:
+    10px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+.semlo-editor-chart-wordcloud-word {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+}
+.semlo-editor-database-chart-legend {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 2px 4px 5px;
+  color: #777;
+  font-size: 11px;
+}
+.semlo-editor-database-chart-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.semlo-editor-database-chart-legend i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 1px;
+}
+.semlo-editor-database-chart-render[data-chart-kind="pie"] .semlo-editor-database-chart-legend i,
+.semlo-editor-database-chart-render[data-chart-kind="scatter"] .semlo-editor-database-chart-legend i {
+  border-radius: 50%;
+}
+.semlo-editor-database-chart-render[data-chart-legend="left"] .semlo-editor-database-chart-legend,
+.semlo-editor-database-chart-render[data-chart-legend="right"] .semlo-editor-database-chart-legend {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+.semlo-editor-database-chart-number {
+  text-align: center;
+  font-size: clamp(28px, 4vw, 68px);
+  line-height: 1.2;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-database-chart-number-description {
+  margin-top: 8px;
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+}
+.semlo-editor-database-chart-unsupported {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+}
+.semlo-editor-database-heatmap-scroll {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.semlo-editor-database-chart-preview-body .semlo-editor-database-heatmap-scroll {
+  overflow: auto;
+}
+.semlo-editor-database-heatmap-svg {
+  display: block;
+  max-width: none;
+}
+.semlo-editor-database-heatmap-month {
+  fill: #929292;
+  font:
+    11px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}

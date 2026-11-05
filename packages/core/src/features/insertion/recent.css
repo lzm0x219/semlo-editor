@@ -1,0 +1,33 @@
+/* Recently used insert commands */
+.semlo-editor-recent-section {
+  margin: 2px 8px 2px;
+  padding: 7px 0 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.semlo-editor-recent-heading {
+  margin-bottom: 9px;
+  color: #999;
+  font-size: 12px;
+}
+.semlo-editor-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.semlo-editor-recent-item {
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: #f3f4f3;
+  color: #404040;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.semlo-editor-recent-item:hover,
+.semlo-editor-recent-item.selected,
+.semlo-editor-recent-item:focus-visible {
+  outline: 0;
+  background: #e7eae8;
+}

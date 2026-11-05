@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "../features/media/upload-unmounted-lifecycle.test.ts",
+    "../fixtures/browser/fixture-browser-globals.d.ts",
+    "../fixtures/browser/fixture-browser-runtime.ts",
+    "../../demo/assets.d.ts",
+    "../../packages/core/src/**/*.d.ts"
+  ]
+}

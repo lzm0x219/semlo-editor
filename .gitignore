@@ -1,0 +1,29 @@
+node_modules/
+dist/
+dist-demo/
+.browser-test/
+playwright-report/
+test-results/
+.DS_Store
+.playwright-cli/
+.rstest/
+work/
+outputs/
+/output/
+doc_build/
+.rspress/
+
+# 本机工具的索引、配置和审查截图
+/.codegraph/
+/.serena/
+/.impeccable/
+
+# 测试、语言工具及本机环境生成的文件
+coverage/
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.*.example

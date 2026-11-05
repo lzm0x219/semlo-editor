@@ -1,0 +1,50 @@
+// Normalize only for presentation and parser selection. The original value is
+// kept in the document so imported JSON and HTML round-trip without changes.
+const aliases: Record<string, string> = {
+  "c#": "csharp",
+  "c++": "cpp",
+  "f#": "fsharp",
+  asm: "x86asm",
+  cc: "cpp",
+  cs: "csharp",
+  cxx: "cpp",
+  ecmascript: "javascript",
+  fs: "fsharp",
+  golang: "go",
+  htm: "html",
+  js: "javascript",
+  kt: "kotlin",
+  kts: "kotlin",
+  md: "markdown",
+  mjs: "javascript",
+  cjs: "javascript",
+  mts: "typescript",
+  cts: "typescript",
+  node: "javascript",
+  nodejs: "javascript",
+  objc: "objectivec",
+  "objective-c": "objectivec",
+  plain: "plaintext",
+  "plain text": "plaintext",
+  "plain-text": "plaintext",
+  "pl/sql": "plsql",
+  ps1: "powershell",
+  py: "python",
+  py3: "python",
+  rb: "ruby",
+  rs: "rust",
+  sh: "bash",
+  text: "plaintext",
+  tex: "latex",
+  ts: "typescript",
+  txt: "plaintext",
+  vb: "vbnet",
+  "vb.net": "vbnet",
+  yml: "yaml",
+  zsh: "bash",
+};
+
+export function normalizeCodeLanguage(language: unknown): string {
+  const name = (typeof language === "string" ? language.trim().toLowerCase() : "") || "plaintext";
+  return Object.hasOwn(aliases, name) ? aliases[name] : name;
+}

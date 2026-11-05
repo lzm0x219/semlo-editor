@@ -1,0 +1,28 @@
+{
+  "name": "@semlo-editor/solid",
+  "version": "0.0.0-devlpment",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rslib build"
+  },
+  "devDependencies": {
+    "@rslib/core": "catalog:",
+    "@semlo-editor/core": "workspace:*",
+    "solid-js": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@semlo-editor/core": "catalog:peer",
+    "solid-js": "catalog:peer"
+  }
+}

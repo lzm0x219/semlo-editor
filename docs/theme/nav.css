@@ -1,0 +1,170 @@
+:root {
+  --rp-nav-height: 64px;
+}
+
+#semlo-editor-demo {
+  scroll-margin-top: calc(var(--rp-nav-height) + 16px);
+}
+
+.rp-nav {
+  --semlo-nav-ink: #233d2d;
+  position: sticky;
+  top: var(--rp-banner-height, 0px);
+  left: 0;
+  z-index: var(--rp-z-index-nav, 50);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: var(--rp-nav-height);
+  padding-inline: clamp(22px, 6.5vw, 100px);
+  border-bottom: 0;
+  background: #eff8f0;
+  color: var(--semlo-nav-ink);
+}
+.semlo-editor-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 0;
+  height: var(--rp-nav-height);
+  color: #1c3829 !important;
+  text-decoration: none !important;
+}
+.semlo-editor-nav-symbol {
+  flex: none;
+  width: 25px;
+  height: 25px;
+  margin-right: 9px;
+  color: #5d9b6c;
+}
+.semlo-editor-nav-wordmark {
+  font:
+    600 28px/1 Georgia,
+    serif;
+  letter-spacing: -0.075em;
+}
+.semlo-editor-nav-wordmark > span {
+  color: #bc818a;
+}
+.semlo-editor-nav-brand-label {
+  margin-left: 16px;
+  color: #5a6f60;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.rp-nav .rp-search-button {
+  min-width: 144px;
+  height: 40px;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #355d3f0a;
+  color: #526b59;
+  box-shadow: none;
+}
+.rp-nav .rp-search-button:hover {
+  border: 0;
+  background: #263d2e12;
+}
+.rp-nav .rp-search-button__word,
+.rp-nav .rp-search-button:hover .rp-search-button__word {
+  color: #596e60;
+  font-size: 12px;
+}
+.rp-nav .rp-search-button__icon {
+  font-size: 17px;
+}
+.rp-nav .rp-search-button__content {
+  gap: 7px;
+}
+.rp-nav .rp-search-button__hotkey {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 20px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: #263d2e0b;
+  color: #526a58;
+  font-size: 11px;
+  line-height: 1;
+}
+.rp-nav .rp-search-button--mobile {
+  color: #355442;
+}
+.semlo-editor-nav-brand:focus-visible,
+.rp-nav .rp-search-button:focus-visible,
+.rp-nav .rp-search-button--mobile:focus-visible {
+  outline: 2px solid #378451;
+  outline-offset: 3px;
+}
+@media (min-width: 769px) and (max-width: 1023px) {
+  .rp-nav {
+    padding-inline: 24px;
+  }
+  .semlo-editor-nav-brand-label {
+    display: none;
+  }
+  .rp-nav .rp-search-button {
+    min-width: 128px;
+  }
+}
+@media (max-width: 768px) {
+  .rp-nav {
+    padding-inline: 20px;
+  }
+  .semlo-editor-nav-symbol {
+    width: 23px;
+    height: 23px;
+    margin-right: 7px;
+  }
+  .semlo-editor-nav-wordmark {
+    font-size: 20px;
+  }
+  .semlo-editor-nav-brand-label {
+    display: none;
+  }
+}
+
+.dark .rp-nav {
+  --semlo-nav-ink: #e6f0e7;
+  background: #173225;
+}
+.dark .semlo-editor-nav-brand {
+  color: #edf5eb !important;
+}
+.dark .semlo-editor-nav-symbol,
+html:has(.semlo-editor-manual) .semlo-editor-nav-symbol {
+  color: #acd7b2;
+}
+.dark .semlo-editor-nav-brand-label {
+  color: #b6c9b8;
+}
+.dark .rp-nav .rp-search-button {
+  background: #ffffff0d;
+  color: #d4e6d7;
+}
+.dark .rp-nav .rp-search-button:hover {
+  background: #ffffff18;
+}
+.dark .rp-nav .rp-search-button__word,
+.dark .rp-nav .rp-search-button:hover .rp-search-button__word {
+  color: #c1d2c4;
+}
+.dark .rp-nav .rp-search-button__hotkey {
+  background: #ffffff0d;
+  color: #b0c2b3;
+}
+.dark .rp-nav .rp-search-button--mobile {
+  color: #d8e9da;
+}
+.dark .semlo-editor-nav-brand:focus-visible,
+.dark .rp-nav .rp-search-button:focus-visible,
+.dark .rp-nav .rp-search-button--mobile:focus-visible {
+  outline-color: #a8deb2;
+}

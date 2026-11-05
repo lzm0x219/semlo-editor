@@ -1,0 +1,28 @@
+{
+  "name": "@semlo-editor/vue",
+  "version": "0.0.0-devlpment",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rslib build"
+  },
+  "devDependencies": {
+    "@rslib/core": "catalog:",
+    "@semlo-editor/core": "workspace:*",
+    "typescript": "catalog:",
+    "vue": "catalog:"
+  },
+  "peerDependencies": {
+    "@semlo-editor/core": "catalog:peer",
+    "vue": "catalog:peer"
+  }
+}

@@ -1,0 +1,1520 @@
+.semlo-editor {
+  --semlo-editor-text: #262a29;
+  --semlo-editor-muted: #838c87;
+  --semlo-editor-border: #e8ece9;
+  --semlo-editor-accent: #3a9a6b;
+  position: relative;
+  min-width: 0;
+  color: var(--semlo-editor-text);
+  background: #fff;
+  border: 1px solid var(--semlo-editor-border);
+  border-radius: 9px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+}
+.semlo-editor,
+.semlo-editor
+  :where(
+    .semlo-editor-toolbar,
+    .semlo-editor-toolbar > *,
+    .semlo-editor-tablebar,
+    .semlo-editor-tablebar > *,
+    .semlo-editor-editor-body,
+    .semlo-editor-content,
+    .semlo-editor-prose
+  ) {
+  box-sizing: border-box;
+}
+.semlo-editor-toolbar {
+  position: sticky;
+  top: var(--semlo-editor-toolbar-sticky-top, 0px);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--semlo-editor-border);
+  background: #fff;
+}
+.semlo-editor-button,
+.semlo-editor-heading,
+.semlo-editor-font-size,
+.semlo-editor-alignment,
+.semlo-editor-tablebar button,
+.semlo-editor-url-actions button {
+  font: inherit;
+  color: #515c56;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.semlo-editor-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+}
+.semlo-editor-button svg {
+  width: 18px;
+  height: 18px;
+}
+.semlo-editor-button:hover,
+.semlo-editor-heading:hover,
+.semlo-editor-tablebar button:hover {
+  background: #f1f5f2;
+  color: #27332c;
+}
+.semlo-editor-button[aria-pressed="true"] {
+  color: #258b5a;
+  background: #eaf6ef;
+}
+.semlo-editor-button:disabled {
+  color: #c0c7c2;
+  cursor: not-allowed;
+}
+.semlo-editor-font-size:disabled,
+.semlo-editor-button[aria-label="加粗"]:disabled {
+  color: #000;
+  opacity: 0.25;
+  cursor: pointer;
+}
+.semlo-editor-font-size:disabled:hover,
+.semlo-editor-button[aria-label="加粗"]:disabled:hover {
+  background: transparent;
+}
+.semlo-editor-button:focus-visible,
+.semlo-editor-heading:focus-visible,
+.semlo-editor-tablebar button:focus-visible,
+.semlo-editor-url-form button:focus-visible {
+  outline: 2px solid #7ebd97;
+  outline-offset: 1px;
+}
+.semlo-editor-heading {
+  width: 100px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 5px;
+}
+.semlo-editor-font-size {
+  width: 69px;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 5px;
+}
+.semlo-editor-alignment {
+  width: 78px;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 5px;
+}
+.semlo-editor-color {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 32px;
+  border-radius: 5px;
+  color: #515c56;
+  cursor: pointer;
+}
+.semlo-editor-color:hover {
+  background: #f1f5f2;
+}
+.semlo-editor-color span {
+  font-weight: 650;
+  border-bottom: 3px solid #e99d92;
+  line-height: 1.1;
+}
+.semlo-editor-color input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.semlo-editor-color:focus-within {
+  outline: 2px solid #7ebd97;
+  outline-offset: 1px;
+}
+.semlo-editor-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  background: #e7eae8;
+}
+.semlo-editor-tablebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--semlo-editor-border);
+  background: #fafcfb;
+}
+.semlo-editor-tablebar[hidden] {
+  display: none;
+}
+.semlo-editor-tablebar button {
+  padding: 5px 7px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.semlo-editor-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 22px 42px 72px;
+}
+.semlo-editor-prose {
+  min-height: 390px;
+  outline: 0;
+  font-size: 15px;
+  line-height: 1.74;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-prose > * + * {
+  margin-top: 0.8em;
+}
+.semlo-editor-prose p {
+  margin: 0 0 0.522em;
+}
+.semlo-editor-prose h1,
+.semlo-editor-prose h2,
+.semlo-editor-prose h3,
+.semlo-editor-prose h4,
+.semlo-editor-prose h5,
+.semlo-editor-prose h6 {
+  font-weight: 700;
+}
+.semlo-editor-prose .semlo-editor-heading-number {
+  display: inline;
+  border-radius: 3px;
+  white-space: pre;
+}
+.semlo-editor-prose .semlo-editor-heading-number[aria-disabled="false"] {
+  cursor: pointer;
+}
+.semlo-editor-prose .semlo-editor-heading-number[aria-disabled="false"]:hover {
+  background: #f0f1f0;
+}
+.semlo-editor-prose .semlo-editor-heading-number:focus-visible {
+  outline: 2px solid #438bf1;
+  outline-offset: 1px;
+}
+.semlo-editor-prose h1 {
+  margin: 38px 0 19px;
+  font-size: 28px;
+  line-height: 1.3571428571;
+}
+.semlo-editor-prose > h1:first-child {
+  margin-top: 0;
+}
+.semlo-editor-prose h2 {
+  margin: 34px 0 17px;
+  font-size: 24px;
+  line-height: 1.4166666667;
+}
+.semlo-editor-prose h3 {
+  margin: 30px 0 15px;
+  font-size: 20px;
+  line-height: 1.5;
+}
+.semlo-editor-prose h4 {
+  margin: 26px 0 13px;
+  font-size: 16px;
+  line-height: 1.625;
+}
+.semlo-editor-prose h5,
+.semlo-editor-prose h6 {
+  margin: 24px 0 12px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.semlo-editor-prose p.is-editor-empty:first-child::before {
+  float: left;
+  height: 0;
+  color: #b9c1bb;
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+.semlo-editor-prose ul:not([data-type="taskList"]),
+.semlo-editor-prose ol {
+  margin: 0 0 0.522em;
+  padding-left: 2em;
+}
+.semlo-editor-prose li > p {
+  margin: 0 0 0.261em;
+}
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="1"],
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="4"],
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="7"] {
+  list-style-type: circle;
+}
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="2"],
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="5"],
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="8"] {
+  list-style-type: square;
+}
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="3"],
+.semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="6"] {
+  list-style-type: disc;
+}
+ol > li[data-semlo-editor-list-indent="1"],
+ol > li[data-semlo-editor-list-indent="4"],
+ol > li[data-semlo-editor-list-indent="7"] {
+  list-style-type: lower-alpha;
+}
+ol > li[data-semlo-editor-list-indent="2"],
+ol > li[data-semlo-editor-list-indent="5"],
+ol > li[data-semlo-editor-list-indent="8"] {
+  list-style-type: lower-roman;
+}
+ol > li[data-semlo-editor-list-indent="3"],
+ol > li[data-semlo-editor-list-indent="6"] {
+  list-style-type: decimal;
+}
+ol > li[data-semlo-editor-ordered-marker="decimal"] {
+  list-style-type: decimal;
+}
+ol > li[data-semlo-editor-ordered-marker="lower-alpha"] {
+  list-style-type: lower-alpha;
+}
+ol > li[data-semlo-editor-ordered-marker="upper-alpha"] {
+  list-style-type: upper-alpha;
+}
+ol > li[data-semlo-editor-ordered-marker="lower-roman"] {
+  list-style-type: lower-roman;
+}
+ol > li[data-semlo-editor-ordered-marker="upper-roman"] {
+  list-style-type: upper-roman;
+}
+.semlo-editor-prose blockquote {
+  position: relative;
+  margin: 10px 0;
+  padding: 0 0 0 10px;
+  color: inherit;
+  background: transparent;
+}
+.semlo-editor-prose blockquote::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #d8dad9;
+  content: "";
+}
+.semlo-editor-prose pre {
+  overflow: auto;
+  padding: 15px 18px;
+  border-radius: 7px;
+  color: #394740;
+  background: #f4f7f5;
+  font:
+    13px/1.65 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.semlo-editor-prose :not(pre) > code {
+  padding: 0 4px;
+  border: 1px solid #e7e9e8;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 6%);
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: inherit;
+  line-height: 1.1;
+}
+.semlo-editor-prose pre code {
+  padding: 0;
+  background: transparent;
+  font: inherit;
+}
+.semlo-editor-prose a {
+  color: #328b60;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.semlo-editor-prose hr {
+  height: 1px;
+  border: 0;
+  background: #e7ebe8;
+  margin: 1.5em 0;
+}
+.semlo-editor-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.semlo-editor-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+.semlo-editor-prose ul[data-type="taskList"] > li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.semlo-editor-prose ul[data-type="taskList"] > li > label {
+  flex: 0 0 auto;
+  user-select: none;
+}
+.semlo-editor-prose ul[data-type="taskList"] > li > label > input {
+  accent-color: var(--semlo-editor-accent);
+}
+.semlo-editor-prose ul[data-type="taskList"] > li > div {
+  flex: 1;
+}
+.semlo-editor-prose .tableWrapper {
+  overflow-x: auto;
+}
+.semlo-editor-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 1em 0;
+}
+.semlo-editor-prose th,
+.semlo-editor-prose td {
+  position: relative;
+  min-width: 60px;
+  padding: 7px 10px;
+  border: 1px solid #dfe6e1;
+  vertical-align: top;
+}
+.semlo-editor-prose th {
+  text-align: left;
+  background: #f6f9f7;
+  font-weight: 600;
+}
+.semlo-editor-prose .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  background: rgba(90, 175, 121, 0.12);
+  content: "";
+  pointer-events: none;
+}
+.semlo-editor-prose .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: #75bd91;
+  pointer-events: none;
+}
+.semlo-editor-url-form {
+  position: absolute;
+  z-index: 10;
+  top: 44px;
+  left: min(220px, 10%);
+  width: min(320px, calc(100% - 32px));
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #e2e9e4;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px #1e3a2a1c;
+  background: #fff;
+}
+.semlo-editor-url-form label {
+  display: grid;
+  gap: 8px;
+  color: #4c5a51;
+  font-size: 13px;
+}
+.semlo-editor-url-form input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #dce4de;
+  border-radius: 5px;
+  font: inherit;
+}
+.semlo-editor-url-form input:focus {
+  border-color: #70b98c;
+  outline: 2px solid #e2f3e7;
+}
+.semlo-editor-url-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 12px;
+}
+.semlo-editor-url-actions button {
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+.semlo-editor-url-actions button:hover {
+  background: #f2f5f3;
+}
+.semlo-editor-url-actions .semlo-editor-primary {
+  color: white;
+  background: #3b9a6a;
+}
+.semlo-editor-url-actions .semlo-editor-primary:hover {
+  background: #31865a;
+}
+.semlo-editor-link-form {
+  position: fixed;
+  z-index: 1100;
+  width: min(365px, calc(100vw - 16px));
+  padding: 12px;
+  border-color: #e8e8e8;
+  border-radius: 5px;
+  box-shadow: 0 8px 24px #0000001c;
+}
+.semlo-editor-link-form label + label {
+  margin-top: 18px;
+}
+.semlo-editor-link-form label {
+  gap: 14px;
+  color: #262626;
+}
+.semlo-editor-link-form input {
+  height: 32px;
+  border-color: #e5e5e5;
+  border-radius: 5px;
+}
+.semlo-editor-link-form .semlo-editor-url-actions {
+  justify-content: flex-start;
+  margin-top: 16px;
+}
+.semlo-editor-link-form .semlo-editor-primary {
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #595959;
+}
+.semlo-editor-link-form .semlo-editor-primary:hover {
+  border-color: #41b883;
+  background: #fff;
+  color: #2b9c64;
+}
+.semlo-editor-link-form .semlo-editor-primary:disabled {
+  border-color: #eee;
+  color: #bfbfbf;
+  cursor: not-allowed;
+}
+.semlo-editor-error {
+  position: relative;
+  padding: 8px 44px 8px 14px;
+  color: #9f3a35;
+  background: #fff1ef;
+  font-size: 13px;
+}
+.semlo-editor-error-dismiss {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.semlo-editor-error-dismiss::before {
+  content: "×";
+  font-size: 18px;
+  line-height: 1;
+}
+.semlo-editor-error-dismiss:hover {
+  background: rgba(159, 58, 53, 0.1);
+}
+.semlo-editor-error-dismiss:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.semlo-editor-slash-menu {
+  position: fixed;
+  z-index: 1000;
+  width: 256px;
+  max-height: 330px;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 1px solid #e1e9e3;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 10px 32px #17372320;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+.semlo-editor-slash-item {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  color: #909a93;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+.semlo-editor-slash-title {
+  color: #35413a;
+  font-size: 14px;
+}
+.semlo-editor-slash-item[aria-selected="true"],
+.semlo-editor-slash-item:hover {
+  background: #edf7f0;
+}
+.semlo-editor-slash-empty {
+  padding: 12px;
+  color: #8a958d;
+  font-size: 13px;
+}
+.semlo-editor-readonly .semlo-editor-toolbar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .semlo-editor-content {
+    padding: 18px 20px 48px;
+  }
+  .semlo-editor-prose {
+    min-height: 300px;
+  }
+  .semlo-editor-separator {
+    margin: 0 2px;
+  }
+}
+
+/* Cards and contextual tools */
+.semlo-editor-card-menu {
+  position: fixed;
+  z-index: 1001;
+  width: 280px;
+  box-sizing: border-box;
+  padding: 7px;
+  border: 1px solid #e1e9e3;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 10px 32px #17372320;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+.semlo-editor-card-menu input {
+  display: block;
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  border: 0;
+  border-bottom: 1px solid #edf1ee;
+  border-radius: 0;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+}
+.semlo-editor-card-menu input::placeholder {
+  color: #a5aea8;
+}
+.semlo-editor-card-list {
+  max-height: 310px;
+  overflow-y: auto;
+  padding-top: 4px;
+}
+.semlo-editor-bubble {
+  z-index: 50;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #e1e9e3;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 6px 24px #1737231c;
+}
+.semlo-editor-bubble .semlo-editor-button {
+  width: 30px;
+  height: 30px;
+}
+.semlo-editor-tablebar button:disabled {
+  color: #c0c7c2;
+  cursor: not-allowed;
+}
+aside[data-semlo-editor-callout] {
+  position: relative;
+  box-sizing: border-box;
+  margin: 1em 0;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid #81bbf8;
+  border-radius: 4px;
+  background: rgba(192, 221, 252, 0.5);
+}
+aside[data-semlo-editor-callout] > :first-child {
+  margin-top: 0;
+}
+aside[data-semlo-editor-callout] > :last-child {
+  margin-bottom: 0;
+}
+.semlo-editor-callout-palette {
+  position: fixed;
+  z-index: 1202;
+  display: flex;
+  box-sizing: border-box;
+  width: min(298px, calc(100vw - 16px));
+  height: 36px;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid #e8e9e8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 14px #0000001c;
+}
+.semlo-editor-callout-palette[hidden] {
+  display: none;
+}
+.semlo-editor-callout-palette > button {
+  display: grid;
+  flex: 1 1 20px;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.semlo-editor-callout-palette > button:focus-visible {
+  outline: 2px solid #333;
+  outline-offset: 2px;
+}
+.semlo-editor-callout-palette > button[aria-pressed="true"]::after {
+  color: #343a37;
+  content: "✓";
+  font:
+    14px/1 -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.semlo-editor-prose div[data-type="details"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0.7em 0;
+}
+.semlo-editor-prose div[data-type="details"] > button {
+  flex: 0 0 25px;
+  width: 25px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #77847b;
+  cursor: pointer;
+}
+.semlo-editor-prose div[data-type="details"] > button:hover {
+  background: #edf3ef;
+}
+.semlo-editor-prose div[data-type="details"] > button::before {
+  content: "▸";
+  font-size: 14px;
+}
+.semlo-editor-prose div[data-type="details"].is-open > button::before {
+  content: "▾";
+}
+.semlo-editor-prose div[data-type="details"] > div {
+  min-width: 0;
+  flex: 1;
+}
+.semlo-editor-prose summary {
+  display: block;
+  min-height: 28px;
+  cursor: text;
+}
+.semlo-editor-prose div[data-type="detailsContent"] {
+  padding-left: 8px;
+  border-left: 2px solid #edf1ee;
+}
+.semlo-editor-uploading {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #edf7f0;
+  color: #558768;
+  font-size: 12px;
+}
+.semlo-editor-prose summary:has(> br:only-child)::before {
+  float: left;
+  height: 0;
+  color: #b9c1bb;
+  content: "折叠标题";
+  pointer-events: none;
+}
+
+/* Reference-aligned editor chrome */
+.semlo-editor {
+  border: 0;
+  border-radius: 0;
+  color: #262626;
+  font-size: 14px;
+}
+.semlo-editor-toolbar {
+  flex-wrap: nowrap;
+  gap: 1px;
+  min-height: 44px;
+  padding: 5px 8px 5px 62px;
+  overflow-x: auto;
+  border-bottom: 1px solid #f0f0f0;
+  scrollbar-width: none;
+}
+.semlo-editor-toolbar::-webkit-scrollbar {
+  display: none;
+}
+.semlo-editor-button {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  color: #1f1f1f;
+}
+.semlo-editor-button svg {
+  width: 16px;
+  height: 16px;
+}
+.semlo-editor-button:hover,
+.semlo-editor-dropdown-trigger:hover {
+  background: #f5f5f5;
+}
+.semlo-editor-button[aria-pressed="true"] {
+  color: #1d1d1d;
+  background: #efefef;
+}
+.semlo-editor-insert-button svg {
+  width: 20px;
+  height: 20px;
+  fill: #00b96b;
+  stroke: #fff;
+  stroke-width: 1.8;
+}
+.semlo-editor-insert-button:disabled svg {
+  fill: #b9e9cf;
+}
+.semlo-editor-separator {
+  flex: 0 0 1px;
+  height: 20px;
+  margin: 0 5px;
+  background: #f0f0f0;
+}
+.semlo-editor-dropdown-trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #1f1f1f;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-dropdown-trigger::after {
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-top-color: #a5a5a5;
+  transform: translateY(2px);
+  content: "";
+}
+.semlo-editor-dropdown-trigger[aria-expanded="true"] {
+  background: #f3f3f3;
+}
+.semlo-editor-heading {
+  width: auto;
+  min-width: 68px;
+}
+.semlo-editor-font-size {
+  width: auto;
+  min-width: 66px;
+}
+.semlo-editor-font-family {
+  max-width: 150px;
+}
+.semlo-editor-font-family span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-alignment {
+  width: auto;
+  min-width: 44px;
+  font-size: 18px;
+}
+.semlo-editor-color-trigger {
+  min-width: 43px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: #eb8f8f;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.semlo-editor-content {
+  max-width: none;
+  margin: 0;
+  padding: 26px 70px 72px;
+}
+.semlo-editor-prose {
+  min-height: 440px;
+  color: #262626;
+  font-family:
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif, "Segoe UI";
+  font-size: 15px;
+  line-height: 1.74;
+}
+.semlo-editor-tablebar {
+  background: #fff;
+}
+.semlo-editor-dropdown {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  min-width: 98px;
+  max-height: min(465px, calc(100vh - 60px));
+  overflow-y: auto;
+  padding: 4px 0;
+  background: #fff;
+  box-shadow:
+    0 8px 24px #00000020,
+    0 2px 5px #0000000c;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+.semlo-editor-dropdown:has(.semlo-editor-heading-option) {
+  width: 228.5px;
+  border: 1px solid #e7e9e8;
+  border-radius: 8px;
+  box-shadow: 0 8px 16px 4px #0000000a;
+}
+.semlo-editor-dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 16px;
+  border: 0;
+  background: #fff;
+  color: #262626;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-dropdown-item:hover,
+.semlo-editor-dropdown-item:focus-visible {
+  outline: 0;
+  background: #f5f5f5;
+}
+.semlo-editor-heading-option {
+  position: relative;
+  padding-left: 35px;
+}
+.semlo-editor-heading-option .semlo-editor-dropdown-check {
+  position: absolute;
+  left: 13px;
+  color: #262626;
+  font-size: 13px;
+  font-weight: 400;
+}
+.semlo-editor-heading-option.semlo-editor-h1 {
+  font-size: 28px;
+  font-weight: 650;
+}
+.semlo-editor-heading-option.semlo-editor-h2 {
+  font-size: 24px;
+  font-weight: 650;
+}
+.semlo-editor-heading-option.semlo-editor-h3 {
+  font-size: 20px;
+  font-weight: 650;
+}
+.semlo-editor-heading-option.semlo-editor-h4 {
+  font-size: 16px;
+  font-weight: 650;
+}
+.semlo-editor-heading-option.semlo-editor-h5,
+.semlo-editor-heading-option.semlo-editor-h6 {
+  font-size: 14px;
+  font-weight: 650;
+}
+.semlo-editor-dropdown-shortcut {
+  color: #bfbfbf;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.semlo-editor-palette {
+  position: fixed;
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 258px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  background: #fff;
+  box-shadow: 0 8px 24px #0000001c;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-palette-title {
+  margin-bottom: 8px;
+  color: #8c8c8c;
+}
+.semlo-editor-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 18px);
+  gap: 5px;
+}
+.semlo-editor-palette-grid button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #0000000d;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.semlo-editor-palette-grid button:hover,
+.semlo-editor-palette-grid button:focus-visible {
+  outline: 2px solid #60b895;
+  outline-offset: 1px;
+}
+.semlo-editor-palette-clear {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px solid #f0f0f0;
+  background: transparent;
+  color: #595959;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-card-menu,
+.semlo-editor-slash-menu {
+  position: fixed;
+  z-index: 1203;
+  box-sizing: border-box;
+  width: 282px;
+  max-width: calc(100vw - 16px);
+  max-height: min(600px, calc(100vh - 16px));
+  padding: 12px 8px 8px 12px;
+  overflow: auto;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow:
+    0 8px 24px #00000014,
+    0 2px 6px #0000000b;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-card-menu {
+  width: 290px;
+  height: min(596px, calc(100vh - 16px));
+}
+.semlo-editor-card-menu.semlo-editor-card-menu-block {
+  z-index: 1203;
+  width: 260px;
+  height: min(466px, calc(100vh - 16px));
+}
+.semlo-editor-table-grid-popover.semlo-editor-block-insert-popover,
+.semlo-editor-column-picker.semlo-editor-block-insert-popover {
+  z-index: 1204;
+}
+.semlo-editor-card-menu.semlo-editor-card-menu-empty {
+  width: 282px;
+  height: min(372px, calc(100vh - 16px));
+  container-type: size;
+}
+.semlo-editor-card-menu-empty .semlo-editor-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, calc(20cqh - 32px), 12px);
+  padding: clamp(0px, calc(50cqh - 123px), 63px) 0 0;
+  color: #8a8f8d;
+  font-size: 14px;
+  line-height: 22px;
+}
+.semlo-editor-search-empty-art {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: clamp(0px, calc(100cqh - 96px), 136px);
+  aspect-ratio: 218 / 136;
+  flex: 0 0 auto;
+}
+.semlo-editor-card-menu > input {
+  box-sizing: border-box;
+  width: calc(100% - 20px);
+  height: 32px;
+  margin: 5px 4px 3px 7px;
+  padding: 0 10px 0 30px;
+  border: 1px solid #dee7e3;
+  border-radius: 6px;
+  outline: none;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%239da6a1' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='8.5' cy='8.5' r='5.5'/%3E%3Cpath d='m12.5 12.5 4 4'/%3E%3C/svg%3E")
+    no-repeat 10px center / 14px 14px;
+  font: inherit;
+  font-size: 14px;
+}
+.semlo-editor-card-menu > input:focus {
+  border-color: #00b96b;
+  box-shadow: none;
+}
+.semlo-editor-card-list {
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+.semlo-editor-card-section {
+  padding: 12px 8px 6px;
+  color: #a0a0a0;
+  font-size: 12px;
+}
+.semlo-editor-card-basic {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.semlo-editor-card-group {
+  display: grid;
+  gap: 2px;
+}
+.semlo-editor-card-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #262626;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-card-group .semlo-editor-card-item {
+  min-height: 50px;
+  padding-block: 7px;
+}
+.semlo-editor-card-item:hover,
+.semlo-editor-card-item.selected,
+.semlo-editor-card-item:focus-visible {
+  outline: 0;
+  background: #f1f2f2;
+}
+.semlo-editor-card-item:disabled {
+  color: #aaa;
+  cursor: not-allowed;
+}
+.semlo-editor-card-icon {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e9e9e9;
+  border-radius: 6px;
+  color: #3d4640;
+  background: #fff;
+  font-size: 18px;
+}
+.semlo-editor-card-icon svg {
+  width: 28px;
+  height: 28px;
+}
+.semlo-editor-card-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+.semlo-editor-card-name {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-card-desc {
+  overflow: hidden;
+  color: #999;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-card-shortcut {
+  color: #b0b0b0;
+  font-size: 12px;
+}
+.semlo-editor-card-arrow {
+  margin-left: auto;
+  font-size: 20px;
+}
+.semlo-editor-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  padding: 3px 4px 6px;
+}
+.semlo-editor-quick-grid button {
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  color: #262626;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-quick-grid button:hover,
+.semlo-editor-quick-grid button:focus-visible {
+  outline: 0;
+  background: #f0f1f1;
+}
+.semlo-editor-quick-grid button svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.semlo-editor-table-grid-popover {
+  position: fixed;
+  z-index: 1204;
+  box-sizing: border-box;
+  width: 150px;
+  padding: 4px 10px 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0000001c;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-table-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 18px);
+  gap: 0;
+  margin: 4px 5px;
+}
+.semlo-editor-table-grid button {
+  width: 18px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  margin: 0 -1px -1px 0;
+  background: #fff;
+  cursor: pointer;
+}
+.semlo-editor-table-grid button.selected {
+  border-color: #87b8ff;
+  background: #e6f4ff;
+}
+.semlo-editor-table-grid-value {
+  padding: 6px 5px 0;
+}
+@media (max-width: 640px) {
+  .semlo-editor-content {
+    padding: 24px 24px 50px;
+  }
+  .semlo-editor-toolbar {
+    padding: 5px 8px;
+  }
+}
+@container semlo-editor-editor (max-width: 640px) {
+  .semlo-editor-content {
+    padding: 24px 24px 50px;
+  }
+  .semlo-editor-toolbar {
+    padding: 5px 8px;
+  }
+}
+.semlo-editor-prose .semlo-editor-code-card {
+  --semlo-editor-code-background: #fafafa;
+  --semlo-editor-code-header-background: #f5f5f5;
+  --semlo-editor-code-text: #262626;
+  --semlo-editor-code-control: #595959;
+  --semlo-editor-code-placeholder: #a3a3a3;
+  --semlo-editor-code-border: #dedede;
+  --semlo-editor-code-header-border: #e8e8e8;
+  --semlo-editor-code-gutter: #999;
+  --semlo-editor-code-keyword: #c7254e;
+  --semlo-editor-code-string: #33865b;
+  --semlo-editor-code-number: #2671bc;
+  --semlo-editor-code-comment: #929b96;
+  box-sizing: border-box;
+  overflow: hidden;
+  margin: 1em 0;
+  border: 1px solid var(--semlo-editor-code-border);
+  border-radius: 4px;
+  background: var(--semlo-editor-code-background);
+  color: var(--semlo-editor-code-text);
+  font:
+    14px/1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+.semlo-editor-prose .semlo-editor-code-card:focus-within,
+.semlo-editor-prose .semlo-editor-code-card.is-active {
+  border-color: #4096ff;
+}
+.semlo-editor-code-header {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 9px;
+  border-bottom: 1px solid var(--semlo-editor-code-header-border);
+  background: var(--semlo-editor-code-header-background);
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  scrollbar-width: none;
+}
+.semlo-editor-code-header::-webkit-scrollbar {
+  display: none;
+}
+.semlo-editor-code-header button,
+.semlo-editor-code-header select,
+.semlo-editor-code-header input {
+  box-sizing: border-box;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--semlo-editor-code-control);
+  font: inherit;
+}
+.semlo-editor-code-header button,
+.semlo-editor-code-header select {
+  cursor: pointer;
+}
+.semlo-editor-code-header button:hover,
+.semlo-editor-code-header select:hover {
+  background: rgb(127 127 127 / 10%);
+}
+.semlo-editor-code-header :is(button, select, input):focus-visible {
+  outline: 2px solid #4096ff;
+  outline-offset: -2px;
+}
+.semlo-editor-code-title {
+  min-width: 72px;
+  flex: 1 0 72px;
+}
+.semlo-editor-code-title::placeholder {
+  color: var(--semlo-editor-code-placeholder);
+}
+.semlo-editor-code-collapse,
+.semlo-editor-code-copy {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 0 6px;
+}
+.semlo-editor-code-select {
+  flex: 0 0 auto;
+  max-width: 150px;
+  overflow: hidden;
+  padding: 0 8px;
+  border-left: 1px solid var(--semlo-editor-code-header-border) !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-code-header button:is(.semlo-editor-code-language, .semlo-editor-code-theme) {
+  position: relative;
+  padding-right: 22px;
+}
+.semlo-editor-code-header button:is(.semlo-editor-code-language, .semlo-editor-code-theme)::after {
+  position: absolute;
+  top: calc(50% - 4px);
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  content: "";
+  pointer-events: none;
+  transform: rotate(45deg);
+}
+.semlo-editor-code-copy {
+  border-left: 1px solid var(--semlo-editor-code-header-border) !important;
+}
+.semlo-editor-code-copy svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+}
+.semlo-editor-code-card:not(
+    :is(
+      :hover,
+      :focus-within,
+      .is-active,
+      :has(.semlo-editor-code-select[aria-expanded="true"]),
+      .semlo-editor-prose:focus .ProseMirror-selectednode
+    )
+  )
+  .semlo-editor-code-header
+  :is(.semlo-editor-code-select, .semlo-editor-code-copy) {
+  width: 1px;
+  min-width: 0;
+  max-width: 1px;
+  flex: 0 0 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+.semlo-editor-code-card:not(
+    :is(
+      :hover,
+      :focus-within,
+      .is-active,
+      :has(.semlo-editor-code-select[aria-expanded="true"]),
+      .semlo-editor-prose:focus .ProseMirror-selectednode
+    )
+  )
+  .semlo-editor-code-title:placeholder-shown {
+  opacity: 0;
+  pointer-events: none;
+}
+.semlo-editor-code-body {
+  box-sizing: border-box;
+  display: flex;
+  overflow: auto;
+  padding: 1px 0;
+}
+.semlo-editor-prose .semlo-editor-code-body .semlo-editor-code-numbers {
+  box-sizing: border-box;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: 0 0 44px;
+  padding: 4px 10px 4px 0;
+  background: var(--semlo-editor-code-background);
+  color: var(--semlo-editor-code-gutter);
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+}
+.semlo-editor-prose .semlo-editor-code-body pre {
+  box-sizing: border-box;
+  flex: 1 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: pre;
+}
+.semlo-editor-prose .semlo-editor-code-body code {
+  display: block;
+  min-height: 1.45em;
+  background: transparent;
+}
+.semlo-editor-prose[data-semlo-editor-document-font-active="true"] :is(.semlo-editor-code-card, pre, code) {
+  font-family: inherit;
+}
+.semlo-editor-code-card.is-collapsed .semlo-editor-code-body {
+  display: none;
+}
+.semlo-editor-code-card[data-theme="light-pro"] {
+  --semlo-editor-code-background: #fff;
+  --semlo-editor-code-text: #262c31;
+  --semlo-editor-code-gutter: #6c6c6c;
+  --semlo-editor-code-keyword: #d73a49;
+  --semlo-editor-code-string: #22863a;
+  --semlo-editor-code-number: #005cc5;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"] {
+  --semlo-editor-code-background: #fdfdfd;
+  --semlo-editor-code-header-background: #f8f8f8;
+  --semlo-editor-code-text: #363636;
+  --semlo-editor-code-gutter: #6c6c6c;
+  --semlo-editor-code-keyword: #8a42a7;
+  --semlo-editor-code-string: #22863a;
+  --semlo-editor-code-number: #005cc5;
+}
+.semlo-editor-code-card[data-theme="dark"] {
+  --semlo-editor-code-background: #272c35;
+  --semlo-editor-code-header-background: #242933;
+  --semlo-editor-code-text: #a9b2c0;
+  --semlo-editor-code-control: #abb2bf;
+  --semlo-editor-code-placeholder: #8b929e;
+  --semlo-editor-code-border: #383d46;
+  --semlo-editor-code-header-border: #383d46;
+  --semlo-editor-code-gutter: #ccc;
+  --semlo-editor-code-keyword: #c678dd;
+  --semlo-editor-code-string: #98c379;
+  --semlo-editor-code-number: #d19a66;
+  --semlo-editor-code-comment: #8b939f;
+}
+.semlo-editor-code-card[data-theme="night-owl"] {
+  --semlo-editor-code-background: #001628;
+  --semlo-editor-code-header-background: #000c18;
+  --semlo-editor-code-text: #d4deec;
+  --semlo-editor-code-control: #d6deeb;
+  --semlo-editor-code-placeholder: #8da4b7;
+  --semlo-editor-code-border: #29465c;
+  --semlo-editor-code-header-border: #29465c;
+  --semlo-editor-code-gutter: #ccc;
+  --semlo-editor-code-keyword: #c792ea;
+  --semlo-editor-code-string: #addb67;
+  --semlo-editor-code-number: #f78c6c;
+  --semlo-editor-code-comment: #8ca3a3;
+}
+.semlo-editor-code-card[data-theme="darcula"] {
+  --semlo-editor-code-background: #2b2b2b;
+  --semlo-editor-code-header-background: #222;
+  --semlo-editor-code-text: #ccc;
+  --semlo-editor-code-control: #a9b7c6;
+  --semlo-editor-code-placeholder: #929ca4;
+  --semlo-editor-code-border: #55585b;
+  --semlo-editor-code-header-border: #55585b;
+  --semlo-editor-code-gutter: #ccc;
+  --semlo-editor-code-keyword: #cc7832;
+  --semlo-editor-code-string: #6aaf66;
+  --semlo-editor-code-number: #6897bb;
+  --semlo-editor-code-comment: #969696;
+}
+.semlo-editor-code-card .hljs-keyword,
+.semlo-editor-code-card .hljs-selector-tag {
+  color: var(--semlo-editor-code-keyword);
+}
+.semlo-editor-code-card .hljs-string,
+.semlo-editor-code-card .hljs-attr {
+  color: var(--semlo-editor-code-string);
+}
+.semlo-editor-code-card .hljs-number,
+.semlo-editor-code-card .hljs-literal {
+  color: var(--semlo-editor-code-number);
+}
+.semlo-editor-code-card .hljs-comment {
+  color: var(--semlo-editor-code-comment);
+  font-style: italic;
+}

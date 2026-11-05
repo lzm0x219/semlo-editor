@@ -1,0 +1,41 @@
+.semlo-editor-prose .semlo-editor-list-foldable {
+  position: relative;
+}
+.semlo-editor-prose .semlo-editor-list-fold-toggle {
+  position: absolute;
+  left: -32px;
+  top: 0.15em;
+  width: 18px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #777;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
+.semlo-editor-prose .semlo-editor-list-fold-toggle svg {
+  width: 13px;
+  height: 13px;
+}
+.semlo-editor-prose .semlo-editor-list-fold-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.semlo-editor-prose .semlo-editor-list-foldable:hover > .semlo-editor-list-fold-toggle,
+.semlo-editor-prose .semlo-editor-list-foldable:hover > div > .semlo-editor-list-fold-toggle,
+.semlo-editor-prose .semlo-editor-list-foldable:hover > p .semlo-editor-list-fold-toggle,
+.semlo-editor-prose .semlo-editor-list-foldable:hover > div > p .semlo-editor-list-fold-toggle,
+.semlo-editor-prose .semlo-editor-list-fold-toggle:focus-visible,
+.semlo-editor-prose .semlo-editor-list-fold-toggle[aria-expanded="false"] {
+  opacity: 1;
+}
+.semlo-editor-prose .semlo-editor-list-fold-toggle:hover {
+  background: #f0f1ef;
+}
+.semlo-editor-prose .semlo-editor-list-fold-hidden {
+  display: none !important;
+}

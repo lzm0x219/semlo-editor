@@ -1,0 +1,126 @@
+[
+  {
+    "type": "custom-link",
+    "label": "开始使用",
+    "collapsible": true,
+    "collapsed": true,
+    "items": [
+      {
+        "label": "文档目录",
+        "link": "/documentation"
+      },
+      {
+        "label": "认识 semlo-editor",
+        "link": "/introduction"
+      },
+      {
+        "label": "安装与接入",
+        "link": "/getting-started"
+      },
+      {
+        "label": "框架适配",
+        "link": "/frameworks"
+      }
+    ]
+  },
+  {
+    "type": "custom-link",
+    "label": "理解编辑器",
+    "collapsible": true,
+    "collapsed": true,
+    "items": [
+      {
+        "label": "核心概念",
+        "link": "/concepts"
+      },
+      {
+        "label": "编辑与组织内容",
+        "link": "/editing"
+      },
+      {
+        "label": "功能与限制",
+        "link": "/features"
+      },
+      {
+        "label": "语雀功能对照",
+        "link": "/yuque-feature-matrix"
+      }
+    ]
+  },
+  {
+    "type": "custom-link",
+    "label": "编辑功能",
+    "collapsible": true,
+    "collapsed": true,
+    "items": [
+      {
+        "label": "文本、块与文档结构",
+        "link": "/text-and-blocks"
+      },
+      {
+        "label": "表格与数据表",
+        "link": "/tables-and-databases"
+      },
+      {
+        "label": "图片、图册与嵌入",
+        "link": "/media-and-embeds"
+      },
+      {
+        "label": "公式、绘图与内容卡片",
+        "link": "/rich-content"
+      }
+    ]
+  },
+  {
+    "type": "custom-link",
+    "label": "接入与集成",
+    "collapsible": true,
+    "collapsed": true,
+    "items": [
+      {
+        "label": "保存与恢复内容",
+        "link": "/persistence"
+      },
+      {
+        "label": "上传与提及",
+        "link": "/uploads-and-mentions"
+      },
+      {
+        "label": "配置与生命周期",
+        "link": "/configuration"
+      },
+      {
+        "label": "内容与集成",
+        "link": "/content-and-integrations"
+      }
+    ]
+  },
+  {
+    "type": "custom-link",
+    "label": "参考与支持",
+    "collapsible": true,
+    "collapsed": true,
+    "items": [
+      {
+        "label": "API 参考",
+        "link": "/api"
+      },
+      {
+        "label": "编辑器控制器 API",
+        "link": "/controller-api"
+      },
+      {
+        "label": "框架组件 API",
+        "link": "/framework-api"
+      },
+      {
+        "label": "常见问题",
+        "link": "/troubleshooting"
+      },
+      {
+        "label": "本地开发",
+        "link": "/development"
+      }
+    ]
+  }
+]

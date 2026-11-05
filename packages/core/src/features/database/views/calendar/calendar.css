@@ -1,0 +1,278 @@
+.semlo-editor-database[data-semlo-editor-database-view-kind="calendar"] .semlo-editor-database-view-icon {
+  color: #a06bcc !important;
+}
+.semlo-editor-database-calendar {
+  min-width: 735px;
+  width: 100%;
+  border: 1px solid #f0f1f0;
+  background: #fff;
+  color: #262626;
+}
+.semlo-editor-database-calendar-header {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.semlo-editor-database-calendar-month {
+  margin-right: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.semlo-editor-database-calendar-nav,
+.semlo-editor-database-calendar-today {
+  display: inline-flex;
+  min-width: 32px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #7c8580;
+}
+.semlo-editor-database-calendar-nav {
+  font-size: 21px !important;
+  line-height: 1;
+}
+.semlo-editor-database-calendar-nav:hover,
+.semlo-editor-database-calendar-today:hover {
+  background: #f4f6f5;
+  color: #343c37;
+}
+.semlo-editor-database-calendar-today {
+  margin-left: 5px;
+  color: #4b514d;
+}
+.semlo-editor-database-calendar-empty {
+  margin: 0;
+  padding: 4px 12px 12px;
+  color: #858c87;
+  font-size: 12px;
+}
+.semlo-editor-database-calendar-weekdays,
+.semlo-editor-database-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(105px, 1fr));
+}
+.semlo-editor-database-calendar-week {
+  position: relative;
+}
+.semlo-editor-database-calendar-weekdays {
+  min-height: 34px;
+  align-items: end;
+}
+.semlo-editor-database-calendar-weekdays span {
+  padding: 0 12px 8px;
+  color: #353a37;
+  font-weight: 500;
+}
+.semlo-editor-database-calendar-cell {
+  min-width: 0;
+  min-height: 136px;
+  padding: 6px;
+  border-top: 1px solid #f0f1f0;
+  border-right: 1px solid #f0f1f0;
+  outline: none;
+}
+.semlo-editor-database-calendar-cell:nth-child(7) {
+  border-right: 0;
+}
+.semlo-editor-database-calendar-cell:focus-visible {
+  box-shadow: inset 0 0 0 1px #71c394;
+}
+.semlo-editor-database-calendar-day-line {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 5px;
+}
+.semlo-editor-database-calendar-day {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 500;
+}
+.semlo-editor-database-calendar-cell.is-outside .semlo-editor-database-calendar-day,
+.semlo-editor-database-calendar-cell.is-outside .semlo-editor-database-calendar-lunar {
+  color: #c5c9c6;
+}
+.semlo-editor-database-calendar-day.is-today {
+  background: #5abf85;
+  color: #fff !important;
+}
+.semlo-editor-database-calendar-lunar {
+  overflow: hidden;
+  color: #a6ada8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-database-calendar-cell.is-weekend:not(.is-outside) .semlo-editor-database-calendar-day:not(.is-today),
+.semlo-editor-database-calendar-cell.is-weekend:not(.is-outside) .semlo-editor-database-calendar-lunar {
+  color: #b8575f;
+}
+.semlo-editor-database-calendar-events {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: calc(4px + var(--semlo-editor-database-calendar-lanes, 0) * 24px);
+}
+.semlo-editor-database-calendar-week-events {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(105px, 1fr));
+  grid-auto-rows: 21px;
+  row-gap: 3px;
+  pointer-events: none;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  min-height: 21px;
+  width: auto;
+  min-width: 0;
+  margin: 0 6px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--semlo-editor-database-calendar-event-color, #dff3e9);
+  box-shadow: none;
+  color: #343a36;
+  font-size: 12px;
+  line-height: 17px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.semlo-editor-database-calendar-event-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-database-calendar-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  border: 2px solid #54b77e;
+  border-radius: 3px;
+  background: #d9f3e4;
+  cursor: ew-resize;
+  opacity: 0;
+}
+.semlo-editor-database-calendar-resize-start {
+  left: 0;
+}
+.semlo-editor-database-calendar-resize-end {
+  right: 0;
+}
+.semlo-editor-database-calendar-event:hover .semlo-editor-database-calendar-resize,
+.semlo-editor-database-calendar-event:focus-visible .semlo-editor-database-calendar-resize,
+.semlo-editor-database-calendar-event.is-calendar-dragging .semlo-editor-database-calendar-resize {
+  opacity: 1;
+}
+.semlo-editor-database-calendar-event.is-calendar-dragging {
+  opacity: 0.5;
+}
+.semlo-editor-database-calendar-cell.is-calendar-drop-target {
+  box-shadow: inset 0 0 0 2px #84cda1;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event.continues-before {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event.continues-after {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event:hover {
+  filter: brightness(0.97);
+  box-shadow: none;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event.semlo-editor-find-match {
+  background: #fff2a8;
+}
+.semlo-editor-database-calendar .semlo-editor-database-calendar-event.semlo-editor-find-match-current {
+  box-shadow: inset 0 0 0 1px #4b8fea;
+}
+.semlo-editor-database-calendar-add {
+  min-height: 21px;
+  width: 100%;
+  padding: 1px 3px;
+  border: 0;
+  border-radius: 3px;
+  background: #f4f5f4;
+  color: #a0a7a2;
+  font-size: 12px !important;
+  opacity: 0;
+}
+.semlo-editor-database-calendar-cell:hover .semlo-editor-database-calendar-add,
+.semlo-editor-database-calendar-cell:focus-within .semlo-editor-database-calendar-add {
+  opacity: 1;
+}
+.semlo-editor-database-calendar-add:hover {
+  background: #ebeeec;
+  color: #626c65;
+}
+.semlo-editor-database-calendar-settings {
+  width: 300px;
+}
+.semlo-editor-database-calendar-settings .semlo-editor-database-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin-bottom: 5px;
+}
+.semlo-editor-database-calendar-settings .semlo-editor-database-label[hidden],
+.semlo-editor-database-calendar-palette[hidden] {
+  display: none;
+}
+.semlo-editor-database-calendar-settings .semlo-editor-database-label > span {
+  flex: 0 0 110px;
+}
+.semlo-editor-database-calendar-settings .semlo-editor-database-label select {
+  flex: 1;
+  width: 0;
+  border-color: transparent;
+}
+.semlo-editor-database-calendar-settings input[type="checkbox"] {
+  accent-color: #45b87a;
+}
+.semlo-editor-database-calendar-palette {
+  display: grid;
+  grid-template-columns: repeat(6, 18px);
+  gap: 5px;
+  margin: 1px 0 12px 118px;
+}
+.semlo-editor-database-calendar-palette button {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  color: #537e65;
+  font-size: 12px;
+}
+.semlo-editor-database-calendar-palette button[aria-pressed="true"]::after {
+  content: "✓";
+}
+.semlo-editor-database-calendar-palette button:focus-visible {
+  outline: 2px solid #45b87a;
+  outline-offset: 2px;
+}

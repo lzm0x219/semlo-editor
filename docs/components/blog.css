@@ -1,0 +1,113 @@
+.semlo-editor-blog {
+  --blog-ink: #263d2d;
+  --blog-muted: #536b59;
+  --blog-accent: #397a4d;
+  --blog-line: #31533b24;
+  min-height: calc(100vh - var(--rp-nav-height));
+  background: #f3f8f0;
+  color: var(--blog-ink);
+}
+.dark .semlo-editor-blog {
+  --blog-ink: #e3efe4;
+  --blog-muted: #b7cdbb;
+  --blog-accent: #a9d6b1;
+  --blog-line: #d2e8d32a;
+  background: #1b3024;
+}
+.semlo-editor-blog__inner {
+  width: min(100% - 48px, 1060px);
+  margin-inline: auto;
+  padding: clamp(72px, 9vw, 116px) 0 140px;
+}
+.semlo-editor-blog__intro h1 {
+  margin: 0;
+  font-size: clamp(42px, 5vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.semlo-editor-blog__intro p {
+  margin: 20px 0 0;
+  color: var(--blog-muted);
+  font-size: 16px;
+  line-height: 1.8;
+}
+.semlo-editor-blog__articles {
+  max-width: 760px;
+  margin-top: clamp(76px, 8vw, 110px);
+}
+.semlo-editor-blog__articles h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.semlo-editor-blog__empty,
+.semlo-editor-blog__list {
+  margin: 22px 0 0;
+  padding: 32px 0 0;
+  border-top: 1px solid var(--blog-line);
+}
+.semlo-editor-blog__empty p {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.semlo-editor-blog__empty > span {
+  display: block;
+  color: var(--blog-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.semlo-editor-blog__empty a {
+  display: inline-block;
+  margin-top: 24px;
+  color: var(--blog-accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.semlo-editor-blog__list {
+  padding-top: 0;
+  list-style: none;
+}
+.semlo-editor-blog__post {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--blog-line);
+  color: inherit !important;
+  text-decoration: none !important;
+}
+.semlo-editor-blog__post:hover strong {
+  color: var(--blog-accent);
+}
+.semlo-editor-blog__post-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.semlo-editor-blog__post-content strong {
+  font-size: 17px;
+}
+.semlo-editor-blog__post-content > span,
+.semlo-editor-blog__post time {
+  color: var(--blog-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.semlo-editor-blog__post time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.semlo-editor-blog :is(a, h1):focus-visible {
+  outline: 2px solid var(--blog-accent);
+  outline-offset: 4px;
+}
+@media (max-width: 600px) {
+  .semlo-editor-blog__post {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

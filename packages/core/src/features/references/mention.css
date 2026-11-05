@@ -1,0 +1,77 @@
+/* Mention suggestions */
+.semlo-editor-mention-node {
+  display: inline;
+}
+.semlo-editor-prose .semlo-editor-mention {
+  padding: 1px 3px;
+  border-radius: 3px;
+  color: #2879b9;
+  background: #f1f7fc;
+  text-decoration: none;
+}
+.semlo-editor-mention-menu {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  width: 352px;
+  max-height: min(420px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0000001c;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-mention-section {
+  padding: 8px;
+  color: #999;
+}
+.semlo-editor-mention-row {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-mention-row:hover,
+.semlo-editor-mention-row.is-selected {
+  background: #f2f3f3;
+}
+.semlo-editor-mention-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px 6px;
+  color: #999;
+}
+.semlo-editor-mention-top span {
+  flex: 1;
+}
+.semlo-editor-mention-top button {
+  padding: 3px 5px;
+  border: 0;
+  background: transparent;
+  color: #999;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mention-top button[aria-selected="true"] {
+  color: #262626;
+  background: #f0f1f1;
+  border-radius: 4px;
+}
+.semlo-editor-mention-empty {
+  padding: 28px 8px;
+  color: #aaa;
+  text-align: center;
+}

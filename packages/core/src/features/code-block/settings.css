@@ -1,0 +1,570 @@
+.semlo-editor-code-more svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.semlo-editor-code-feedback {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 1200;
+  top: 24px;
+  left: 50%;
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+  color: #262626;
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.semlo-editor-code-feedback svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.semlo-editor-prose .semlo-editor-code-card {
+  position: relative;
+}
+.semlo-editor-code-header[hidden],
+.semlo-editor-code-header-reveal[hidden] {
+  display: none;
+}
+.semlo-editor-code-header-reveal {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 50%;
+  display: flex;
+  width: 48px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 4px 4px;
+  background: rgb(128 128 128 / 20%);
+  color: var(--semlo-editor-code-control);
+  cursor: pointer;
+  transform: translateX(-50%);
+}
+.semlo-editor-code-header-reveal::before {
+  width: 0;
+  height: 0;
+  border-top: 4px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  content: "";
+}
+.semlo-editor-code-header-reveal:focus-visible {
+  outline: 2px solid #4096ff;
+  outline-offset: -2px;
+}
+.semlo-editor-code-card:not(:is(.is-active, :focus-within)) .semlo-editor-code-header-reveal {
+  visibility: hidden;
+  pointer-events: none;
+}
+.semlo-editor-code-settings-menu,
+.semlo-editor-code-settings-submenu,
+.semlo-editor-code-settings-menu *,
+.semlo-editor-code-settings-submenu * {
+  box-sizing: border-box;
+}
+.semlo-editor-code-settings-menu,
+.semlo-editor-code-settings-submenu {
+  --semlo-editor-code-menu-background: #fff;
+  --semlo-editor-code-menu-color: #585a5a;
+  --semlo-editor-code-menu-border: #e8e8e8;
+  --semlo-editor-code-menu-hover: #f5f5f5;
+  position: fixed;
+  z-index: 1100;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--semlo-editor-code-menu-border);
+  border-radius: 4px;
+  background: var(--semlo-editor-code-menu-background);
+  box-shadow:
+    0 8px 24px #00000020,
+    0 2px 5px #0000000c;
+  color: var(--semlo-editor-code-menu-color);
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-code-settings-menu:is(
+  [data-code-theme="dark"],
+  [data-code-theme="night-owl"],
+  [data-code-theme="darcula"]
+),
+.semlo-editor-code-settings-submenu:is(
+  [data-code-theme="dark"],
+  [data-code-theme="night-owl"],
+  [data-code-theme="darcula"]
+) {
+  --semlo-editor-code-menu-background: #282d36;
+  --semlo-editor-code-menu-color: #d4d8df;
+  --semlo-editor-code-menu-border: #444a54;
+  --semlo-editor-code-menu-hover: #3b414b;
+}
+.semlo-editor-code-settings-menu {
+  width: 220px;
+}
+.semlo-editor-code-settings-submenu {
+  width: 182px;
+}
+.semlo-editor-code-settings-row,
+.semlo-editor-code-settings-option {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-code-settings-row {
+  justify-content: space-between;
+}
+.semlo-editor-code-settings-row:is(:hover, :focus-visible),
+.semlo-editor-code-settings-option:is(:hover, :focus-visible) {
+  outline: 0;
+  background: var(--semlo-editor-code-menu-hover);
+}
+.semlo-editor-code-settings-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--semlo-editor-code-menu-border);
+}
+.semlo-editor-code-settings-trailing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #999;
+  font-size: 12px;
+}
+.semlo-editor-code-settings-arrow {
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+.semlo-editor-code-settings-check {
+  width: 16px;
+  flex: 0 0 16px;
+  color: #00b96b;
+  text-align: center;
+}
+.semlo-editor-code-settings-toggle {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: none;
+  border-radius: 8px;
+  background: #c8cbca;
+}
+.semlo-editor-code-settings-toggle::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+.semlo-editor-code-settings-row[aria-checked="true"] .semlo-editor-code-settings-toggle {
+  background: #00b96b;
+}
+.semlo-editor-code-settings-row[aria-checked="true"] .semlo-editor-code-settings-toggle::after {
+  left: 14px;
+}
+.semlo-editor-code-numbers[hidden] {
+  display: none;
+}
+.semlo-editor-prose .semlo-editor-code-card[data-code-wrap="true"] .semlo-editor-code-body pre {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-code-number-line {
+  display: block;
+  overflow: hidden;
+}
+
+.semlo-editor-code-header .semlo-editor-code-run[hidden] {
+  display: none;
+}
+.semlo-editor-code-header .semlo-editor-code-run {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 0 6px;
+  border-left: 1px solid var(--semlo-editor-code-header-border);
+}
+.semlo-editor-code-run svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+}
+.semlo-editor-code-card:not(
+    :is(
+      :hover,
+      :focus-within,
+      .is-active,
+      :has(.semlo-editor-code-select[aria-expanded="true"]),
+      .semlo-editor-prose:focus .ProseMirror-selectednode
+    )
+  )
+  .semlo-editor-code-run {
+  width: 1px;
+  min-width: 0;
+  max-width: 1px;
+  flex: 0 0 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Additional highlight.js token classes share each theme's existing palette. */
+.semlo-editor-code-card :is(.hljs-built_in, .hljs-type) {
+  color: var(--semlo-editor-code-keyword);
+}
+.semlo-editor-code-card :is(.hljs-variable, .hljs-symbol) {
+  color: var(--semlo-editor-code-string);
+}
+.semlo-editor-code-card :is(.hljs-title, .hljs-meta) {
+  color: var(--semlo-editor-code-number);
+}
+
+.semlo-editor-code-fold-hidden {
+  display: none;
+}
+.semlo-editor-code-fold-placeholder {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: rgba(128, 128, 128, 0.2);
+  cursor: pointer;
+}
+
+.semlo-editor-code-fold-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: 0 0 16px;
+  width: 16px;
+  pointer-events: none;
+}
+.semlo-editor-code-fold-toggle {
+  position: absolute;
+  left: 0;
+  width: 16px;
+  height: 1.45em;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--semlo-editor-code-gutter);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.semlo-editor-code-fold-toggle::after {
+  content: "▾";
+}
+.semlo-editor-code-fold-toggle[aria-expanded="false"]::after {
+  content: "▸";
+}
+.semlo-editor-code-fold-number {
+  position: absolute;
+  left: -28px;
+  width: 24px;
+  text-align: right;
+  color: var(--semlo-editor-code-gutter);
+}
+
+/* JSX/TSX and ArkTS syntax tokens use the palette of the selected code theme. */
+.semlo-editor-code-card {
+  --semlo-editor-syntax-kw: #d73a49;
+  --semlo-editor-syntax-builtin-color: #6f42c1;
+  --semlo-editor-syntax-meta-color: #1f7f9a;
+  --semlo-editor-syntax-op: #e10023;
+  --semlo-editor-syntax-def: #a13000;
+  --semlo-editor-syntax-var: #232930;
+  --semlo-editor-syntax-prop: #005cc5;
+  --semlo-editor-syntax-tag-color: #22863a;
+  --semlo-editor-syntax-attr-color: #6f42c1;
+  --semlo-editor-syntax-string-color: #690;
+  --semlo-editor-syntax-number-color: #005cc5;
+  --semlo-editor-syntax-comment-color: #6a737d;
+  --semlo-editor-syntax-regex-color: #690;
+}
+.semlo-editor-code-card[data-theme="light-pro"] {
+  --semlo-editor-syntax-kw: #e10023;
+  --semlo-editor-syntax-builtin-color: #004fb4;
+  --semlo-editor-syntax-meta-color: #004fb4;
+  --semlo-editor-syntax-prop: #8c48e7;
+  --semlo-editor-syntax-tag-color: #004fb4;
+  --semlo-editor-syntax-attr-color: #004fb4;
+  --semlo-editor-syntax-string-color: #002f6d;
+  --semlo-editor-syntax-number-color: #004fb4;
+  --semlo-editor-syntax-comment-color: #6c7782;
+  --semlo-editor-syntax-regex-color: #7d5959;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"] {
+  --semlo-editor-syntax-kw: #2869c9;
+  --semlo-editor-syntax-builtin-color: #2869c9;
+  --semlo-editor-syntax-meta-color: #353535;
+  --semlo-editor-syntax-op: #2869c9;
+  --semlo-editor-syntax-def: #9020cc;
+  --semlo-editor-syntax-var: #353535;
+  --semlo-editor-syntax-prop: #353535;
+  --semlo-editor-syntax-tag-color: #535353;
+  --semlo-editor-syntax-attr-color: #680;
+  --semlo-editor-syntax-string-color: #f78000;
+  --semlo-editor-syntax-number-color: #680;
+  --semlo-editor-syntax-comment-color: #00a961;
+  --semlo-editor-syntax-regex-color: #7d5959;
+}
+.semlo-editor-code-card[data-theme="dark"] {
+  --semlo-editor-syntax-kw: #d371e3;
+  --semlo-editor-syntax-builtin-color: #43b0f5;
+  --semlo-editor-syntax-meta-color: #1db8c4;
+  --semlo-editor-syntax-op: #1db8c4;
+  --semlo-editor-syntax-def: #ebbf6f;
+  --semlo-editor-syntax-var: #f06372;
+  --semlo-editor-syntax-prop: #43b0f5;
+  --semlo-editor-syntax-tag-color: #1db8c4;
+  --semlo-editor-syntax-attr-color: #da985c;
+  --semlo-editor-syntax-string-color: #8bc56f;
+  --semlo-editor-syntax-number-color: #da985c;
+  --semlo-editor-syntax-comment-color: #7e848f;
+  --semlo-editor-syntax-regex-color: #8bc56f;
+}
+.semlo-editor-code-card[data-theme="night-owl"] {
+  --semlo-editor-syntax-kw: #d18df0;
+  --semlo-editor-syntax-builtin-color: #ffd400;
+  --semlo-editor-syntax-meta-color: #bce666;
+  --semlo-editor-syntax-op: #d18df0;
+  --semlo-editor-syntax-def: #79a9ff;
+  --semlo-editor-syntax-var: #5adeca;
+  --semlo-editor-syntax-prop: #79a9ff;
+  --semlo-editor-syntax-tag-color: #bce666;
+  --semlo-editor-syntax-attr-color: #bce666;
+  --semlo-editor-syntax-string-color: #f3c384;
+  --semlo-editor-syntax-number-color: #ff8563;
+  --semlo-editor-syntax-comment-color: #5e7877;
+  --semlo-editor-syntax-regex-color: #7d5959;
+}
+.semlo-editor-code-card[data-theme="darcula"] {
+  --semlo-editor-syntax-kw: #d87e30;
+  --semlo-editor-syntax-builtin-color: #ccc;
+  --semlo-editor-syntax-meta-color: #ccc;
+  --semlo-editor-syntax-op: #ccc;
+  --semlo-editor-syntax-def: #ffc45a;
+  --semlo-editor-syntax-var: #ccc;
+  --semlo-editor-syntax-prop: #ffc45a;
+  --semlo-editor-syntax-tag-color: #ffc45a;
+  --semlo-editor-syntax-attr-color: #ccc;
+  --semlo-editor-syntax-string-color: #628854;
+  --semlo-editor-syntax-number-color: #719fc5;
+  --semlo-editor-syntax-comment-color: #707070;
+  --semlo-editor-syntax-regex-color: #b45555;
+}
+.semlo-editor-code-card .semlo-editor-syntax-keyword.hljs-keyword {
+  color: var(--semlo-editor-syntax-kw);
+}
+.semlo-editor-code-card .semlo-editor-syntax-operator {
+  color: var(--semlo-editor-syntax-op);
+}
+.semlo-editor-code-card .semlo-editor-syntax-definition.hljs-title {
+  color: var(--semlo-editor-syntax-def);
+}
+.semlo-editor-code-card .semlo-editor-syntax-variable.hljs-variable {
+  color: var(--semlo-editor-syntax-var);
+}
+.semlo-editor-code-card .semlo-editor-syntax-tag {
+  color: var(--semlo-editor-syntax-tag-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-attribute.hljs-attr {
+  color: var(--semlo-editor-syntax-attr-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-string.hljs-string {
+  color: var(--semlo-editor-syntax-string-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-number.hljs-number {
+  color: var(--semlo-editor-syntax-number-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-comment.hljs-comment {
+  color: var(--semlo-editor-syntax-comment-color);
+  font-style: normal;
+}
+.semlo-editor-code-card .semlo-editor-syntax-type.hljs-type {
+  color: var(--semlo-editor-syntax-tag-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-property {
+  color: var(--semlo-editor-syntax-prop);
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-regex.hljs-regexp {
+  color: var(--semlo-editor-syntax-regex-color);
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-bool.hljs-literal {
+  color: inherit;
+}
+
+.semlo-editor-code-card[data-theme="night-owl"]
+  :is(
+    .semlo-editor-syntax-keyword,
+    .semlo-editor-syntax-builtin,
+    .semlo-editor-syntax-definition,
+    .semlo-editor-syntax-variable,
+    .semlo-editor-syntax-tag,
+    .semlo-editor-syntax-attribute,
+    .semlo-editor-syntax-property,
+    .semlo-editor-syntax-type
+  ) {
+  font-style: italic;
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-builtin.hljs-built_in {
+  color: var(--semlo-editor-syntax-builtin-color);
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-meta.hljs-meta {
+  color: var(--semlo-editor-syntax-meta-color);
+}
+.semlo-editor-code-card .semlo-editor-syntax-special-string.hljs-string {
+  color: var(--semlo-editor-syntax-regex-color);
+}
+
+.semlo-editor-code-card {
+  --semlo-editor-syntax-atom: #905;
+  --semlo-editor-syntax-punctuation: #262626;
+}
+.semlo-editor-code-card[data-theme="light-pro"] {
+  --semlo-editor-syntax-atom: #004fb4;
+  --semlo-editor-syntax-punctuation: #262c31;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"] {
+  --semlo-editor-syntax-atom: #f78000;
+  --semlo-editor-syntax-punctuation: #363636;
+}
+.semlo-editor-code-card[data-theme="dark"] {
+  --semlo-editor-syntax-atom: #da985c;
+  --semlo-editor-syntax-punctuation: #a9b2c0;
+}
+.semlo-editor-code-card[data-theme="night-owl"] {
+  --semlo-editor-syntax-atom: #ff4571;
+  --semlo-editor-syntax-punctuation: #d4deec;
+}
+.semlo-editor-code-card[data-theme="darcula"] {
+  --semlo-editor-syntax-atom: #a578b4;
+  --semlo-editor-syntax-punctuation: #ccc;
+}
+.semlo-editor-code-card .semlo-editor-syntax-atom.hljs-symbol {
+  color: var(--semlo-editor-syntax-atom);
+}
+.semlo-editor-code-card .semlo-editor-syntax-punctuation {
+  color: var(--semlo-editor-syntax-punctuation);
+}
+
+.semlo-editor-code-card {
+  --semlo-editor-syntax-sass-variable: #005cc5;
+}
+.semlo-editor-code-card[data-theme="light-pro"] {
+  --semlo-editor-syntax-sass-variable: #a13000;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"] {
+  --semlo-editor-syntax-sass-variable: #353535;
+}
+.semlo-editor-code-card[data-theme="dark"] {
+  --semlo-editor-syntax-sass-variable: #f06372;
+}
+.semlo-editor-code-card[data-theme="night-owl"] {
+  --semlo-editor-syntax-sass-variable: #5adeca;
+}
+.semlo-editor-code-card[data-theme="darcula"] {
+  --semlo-editor-syntax-sass-variable: #ccc;
+}
+.semlo-editor-code-card :is(.semlo-editor-syntax-sass-variable, .semlo-editor-syntax-stex-variable).hljs-variable {
+  color: var(--semlo-editor-syntax-sass-variable);
+}
+.semlo-editor-code-card:is([data-theme="dark"], [data-theme="night-owl"])
+  :is(.semlo-editor-syntax-sass-variable, .semlo-editor-syntax-stex-variable) {
+  font-style: italic;
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-diff-deleted {
+  color: #d44;
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-diff-inserted {
+  color: #292;
+}
+
+.semlo-editor-code-card :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #00f;
+}
+.semlo-editor-code-card[data-theme="light-pro"]
+  :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #232930;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"]
+  :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #353535;
+}
+.semlo-editor-code-card[data-theme="dark"]
+  :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #a9b2c0;
+}
+.semlo-editor-code-card[data-theme="night-owl"]
+  :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #d4deec;
+}
+.semlo-editor-code-card[data-theme="darcula"]
+  :is(.semlo-editor-syntax-properties-header, .semlo-editor-syntax-markdown-heading) {
+  color: #ccc;
+}
+.semlo-editor-code-card .semlo-editor-syntax-markdown-heading.semlo-editor-syntax-meta {
+  color: var(--semlo-editor-syntax-meta-color);
+}
+
+.semlo-editor-code-card .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #005cc5;
+}
+.semlo-editor-code-card[data-theme="light-pro"] .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #a13000;
+}
+.semlo-editor-code-card[data-theme="bracket-lights-pro"] .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #353535;
+}
+.semlo-editor-code-card[data-theme="dark"] .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #f06372;
+  font-style: italic;
+}
+.semlo-editor-code-card[data-theme="night-owl"] .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #5adeca;
+  font-style: italic;
+}
+.semlo-editor-code-card[data-theme="darcula"] .semlo-editor-syntax-make-variable.hljs-variable {
+  color: #ccc;
+}

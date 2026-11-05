@@ -1,0 +1,79 @@
+.semlo-editor-code-header .semlo-editor-code-select[hidden] {
+  display: none;
+}
+.semlo-editor-code-menu,
+.semlo-editor-code-menu * {
+  box-sizing: border-box;
+}
+.semlo-editor-code-menu {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  width: 168px;
+  max-height: min(264px, calc(100vh - 16px));
+  flex-direction: column;
+  overflow: hidden;
+  padding: 4px 0;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow:
+    0 8px 24px #00000020,
+    0 2px 5px #0000000c;
+  color: #585a5a;
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-code-menu.is-searchable {
+  width: 140px;
+}
+.semlo-editor-code-header .semlo-editor-code-language-search {
+  min-width: 0;
+  outline: 1px solid #9ccab5;
+  outline-offset: -1px;
+}
+.semlo-editor-code-menu-list {
+  min-height: 0;
+  overflow: auto;
+  outline: 0;
+}
+.semlo-editor-code-menu-option {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 8px;
+  border: 0;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-code-menu-option.is-active,
+.semlo-editor-code-menu-option:hover {
+  background: #f5f5f5;
+}
+.semlo-editor-code-menu-check {
+  width: 16px;
+  flex: 0 0 16px;
+  color: #00b96b;
+  text-align: center;
+}
+.semlo-editor-code-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-code-menu-note {
+  flex: none;
+  color: #999;
+  font-size: 10px;
+  white-space: nowrap;
+}

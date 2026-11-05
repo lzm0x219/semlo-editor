@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "../lifecycle/destroy-audit.test.ts",
+    "../fixtures/lifecycle/destroy-audit-fixture.ts",
+    "./destroy-audit-rstest.config.ts",
+    "../fixtures/lifecycle/destroy-audit-globals.d.ts",
+    "../fixtures/browser/fixture-browser-runtime.ts",
+    "../../demo/assets.d.ts",
+    "../../packages/core/src/**/*.d.ts",
+    "../lifecycle/destroy-framework.test.ts",
+    "../fixtures/lifecycle/destroy-framework-fixture.ts"
+  ]
+}

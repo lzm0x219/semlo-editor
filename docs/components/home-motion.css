@@ -1,0 +1,283 @@
+.semlo-editor-hero-inner {
+  isolation: isolate;
+}
+
+.semlo-editor-hero-copy,
+.semlo-editor-editor-stage {
+  position: relative;
+  z-index: 1;
+}
+
+.semlo-editor-sprig {
+  position: absolute;
+  z-index: 0;
+  bottom: -2px;
+  left: 34%;
+  width: clamp(120px, 12vw, 180px);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.semlo-editor-sprig-sway {
+  transform-origin: 40% 100%;
+}
+
+.semlo-editor-sprig svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.semlo-editor-sprig-shoot,
+.semlo-editor-sprig-growth {
+  transform-box: view-box;
+  transform-origin: 40% 99%;
+}
+
+.semlo-editor-sprig-shoot-back {
+  --sprig-grow-delay: 260ms;
+}
+
+.semlo-editor-sprig-shoot-left {
+  --sprig-grow-delay: 120ms;
+}
+
+.semlo-editor-sprig-shoot-right {
+  --sprig-grow-delay: 180ms;
+}
+
+.semlo-editor-sprig-growth {
+  animation: semlo-editor-shoot-grow 1.8s cubic-bezier(0.23, 1, 0.32, 1) var(--sprig-grow-delay, 0ms) both;
+}
+
+.semlo-editor-sprig-leaf {
+  transform-box: fill-box;
+  animation: semlo-editor-leaf-unfold 1.35s cubic-bezier(0.23, 1, 0.32, 1) both;
+  animation-delay: calc(var(--sprig-grow-delay, 0ms) + var(--sprig-leaf-delay, 0ms));
+}
+
+.semlo-editor-sprig-leaf-left {
+  --sprig-leaf-fold: -6deg;
+  transform-origin: 100% 100%;
+}
+
+.semlo-editor-sprig-leaf-right {
+  --sprig-leaf-fold: 6deg;
+  transform-origin: 0 100%;
+}
+
+.semlo-editor-sprig-leaf-one {
+  --sprig-leaf-delay: 100ms;
+}
+
+.semlo-editor-sprig-leaf-two {
+  --sprig-leaf-delay: 200ms;
+}
+
+.semlo-editor-sprig-leaf-three {
+  --sprig-leaf-delay: 300ms;
+}
+
+.semlo-editor-sprig-leaf-four {
+  --sprig-leaf-delay: 400ms;
+}
+
+.semlo-editor-sprig-leaf-tip {
+  transform-origin: 50% 100%;
+  --sprig-leaf-delay: 500ms;
+}
+
+.semlo-editor-sprig-bud {
+  transform-box: fill-box;
+  transform-origin: 20% 100%;
+  animation: semlo-editor-leaf-unfold 1.35s cubic-bezier(0.23, 1, 0.32, 1) 600ms both;
+}
+
+.semlo-editor-hero.semlo-editor-editor-focused .semlo-editor-sprig-growth,
+.semlo-editor-hero.semlo-editor-editor-focused .semlo-editor-sprig-leaf,
+.semlo-editor-hero.semlo-editor-editor-focused .semlo-editor-sprig-bud {
+  animation-play-state: paused;
+}
+
+.semlo-editor-art-blocks.is-growing span {
+  transform-origin: bottom center;
+  animation: semlo-editor-block-grow 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.semlo-editor-art-blocks.is-growing span:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.semlo-editor-art-blocks.is-growing span:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.semlo-editor-art-blocks.is-growing span:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+.semlo-editor-art-type.is-growing span {
+  animation: semlo-editor-ink-appear 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.semlo-editor-art-type.is-growing i,
+.semlo-editor-art-data.is-growing span,
+.semlo-editor-art-data.is-growing i {
+  animation: semlo-editor-art-appear 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.semlo-editor-art-type.is-growing i,
+.semlo-editor-art-data.is-growing i {
+  animation-delay: 100ms;
+}
+
+.semlo-editor-action-primary > span,
+.semlo-editor-action-secondary > span,
+.semlo-editor-action-try > span,
+.semlo-editor-stage-action > span,
+.semlo-editor-paths-intro > a > span,
+.semlo-editor-path-list a > span:last-child,
+.semlo-editor-showcase-intro > a span,
+.semlo-editor-data-intro > a span {
+  display: inline-block;
+  transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.semlo-editor-action-primary > span {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--sm-action-icon-bg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .semlo-editor-action-primary:hover:not(:active) {
+    transform: translateY(-1px);
+  }
+
+  .semlo-editor-action-primary:hover:not(:active) > span,
+  .semlo-editor-paths-intro > a:hover > span,
+  .semlo-editor-path-list a:hover > span:last-child,
+  .semlo-editor-showcase-intro > a:hover span,
+  .semlo-editor-data-intro > a:hover span {
+    transform: translate(2px, -2px);
+  }
+
+  .semlo-editor-action-secondary:hover > span {
+    transform: translateX(3px);
+  }
+
+  .semlo-editor-action-try:hover > span,
+  .semlo-editor-stage-action:hover > span {
+    transform: translate(2px, 2px);
+  }
+
+  .semlo-editor-stage-return:hover > span,
+  .semlo-editor-stage-next:hover > span {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes semlo-editor-shoot-grow {
+  from {
+    opacity: 0.7;
+    transform: scale(0.98, 0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes semlo-editor-leaf-unfold {
+  from {
+    opacity: 0.72;
+    transform: rotate(var(--sprig-leaf-fold, 0deg)) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+@keyframes semlo-editor-block-grow {
+  from {
+    transform: translateY(7px) rotate(-8deg) scaleY(0.97);
+  }
+  to {
+    transform: translateY(0) rotate(-8deg) scaleY(1);
+  }
+}
+
+@keyframes semlo-editor-ink-appear {
+  from {
+    transform: translateY(6px) rotate(-8deg) scale(0.98);
+  }
+  to {
+    transform: translateY(0) rotate(-8deg) scale(1);
+  }
+}
+
+@keyframes semlo-editor-art-appear {
+  from {
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 1050px) {
+  .semlo-editor-sprig {
+    left: 34%;
+    width: 110px;
+  }
+}
+
+@media (max-width: 720px) {
+  .semlo-editor-sprig {
+    top: 58px;
+    right: -10px;
+    bottom: auto;
+    left: auto;
+    width: 110px;
+    opacity: 0.65;
+    transform: rotate(180deg);
+  }
+}
+
+@media (max-width: 360px) {
+  .semlo-editor-sprig {
+    right: -6px;
+    width: 85px;
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-sprig-sway,
+  .semlo-editor-sprig-growth,
+  .semlo-editor-sprig-leaf,
+  .semlo-editor-sprig-bud,
+  .semlo-editor-art-blocks.is-growing span,
+  .semlo-editor-art-type.is-growing span,
+  .semlo-editor-art-type.is-growing i,
+  .semlo-editor-art-data.is-growing span,
+  .semlo-editor-art-data.is-growing i {
+    animation: none;
+  }
+
+  .semlo-editor-action-primary:hover:not(:active),
+  .semlo-editor-action-primary:hover:not(:active) > span,
+  .semlo-editor-action-secondary:hover > span,
+  .semlo-editor-action-try:hover > span,
+  .semlo-editor-stage-action:hover > span,
+  .semlo-editor-paths-intro > a:hover > span,
+  .semlo-editor-path-list a:hover > span:last-child,
+  .semlo-editor-showcase-intro > a:hover span,
+  .semlo-editor-data-intro > a:hover span {
+    transform: none;
+  }
+}

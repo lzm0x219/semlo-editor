@@ -1,0 +1,734 @@
+/* The search panel is rendered outside the page in Rspress's modal portal. */
+.rp-search-panel__mask {
+  background: #20382b80;
+  backdrop-filter: blur(5px);
+}
+
+.rp-search-panel__modal {
+  --rp-c-bg: #fbfdf9;
+  --rp-c-text-1: #233c2c;
+  --rp-c-text-2: #697e6d;
+  --rp-c-gray-light-1: #718577;
+  --rp-c-divider-light: #e2ece1;
+  --rp-c-brand: #32734a;
+  --semlo-search-selected: #e7f2e6;
+  --semlo-search-icon: #edf5eb;
+  --semlo-search-key: #edf3eb;
+  --rp-search-panel-top: min(120px, 14dvh);
+  max-width: 620px;
+  border-color: #dbe9d9;
+  border-radius: 16px;
+  box-shadow:
+    0 22px 70px #172f2050,
+    0 4px 16px #172f201c;
+}
+
+.rp-search-panel__header {
+  order: 0;
+  padding: 12px 18px;
+}
+
+.rp-search-panel__input-form {
+  gap: 12px;
+  height: 48px;
+}
+
+.rp-search-panel__search-icon {
+  width: 21px;
+  height: 21px;
+  color: #528061;
+}
+
+.rp-search-panel__input {
+  padding: 0;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+}
+
+.rp-search-panel__input::placeholder {
+  color: #899b8c;
+  opacity: 1;
+}
+
+.rp-search-panel__close[role="button"] {
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 7px;
+  color: var(--rp-c-gray-light-1);
+  cursor: pointer;
+}
+
+.rp-search-panel__close[role="button"]:hover {
+  background: var(--semlo-search-key);
+}
+
+.rp-search-panel__cancel[role="button"] {
+  cursor: pointer;
+}
+
+.rp-search-panel__modal :is(.rp-search-panel__close, .rp-search-panel__cancel, a):focus-visible {
+  outline: 2px solid #438f5d;
+  outline-offset: -2px;
+}
+
+.semlo-editor-search__quick {
+  order: 1;
+  min-height: 0;
+  padding: 4px 8px 12px;
+  border-top: 1px solid var(--rp-c-divider-light);
+  overscroll-behavior: contain;
+  overflow-y: auto;
+}
+
+.semlo-editor-search__section-label,
+.rp-search-panel__results::before {
+  display: block;
+  margin: 0;
+  padding: 12px 12px 6px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.semlo-editor-search__quick-link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--rp-c-text-1);
+  text-decoration: none;
+}
+
+.semlo-editor-search__quick-link[data-selected] {
+  background: var(--semlo-search-selected);
+}
+
+.semlo-editor-search__quick-icon,
+.rp-search-panel__modal .rp-suggest-item__icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--semlo-search-icon);
+  color: var(--rp-c-brand);
+}
+
+.semlo-editor-search__quick-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.semlo-editor-search__quick-title {
+  min-width: 0;
+  margin-left: 12px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-search__quick-description {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.semlo-editor-search__quick-enter {
+  width: 20px;
+  margin-left: 10px;
+  color: var(--rp-c-brand);
+  font-size: 17px;
+  text-align: center;
+  visibility: hidden;
+}
+
+.semlo-editor-search__quick-link[data-selected] .semlo-editor-search__quick-enter {
+  visibility: visible;
+}
+
+.rp-search-panel__results {
+  order: 2;
+  padding: 3px 8px 12px;
+}
+
+.rp-search-panel__results::before {
+  content: "搜索结果";
+}
+
+.rp-search-panel__modal[data-semlo-editor-pending] .rp-search-panel__results {
+  display: none;
+}
+
+.semlo-editor-search__loading {
+  order: 1;
+  min-height: 112px;
+  padding: 28px 20px;
+  border-top: 1px solid var(--rp-c-divider-light);
+  color: var(--rp-c-text-2);
+  font-size: 13px;
+}
+
+.rp-search-panel__modal:has(.rp-search-panel__input:placeholder-shown)
+  .rp-search-panel__results:not(:has(.rp-search-panel__error)) {
+  display: none;
+}
+
+.rp-search-panel__group {
+  padding-bottom: 8px;
+}
+
+.rp-search-panel__group[data-semlo-editor-group]::before {
+  display: block;
+  padding: 8px 12px 5px;
+  color: var(--rp-c-gray-light-1);
+  content: attr(data-semlo-editor-group) "  ·  " attr(data-semlo-editor-count);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rp-search-panel__modal .rp-suggest-item {
+  margin: 0;
+}
+
+.rp-search-panel__modal .rp-suggest-item__link {
+  padding-left: 12px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.rp-search-panel__modal .rp-suggest-item__container {
+  min-height: 50px;
+  padding-right: 12px;
+}
+
+.rp-search-panel__modal .rp-suggest-item__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.rp-search-panel__modal .rp-suggest-item__content {
+  padding: 6px 12px;
+}
+
+.rp-search-panel__modal .rp-suggest-item__content[data-semlo-editor-heading]::before {
+  display: block;
+  overflow: hidden;
+  color: var(--rp-c-text-1);
+  content: attr(data-semlo-editor-heading);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-search-panel__modal .rp-suggest-item__content[data-semlo-editor-heading] .rp-suggest-item__title {
+  display: none;
+}
+
+.rp-search-panel__modal .rp-suggest-item__content[data-semlo-editor-heading] .rp-suggest-item__statement {
+  margin-top: 2px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.rp-search-panel__modal :is(.rp-suggest-item__header, .rp-suggest-item__statement, .rp-suggest-item__title) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-search-panel__modal .rp-suggest-item__header[data-semlo-editor-prefix] {
+  text-indent: calc(-1 * var(--semlo-prefix-width));
+}
+
+.rp-search-panel__modal .rp-suggest-item__statement {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rp-search-panel__modal .rp-suggest-item__title {
+  margin: 1px 0 0;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.rp-search-panel__modal .rp-suggest-item__mark {
+  color: var(--rp-c-brand);
+  font-weight: 700;
+}
+
+.rp-search-panel__modal .rp-suggest-item__action-icon {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 11px;
+  text-align: right;
+  opacity: 1;
+}
+
+.rp-search-panel__modal .rp-suggest-item__action-icon::before {
+  content: attr(data-semlo-editor-kind);
+}
+
+.rp-search-panel__modal .rp-suggest-item[data-semlo-editor-favorite] .rp-suggest-item__action-icon::after {
+  margin-left: 6px;
+  color: var(--rp-c-brand);
+  content: "★";
+  font-size: 11px;
+}
+
+.rp-search-panel__modal .rp-suggest-item__action-icon svg {
+  display: none;
+}
+
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__action-icon::before {
+  color: var(--rp-c-brand);
+  content: "↵";
+  font-size: 16px;
+}
+
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__link {
+  background: var(--semlo-search-selected);
+}
+
+.rp-search-panel__modal .rp-suggest-item--current :is(.rp-suggest-item__link, .rp-suggest-item__statement) {
+  color: var(--rp-c-text-1);
+}
+
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__icon,
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__mark {
+  color: var(--rp-c-brand);
+}
+
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__title {
+  color: var(--rp-c-gray-light-1);
+}
+
+.rp-search-panel__modal
+  .rp-suggest-item--current
+  .rp-suggest-item__content[data-semlo-editor-heading]
+  .rp-suggest-item__statement {
+  color: var(--rp-c-gray-light-1);
+}
+
+.rp-search-panel__modal .rp-suggest-item--current .rp-suggest-item__mark {
+  text-decoration: none;
+}
+
+.rp-search-panel__results:has(.rp-suggest-item__link:focus-visible) .rp-suggest-item--current .rp-suggest-item__link {
+  background: transparent;
+}
+
+.rp-search-panel__results:has(.rp-suggest-item__link:focus-visible)
+  .rp-suggest-item--current
+  .rp-suggest-item__action-icon {
+  opacity: 0;
+}
+
+.rp-search-panel__results:has(.rp-suggest-item__link:focus-visible)
+  .rp-suggest-item
+  .rp-suggest-item__link:focus-visible {
+  background: var(--semlo-search-selected);
+}
+
+.rp-search-panel__modal .rp-no-search-result {
+  padding: 28px 16px 38px;
+  color: var(--rp-c-text-2);
+}
+
+.rp-search-panel__modal .rp-no-search-result__icon {
+  width: 34px;
+  height: 34px;
+  color: var(--rp-c-gray-light-1);
+}
+
+.semlo-editor-search__footer {
+  display: flex;
+  order: 3;
+  flex-shrink: 0;
+  margin-top: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 43px;
+  padding: 0 12px 0 20px;
+  border-top: 1px solid var(--rp-c-divider-light);
+  color: var(--rp-c-gray-light-1);
+  font-size: 11px;
+}
+
+.semlo-editor-search__footer-brand {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-search__footer-source {
+  font-weight: 400;
+}
+
+.semlo-editor-search__keyboard,
+.semlo-editor-search__keyboard > span {
+  display: flex;
+  align-items: center;
+}
+
+.semlo-editor-search__keyboard {
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.semlo-editor-search__keyboard > span {
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.semlo-editor-search__keyboard kbd,
+.semlo-editor-search__footer button kbd,
+.semlo-editor-search__actions-menu kbd {
+  display: inline-grid;
+  min-width: 18px;
+  height: 19px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--semlo-search-key);
+  color: var(--rp-c-text-2);
+  font: inherit;
+}
+
+.semlo-editor-search__primary-action,
+.semlo-editor-search__actions-trigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--rp-c-text-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.semlo-editor-search__primary-action {
+  color: var(--rp-c-text-1);
+}
+
+.semlo-editor-search__footer button:not(:disabled):hover,
+.semlo-editor-search__actions-trigger[aria-expanded="true"] {
+  background: var(--semlo-search-key);
+}
+
+.semlo-editor-search__footer button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rp-search-panel__modal:has(.semlo-editor-search__actions-menu) {
+  min-height: min(510px, calc(100dvh - var(--rp-search-panel-top) - 24px));
+}
+
+.semlo-editor-search__actions-menu {
+  position: absolute;
+  z-index: 2;
+  right: 10px;
+  bottom: 49px;
+  width: min(270px, calc(100% - 20px));
+  max-height: calc(100% - 125px);
+  display: flex;
+  flex-direction: column;
+  padding: 7px;
+  border: 1px solid var(--rp-c-divider-light);
+  border-radius: 11px;
+  background: var(--rp-c-bg);
+  overflow: hidden;
+  box-shadow:
+    0 12px 32px #172f2038,
+    0 2px 8px #172f2015;
+}
+
+.semlo-editor-search__action-search {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  min-height: 37px;
+  margin: 0 2px;
+  padding: 0 7px;
+  border-bottom: 1px solid var(--rp-c-divider-light);
+  color: var(--rp-c-gray-light-1);
+}
+
+.semlo-editor-search__action-search svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.semlo-editor-search__action-search:focus-within {
+  box-shadow: inset 0 -2px 0 var(--rp-c-brand);
+  color: var(--rp-c-brand);
+}
+
+.semlo-editor-search__action-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--rp-c-text-1);
+  font-size: 13px;
+}
+
+.semlo-editor-search__action-search input::placeholder {
+  color: var(--rp-c-gray-light-1);
+}
+
+.semlo-editor-search__actions-label {
+  overflow: hidden;
+  margin: 0;
+  padding: 6px 9px 8px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-search__actions-source {
+  font-weight: 400;
+}
+
+.semlo-editor-search__actions-menu [role="listbox"] {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rp-c-gray-light-1) transparent;
+}
+
+.semlo-editor-search__actions-more {
+  display: flex;
+  flex: 0 0 22px;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--rp-c-divider-light);
+  color: var(--rp-c-gray-light-1);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.semlo-editor-search__actions-section {
+  margin: 0;
+  padding: 7px 9px 4px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.semlo-editor-search__actions-menu :is(button, a) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--rp-c-text-1);
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.semlo-editor-search__actions-menu :is(button, a):is(:focus-visible, [aria-selected="true"]):not(:disabled) {
+  background: var(--semlo-search-selected);
+}
+
+.semlo-editor-search__actions-menu button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.semlo-editor-search__actions-empty {
+  margin: 0;
+  padding: 16px 9px;
+  color: var(--rp-c-gray-light-1);
+  font-size: 12px;
+}
+
+.semlo-editor-search__actions-menu kbd {
+  margin-left: auto;
+}
+
+.semlo-editor-search__action-symbol {
+  width: 17px;
+  color: var(--rp-c-brand);
+  font-size: 16px;
+  text-align: center;
+}
+
+.rp-search-panel__modal
+  :is(.semlo-editor-search__footer button, .semlo-editor-search__actions-menu button):focus-visible {
+  outline: 2px solid #438f5d;
+  outline-offset: -2px;
+}
+
+.semlo-editor-search__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dark .rp-search-panel__mask {
+  background: #0a1910b3;
+}
+
+.dark .rp-search-panel__modal {
+  --rp-c-bg: #1b2a20;
+  --rp-c-text-1: #e6f1e7;
+  --rp-c-text-2: #b5cbb8;
+  --rp-c-gray-light-1: #9cb4a1;
+  --rp-c-divider-light: #354b3b;
+  --rp-c-brand: #acd9b5;
+  --semlo-search-selected: #304a36;
+  --semlo-search-icon: #2a4030;
+  --semlo-search-key: #314438;
+  border-color: #3b5340;
+  box-shadow:
+    0 22px 70px #030d08a0,
+    0 4px 16px #030d0850;
+}
+
+.dark .rp-search-panel__search-icon {
+  color: #acd9b5;
+}
+
+.dark .rp-search-panel__input::placeholder {
+  color: #91a995;
+}
+
+.dark .rp-search-panel__modal :is(.rp-search-panel__close, .rp-search-panel__cancel, a):focus-visible {
+  outline-color: #a8deb2;
+}
+
+.dark
+  .rp-search-panel__modal
+  :is(.semlo-editor-search__footer button, .semlo-editor-search__actions-menu button):focus-visible {
+  outline-color: #a8deb2;
+}
+
+.dark .semlo-editor-search__actions-menu {
+  box-shadow:
+    0 12px 32px #030d08a0,
+    0 2px 8px #030d0850;
+}
+
+@media (max-width: 768px) {
+  .rp-search-panel__modal {
+    --rp-search-panel-top: 24px;
+  }
+
+  .rp-search-panel__modal:has(.semlo-editor-search__actions-menu) {
+    min-height: min(460px, calc(100dvh - 48px));
+  }
+
+  .rp-search-panel__header {
+    padding: 8px 12px;
+  }
+
+  .rp-search-panel__input-form {
+    gap: 9px;
+    height: 44px;
+  }
+
+  .rp-search-panel__input {
+    font-size: 16px;
+  }
+
+  .rp-search-panel__close[role="button"] {
+    width: 44px;
+    height: 44px;
+    padding: 14px;
+  }
+
+  .rp-search-panel__input-form:has(.rp-search-panel__input:placeholder-shown) .rp-search-panel__close {
+    display: none;
+  }
+
+  .semlo-editor-search__footer {
+    min-height: 48px;
+    gap: 5px;
+    padding: 0 12px 0 20px;
+  }
+
+  .semlo-editor-search__keyboard {
+    display: none;
+  }
+
+  .semlo-editor-search__footer-source {
+    display: none;
+  }
+
+  .semlo-editor-search__footer button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .semlo-editor-search__footer button kbd {
+    display: none;
+  }
+
+  .semlo-editor-search__actions-menu {
+    bottom: 54px;
+    max-height: calc(100% - 110px);
+  }
+
+  .semlo-editor-search__action-search,
+  .semlo-editor-search__actions-menu :is(button, a) {
+    min-height: 44px;
+  }
+
+  .semlo-editor-search__action-search input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .semlo-editor-search__quick-description {
+    display: none;
+  }
+
+  .semlo-editor-search__quick-enter {
+    margin-left: auto;
+  }
+}

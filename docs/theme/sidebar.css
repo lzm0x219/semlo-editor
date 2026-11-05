@@ -1,0 +1,305 @@
+.semlo-editor-manual__sidebar {
+  --semlo-sidebar-bg: var(--manual-sidebar);
+  --semlo-sidebar-title: var(--manual-ink);
+  --semlo-sidebar-ink: var(--manual-text);
+  --semlo-sidebar-muted: var(--manual-muted);
+  --semlo-sidebar-hover: var(--manual-surface-hover);
+  --semlo-sidebar-active: var(--manual-selected);
+  --semlo-sidebar-active-ink: var(--manual-selected-ink);
+  padding: 0;
+  border: 0;
+  background: var(--semlo-sidebar-bg);
+}
+
+.semlo-editor-manual__sidebar-heading {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 80px;
+  padding: 20px 16px 16px 28px;
+  color: var(--semlo-sidebar-title);
+}
+
+.semlo-editor-manual__sidebar-heading strong {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.semlo-editor-sidebar__collapse {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--semlo-sidebar-muted);
+  cursor: pointer;
+}
+
+.semlo-editor-sidebar__collapse svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 768px) {
+  .semlo-editor-manual__sidebar {
+    transition: background-color 0.28s ease;
+  }
+
+  .semlo-editor-manual__sidebar-heading {
+    transition: padding 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .semlo-editor-manual__sidebar-heading strong {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 1;
+    transition:
+      opacity 0.16s ease,
+      visibility 0s;
+  }
+
+  .semlo-editor-manual__sidebar > nav {
+    min-width: var(--manual-sidebar-expanded-width, 256px);
+    opacity: 1;
+    visibility: visible;
+    transition:
+      opacity 0.2s ease 0.06s,
+      visibility 0s;
+  }
+
+  .semlo-editor-manual__layout.is-sidebar-collapsed .semlo-editor-manual__sidebar > nav {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.14s ease,
+      visibility 0s linear 0.14s;
+  }
+
+  .semlo-editor-manual__layout.is-sidebar-collapsed .semlo-editor-manual__sidebar {
+    background: transparent;
+  }
+
+  .semlo-editor-manual__layout.is-sidebar-collapsed .semlo-editor-manual__sidebar-heading {
+    padding: 20px 8px 16px;
+  }
+
+  .semlo-editor-manual__layout.is-sidebar-collapsed .semlo-editor-manual__sidebar-heading strong {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.14s ease,
+      visibility 0s linear 0.14s;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .semlo-editor-manual__sidebar > nav {
+    --manual-sidebar-expanded-width: 236px;
+  }
+}
+
+.semlo-editor-manual__sidebar > nav {
+  padding: 0 16px 40px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--manual-scrollbar) transparent;
+}
+
+.semlo-editor-sidebar-group + .semlo-editor-sidebar-group {
+  margin-top: 8px;
+}
+
+.semlo-editor-sidebar-group__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--semlo-sidebar-ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.semlo-editor-sidebar-group--active .semlo-editor-sidebar-group__toggle {
+  color: var(--semlo-sidebar-title);
+}
+
+.semlo-editor-sidebar-group__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.semlo-editor-sidebar-group__number {
+  flex: 0 0 18px;
+  color: var(--semlo-sidebar-muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.semlo-editor-sidebar-group--active .semlo-editor-sidebar-group__number {
+  color: var(--semlo-sidebar-active-ink);
+}
+
+.semlo-editor-sidebar-group__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.semlo-editor-sidebar-group__current {
+  color: var(--semlo-sidebar-active-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.semlo-editor-sidebar-group__chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--semlo-sidebar-muted);
+  transition: transform 0.16s ease;
+}
+
+.semlo-editor-sidebar-group__toggle[aria-expanded="false"] .semlo-editor-sidebar-group__chevron {
+  transform: rotate(-90deg);
+}
+
+.semlo-editor-sidebar-group__toggle:focus-visible .semlo-editor-sidebar-group__chevron {
+  transition: none;
+}
+
+.semlo-editor-sidebar-group__items {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.semlo-editor-sidebar-group__items-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 2px 0 8px 28px;
+}
+
+.semlo-editor-sidebar-group__items[data-expanded="false"] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.semlo-editor-sidebar-group__items[data-expanded="false"] .semlo-editor-sidebar-group__items-inner {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.semlo-editor-manual__sidebar .rp-sidebar-item {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: var(--semlo-sidebar-ink);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.semlo-editor-manual__sidebar .rp-sidebar-item--group-item::before {
+  content: none;
+}
+
+.semlo-editor-manual__sidebar .rp-sidebar-item--active {
+  background: var(--semlo-sidebar-active);
+  color: var(--semlo-sidebar-active-ink);
+  font-weight: 650;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .semlo-editor-sidebar__collapse:hover,
+  .semlo-editor-manual__sidebar .semlo-editor-manual__panel-close:hover,
+  .semlo-editor-sidebar-group__toggle:hover,
+  .semlo-editor-manual__sidebar .rp-sidebar-item:not(.rp-sidebar-item--active):hover {
+    background: var(--semlo-sidebar-hover);
+    color: var(--semlo-sidebar-title);
+  }
+}
+
+.semlo-editor-sidebar__collapse:active,
+.semlo-editor-sidebar-group__toggle:active,
+.semlo-editor-manual__sidebar .rp-sidebar-item:not(.rp-sidebar-item--active):active {
+  background: var(--manual-surface-strong);
+}
+
+.semlo-editor-sidebar__collapse:focus-visible,
+.semlo-editor-sidebar-group__toggle:focus-visible,
+.semlo-editor-manual__sidebar .rp-sidebar-item:focus-visible,
+.semlo-editor-manual__sidebar .semlo-editor-manual__panel-close:focus-visible {
+  outline: 2px solid var(--manual-focus);
+  outline-offset: -2px;
+  transition: none;
+}
+
+@media (max-width: 767px) {
+  .semlo-editor-sidebar__collapse {
+    display: none;
+  }
+
+  .semlo-editor-manual__sidebar-heading {
+    min-height: 76px;
+    padding: 16px 18px 12px 28px;
+  }
+
+  .semlo-editor-sidebar-group__toggle,
+  .semlo-editor-manual__sidebar .rp-sidebar-item {
+    min-height: 44px;
+  }
+
+  .semlo-editor-manual__sidebar > nav {
+    padding-bottom: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-manual__sidebar .rp-sidebar-item,
+  .semlo-editor-sidebar-group__toggle,
+  .semlo-editor-sidebar-group__chevron,
+  .semlo-editor-sidebar-group__items,
+  .semlo-editor-manual__sidebar-heading strong,
+  .semlo-editor-manual__sidebar-heading,
+  .semlo-editor-manual__sidebar > nav {
+    transition: none;
+  }
+}

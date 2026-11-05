@@ -1,0 +1,37 @@
+.semlo-editor-toolbar.semlo-editor-toolbar-overflow-managed {
+  overflow: hidden;
+}
+
+.semlo-editor-toolbar-overflow-more[hidden],
+.semlo-editor-toolbar-overflow-panel[hidden] {
+  display: none !important;
+}
+
+.semlo-editor-toolbar-overflow-panel {
+  position: fixed;
+  z-index: 1010;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 1px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  padding: 4px 6px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #e7e9e8;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgb(23 55 35 / 11%);
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+}
+
+.semlo-editor-toolbar-overflow-panel > .semlo-editor-separator:first-child,
+.semlo-editor-toolbar-overflow-panel > .semlo-editor-separator:last-child {
+  display: none;
+}

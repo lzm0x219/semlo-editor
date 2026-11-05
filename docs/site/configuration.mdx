@@ -1,0 +1,184 @@
+---
+title: 配置与生命周期
+description: 配置编辑界面、只读状态、扩展及编辑器的创建和销毁。
+---
+
+import FeatureDemo from "../components/FeatureDemo";
+
+# 配置与生命周期
+
+创建编辑器时传入选项；部分选项可在创建后更新。下面以原生接口为例，框架组件的对应属性及事件见[框架适配](/frameworks)。
+
+<FeatureDemo examples={["start"]} />
+
+## 配置初始界面
+
+```ts
+import { createEditor } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const host = document.querySelector<HTMLElement>("#editor");
+if (!host) throw new Error("缺少编辑器挂载元素");
+
+const editor = createEditor({
+  element: host,
+  placeholder: "开始写作…",
+  toolbar: true,
+  outline: true,
+  editable: true,
+  onChange: (snapshot) => console.log(snapshot.json),
+  onError: (error) => console.error(error),
+});
+```
+
+默认情况下，`toolbar: false` 不创建主工具栏，也会关闭选区浮动工具栏；`floatingToolbar` 可单独控制后者。编辑器快捷键仍然可用，高亮快捷键使用默认高亮色。`outline: false` 隐藏大纲，大纲在有标题时显示入口，窄容器中入口会缩窄。`placeholder`、`toolbar`、`floatingToolbar`、`outline` 和 `extensions` 在创建时确定；需要更改时，应保存内容并重新创建实例。
+
+## 自定义主工具栏
+
+将 `toolbar` 设置为 `ToolbarFactory`，编辑器会在默认主工具栏的位置提供一个容器，并在创建完成后同步调用工厂。工厂可使用控制器访问当前 Tiptap 编辑器，返回清理函数释放自行创建的监听器和资源。
+
+```ts
+import { createEditor, getBoldState, toggleBold } from "@semlo-editor/core";
+import type { ToolbarFactory } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const toolbar: ToolbarFactory = ({ element, controller, syncSelection, subscribe }) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "加粗";
+  const update = () => {
+    const state = getBoldState(controller.editor);
+    button.disabled = !state.enabled;
+    button.setAttribute("aria-pressed", String(state.active));
+  };
+  const preserveSelection = (event: MouseEvent) => {
+    event.preventDefault();
+    syncSelection();
+  };
+  const onBold = () => toggleBold(controller.editor);
+  button.addEventListener("mousedown", preserveSelection);
+  button.addEventListener("click", onBold);
+  element.append(button);
+  const unsubscribe = subscribe(update);
+  update();
+  return () => {
+    unsubscribe();
+    button.removeEventListener("mousedown", preserveSelection);
+    button.removeEventListener("click", onBold);
+  };
+};
+
+const host = document.querySelector<HTMLElement>("#editor");
+if (!host) throw new Error("缺少挂载元素");
+const editor = createEditor({ element: host, toolbar });
+```
+
+`element` 是该实例专用的空容器，默认具有 `role="toolbar"` 和无障碍名称，接入方可按需要调整并负责按钮的样式、键盘和无障碍行为。`syncSelection()` 在编辑器仍有焦点时同步浏览器中的文本选区，不会强制聚焦或改变节点、单元格选区。示例通过 `mousedown` 保持选区，再执行命令；键盘激活仍使用按钮原生行为。
+
+`subscribe()` 在编辑器事务及通过控制器切换只读状态时调用监听器，不会立即调用；工厂应主动读取一次初始状态。它返回可重复调用的退订函数，编辑器销毁时也会自动退订。监听器同步执行，抛出的异常会传回触发操作的调用方。直接以底层 Tiptap 实例关闭通知的方式更改只读状态不在此订阅契约内。自定义按钮应检查 `controller.editor.isEditable`，不能将按钮禁用视为权限控制。
+
+自定义标题按钮可用 `getHeadingStyleState(controller.editor)` 读取样式与可用状态，调用 `toggleHeadingStyle(controller.editor, 2)` 按快捷键规则切换二级标题；菜单可用 `setHeadingStyle` 显式设置正文或标题。选区、折叠卡片与返回值约定见[标题与正文样式命令](/api#标题与正文样式命令)。
+
+自定义链接按钮可用 `getLinkState(controller.editor)` 更新状态，并通过 `startLinkEdit(controller.editor)` 实现自己的链接表单。它与默认弹层共享地址校验、占位和历史规则；会话所有权与失效时机见[链接命令与状态](/api#链接命令与状态)。体验页的自定义工具栏使用这一接口。
+
+自定义列表按钮可使用 `getListState(controller.editor, "bulletList")` 读取状态，并调用 `toggleList(controller.editor, "bulletList")` 执行与默认工具栏相同的操作；有序列表和待办分别使用 `"orderedList"`、`"taskList"`。选区、复杂结构和返回值约定见[列表命令](/api#列表命令)。体验页的自定义工具栏使用同一接口。
+
+工厂和清理函数必须同步执行。工厂调用一次，早于框架的 `onReady` / `ready`；它或返回的清理函数抛错时，异常由调用方处理。工厂在返回清理函数之前抛错时，应自行释放已创建的外部资源；编辑器会清理自己的实例和容器。工厂中若同步销毁编辑器，创建会失败并调用已返回的清理函数。卸载、销毁或重新挂载时，清理函数至多调用一次。
+
+工厂替换的是主工具栏，编辑器不会创建默认主工具栏控件；选区浮动工具栏、表格工具栏和编辑器快捷键仍由编辑器管理。自定义主工具栏下，高亮快捷键使用默认高亮色，不会读取自定义控件中的颜色。自定义容器不自动继承默认工具栏的布局、吸顶和溢出处理。切换工厂需重新创建编辑器。React、Vue 和 SolidJS 组件均可将同一个工厂传给 `toolbar` 属性，分别使用 `toolbar={toolbar}`、`:toolbar="toolbar"` 和 `toolbar={toolbar}`。
+
+## 自定义浮动工具栏
+
+`floatingToolbar` 省略时沿用 `toolbar` 的显示规则，保持既有默认行为。设为 `false` 可单独关闭浮动工具栏；设为 `true` 可启用默认浮动工具栏，包括 `toolbar: false` 时。传入 `FloatingToolbarFactory` 可替换浮动控件，主工具栏的配置不受影响。
+
+```ts
+import { createEditor, getBoldState, toggleBold } from "@semlo-editor/core";
+import type { FloatingToolbarFactory } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const floatingToolbar: FloatingToolbarFactory = ({ element, controller, syncSelection, subscribe, openLink }) => {
+  const bold = element.ownerDocument.createElement("button");
+  const link = element.ownerDocument.createElement("button");
+  bold.type = link.type = "button";
+  bold.textContent = "加粗";
+  link.textContent = "链接";
+  link.setAttribute("aria-haspopup", "dialog");
+  link.setAttribute("aria-expanded", "false");
+  const update = () => {
+    const state = getBoldState(controller.editor);
+    bold.disabled = !state.enabled;
+    link.disabled = !controller.editor.isEditable;
+    bold.setAttribute("aria-pressed", String(state.active));
+  };
+  const preserveSelection = (event: MouseEvent) => {
+    event.preventDefault();
+    syncSelection();
+  };
+  const onBold = () => toggleBold(controller.editor);
+  const showLink = () => openLink(link);
+  bold.addEventListener("mousedown", preserveSelection);
+  link.addEventListener("mousedown", preserveSelection);
+  bold.addEventListener("click", onBold);
+  link.addEventListener("click", showLink);
+  element.append(bold, link);
+  const unsubscribe = subscribe(update);
+  update();
+  return () => {
+    unsubscribe();
+    bold.removeEventListener("mousedown", preserveSelection);
+    link.removeEventListener("mousedown", preserveSelection);
+    bold.removeEventListener("click", onBold);
+    link.removeEventListener("click", showLink);
+  };
+};
+
+const host = document.querySelector<HTMLElement>("#editor");
+if (!host) throw new Error("缺少挂载元素");
+const editor = createEditor({ element: host, floatingToolbar });
+```
+
+容器由编辑器定位，默认具有 `role="toolbar"` 和“选中文字格式”的无障碍名称。编辑器在可编辑、有非空文字选区且焦点位于正文或浮动容器中时显示它；控件内容、样式、键盘行为和只读时的禁用状态由工厂负责。显示中的浮层切到只读时可能暂时保留，但自定义按钮应立即禁用。
+
+`syncSelection` 和 `subscribe` 的行为、工厂时序及清理规则与[自定义主工具栏](#自定义主工具栏)一致。两个工厂同时提供时，先调用主工具栏工厂，再调用浮动工具栏工厂，均早于框架的 `onReady` / `ready`；后一个工厂失败时，编辑器会清理前一个已返回的资源。`openLink(anchor)` 同步当前选区并打开编辑器内置的链接弹层；省略锚点时使用浮动容器。编辑器不可编辑、卸载或销毁后，调用不会打开弹层。自定义工厂不创建默认浮动按钮，需自行提供需要的格式操作。示例中的加粗状态与命令可复用主工具栏和快捷键的规则，详见[加粗命令](/api#加粗命令)。React 和 SolidJS 使用 `floatingToolbar={floatingToolbar}`，Vue 使用 `:floating-toolbar="floatingToolbar"`；更改工厂时需重新挂载。
+
+默认工具栏在所属滚动容器中吸顶。宿主页面若有固定页头，可在编辑器容器上设置偏移，避免工具栏被遮挡：
+
+```css
+#editor {
+  --semlo-editor-toolbar-sticky-top: 52px;
+}
+```
+
+偏移默认为 `0px`；页头高度会变化时，接入方需要同步更新该值。
+
+## 切换只读和聚焦
+
+```ts
+editor.setEditable(false); // 只读
+editor.setEditable(true); // 恢复编辑
+editor.focus();
+```
+
+切换为只读时，未完成上传的旧结果不会写入文档。只读状态并不等于访问控制：应用仍需在服务端实施权限规则。
+
+## 更新内容与服务
+
+使用 `setContent()` 更新内容、`setIntegrations()` 整体替换集成选项。前者不会触发 `onChange`；后者会清除未传入的选项。各方法的参数和行为见 [API 参考](/api#editorcontroller)。
+
+框架组件可动态接收内容、编辑状态和集成选项。`placeholder`、`toolbar`、`floatingToolbar`、`outline`、`extensions`、`codeBlockPreferences` 和 `headingFoldPreferences` 在创建时确定；变更它们需要重新挂载组件。
+
+## 添加 Tiptap 扩展
+
+创建时可通过 `extensions` 传入附加的 Tiptap 扩展。semlo-editor 已注册自身所需扩展，避免重复注册同名扩展；自定义内容的解析、渲染和序列化应由扩展提供并由应用验证。保存后恢复同类文档时，也需要提供与内容兼容的扩展。
+
+控制器的 `editor` 暴露底层 Tiptap 实例，供需要直接使用 Tiptap 能力的应用使用。保存和恢复文档时优先使用 semlo-editor 的 `getSnapshot()` 和 `setContent()`，以保留文档级字体处理。
+
+## 销毁实例
+
+原生接入时，在挂载页面或组件卸载前调用：
+
+```ts
+editor.destroy();
+```
+
+销毁会释放编辑器及其监听器，重复调用安全。应用自己注册的事件监听器、定时器和网络请求仍由应用管理。框架适配器会在组件卸载时自动销毁实例。

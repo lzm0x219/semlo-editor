@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleDetection": "force",
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "/dist/index.js": ["./tests/fixtures/browser/fixture-browser-entry.ts"]
+    }
+  },
+  "include": [
+    "tests/browser/cases/browser-*.ts",
+    "tests/**/*-check.ts",
+    "tests/fixtures/list/list-drag-seeds-fixture.ts",
+    "tests/fixtures/browser/fixture-browser-globals.d.ts",
+    "demo/assets.d.ts",
+    "packages/core/src/**/*.d.ts"
+  ]
+}

@@ -1,0 +1,119 @@
+---
+title: 上传与提及
+description: 接入上传、提及搜索和由应用提供的语雀内容链接选择。
+---
+
+import FeatureDemo from "../components/FeatureDemo";
+
+# 上传与提及
+
+semlo-editor 负责编辑器内的交互，应用负责上传文件、返回可访问的地址，并提供提及候选项。下面的服务端接口均为示例，需按实际应用实现。
+
+<FeatureDemo examples={["media", "tools"]} />
+
+## 接入上传
+
+图片使用 `uploadImage`；附件、本地音频和本地视频共用 `uploadAttachment`。两个回调接收浏览器 `File` 和可选的上下文，返回一个解析为地址的 Promise。由编辑器调用时，上下文包含 `signal`；原有只接收 `File` 的回调及只传一个参数的直接调用仍可使用。
+
+```ts
+import { createEditor } from "@semlo-editor/core";
+import type { ImageUpload, AttachmentUpload } from "@semlo-editor/core";
+
+async function upload(endpoint: string, file: File, signal?: AbortSignal): Promise<string> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(endpoint, { method: "POST", body, signal });
+  if (!response.ok) throw new Error(`上传失败：${response.status}`);
+  const result: { url: string } = await response.json();
+  return result.url;
+}
+
+const uploadImage: ImageUpload = (file, context) => upload("/api/images", file, context?.signal);
+const uploadAttachment: AttachmentUpload = (file, context) => upload("/api/attachments", file, context?.signal);
+
+const host = document.querySelector<HTMLElement>("#editor");
+if (!host) throw new Error("缺少编辑器挂载元素");
+const editor = createEditor({
+  element: host,
+  uploadImage,
+  uploadAttachment,
+  onError: (error) => console.error(error),
+});
+```
+
+配置图片上传后，可通过按钮、粘贴或拖拽插入图片；附件和音视频通过插入面板选择文件。图册也使用 `uploadImage`。请确保返回地址在之后打开文档时仍可访问；本地临时地址不适合长期保存。
+
+上传时编辑器使用占位来跟踪插入位置。替换文档、销毁编辑器、切换只读或相关上传会话失效后，旧结果不会写入新文档，进行中请求的 `signal` 会中止；应用需要将该信号传给 `fetch` 等操作才能取消网络请求。切换上传提供方不取消已开始的上传。应用仍需自行处理文件大小、类型、认证、服务端校验和失败提示。
+
+## 接入提及搜索
+
+`searchMentions(query, signal)` 可同步或异步返回人物、文档候选项：
+
+```ts
+import type { MentionSearch } from "@semlo-editor/core";
+
+const searchMentions: MentionSearch = async (query, signal) => {
+  const response = await fetch(`/api/mentions?q=${encodeURIComponent(query)}`, { signal });
+  if (!response.ok) throw new Error(`搜索失败：${response.status}`);
+  return await response.json();
+};
+```
+
+接口返回的数据应符合以下结构：
+
+```json
+[
+  { "id": "person-1", "label": "小明", "kind": "person" },
+  { "id": "doc-1", "label": "项目说明", "kind": "document", "href": "/docs/1" }
+]
+```
+
+查询变化或菜单关闭时，旧请求的 `signal` 会被中止。将它传给 `fetch` 才能中止示例中的网络请求。服务端应根据当前用户的权限筛选结果；未配置搜索时不会显示真实人物或文档。
+
+## 接入语雀内容链接选择
+
+配置 `yuqueContentProvider` 后，插入面板中的“语雀内容”入口可搜索应用提供的文档或表格，也可解析输入的链接。未配置提供方时入口不可用。提供方包含两个异步方法：`search(query, signal)` 返回候选数组；`resolveLink(link, signal)` 返回一个候选，或在没有可用内容时返回 `null`。
+
+下面是可在本地运行的最小示例，数据仅保存在内存中，不会请求网络。`example.invalid` 是占位地址，不能用于访问实际文档。
+
+```ts
+import { createEditor } from "@semlo-editor/core";
+import type { ContentChoice, ContentPickerProvider } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const choices: ContentChoice[] = [
+  { id: "doc-1", title: "项目文档", kind: "document", href: "https://example.invalid/doc-1" },
+  { id: "table-1", title: "项目表格", kind: "table", href: "https://example.invalid/table-1" },
+];
+
+const yuqueContentProvider: ContentPickerProvider = {
+  async search(query, signal) {
+    signal.throwIfAborted();
+    return choices.filter((item) => item.title.includes(query));
+  },
+  async resolveLink(link, signal) {
+    signal.throwIfAborted();
+    return choices.find((item) => item.href === link) ?? null;
+  },
+};
+
+const host = document.querySelector<HTMLElement>("#editor");
+if (!host) throw new Error("缺少编辑器挂载元素");
+const editor = createEditor({ element: host, yuqueContentProvider });
+```
+
+每个候选需要非空 `id` 和 `title`、`kind: 'document' | 'table'`，以及绝对 HTTP(S) `href`。格式无效的候选不会显示；解析结果为 `null` 时显示“未找到可用内容”。点击结果后，编辑器保存的是以标题为文字、`href` 为目标的**普通链接**，不是语雀原生内容卡片；`id` 和 `kind` 不会作为卡片数据保存。
+
+提供方负责搜索、解析、认证和权限校验。这个接口是 semlo-editor 的宿主接入约定，并非已验证的语雀服务协议。提交新的搜索或链接解析会中止前一次请求；关闭面板、替换提供方、替换文档、切换只读或销毁编辑器也会使待处理结果失效。网络实现应使用传入的 `signal`，并在服务端再次校验权限。
+
+三个框架组件均可通过 `yuqueContentProvider` 属性接入同一接口。运行时调用 `setIntegrations()` 时，它与其他集成选项一样会整体替换，需保留的选项应一并传入。
+
+## 运行时替换服务
+
+控制器的 `setIntegrations` 会整体替换集成选项，未传入的项会被清除。例如，下列调用保留列出的三个回调，并清除未列出的其他集成选项：
+
+```ts
+editor.setIntegrations({ uploadImage, uploadAttachment, searchMentions });
+```
+
+已有上传继续使用启动时的回调；更换提及搜索提供方会中止旧搜索并刷新，更换语雀内容提供方会关闭其选择面板并使旧结果失效。框架组件可直接更新相应属性。完整类型见 [API 参考](/api#数据类型)。

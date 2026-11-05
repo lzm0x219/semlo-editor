@@ -1,0 +1,88 @@
+packages:
+  - packages/*
+  - demo
+  - docs
+
+catalog:
+  "@codemirror/commands": "6.11.1"
+  "@codemirror/lang-cpp": "6.0.3"
+  "@codemirror/lang-css": "6.3.1"
+  "@codemirror/lang-go": "6.0.1"
+  "@codemirror/lang-html": "6.4.12"
+  "@codemirror/lang-java": "6.0.2"
+  "@codemirror/lang-javascript": "6.2.5"
+  "@codemirror/lang-json": "6.0.2"
+  "@codemirror/lang-less": "6.0.2"
+  "@codemirror/lang-markdown": "6.5.2"
+  "@codemirror/lang-php": "6.0.2"
+  "@codemirror/lang-python": "6.2.1"
+  "@codemirror/lang-rust": "6.0.2"
+  "@codemirror/lang-sass": "6.0.2"
+  "@codemirror/lang-sql": "6.10.0"
+  "@codemirror/lang-vue": "0.1.3"
+  "@codemirror/lang-xml": "6.1.0"
+  "@codemirror/lang-yaml": "6.1.3"
+  "@codemirror/language": "6.13.1"
+  "@codemirror/legacy-modes": "6.5.5"
+  "@codemirror/state": "6.7.6"
+  "@lezer/highlight": "1.2.5"
+  "@lezer/php-legacy": "npm:@lezer/php@1.0.2"
+  "@plantuml/core": "1.2026.9"
+  "@rsbuild/core": 2.3.0
+  "@rslib/core": 1.0.5
+  "@rspress/core": 2.1.0
+  "@rstest/core": "0.12.5"
+  "@rstest/playwright": 0.12.5
+  "@tiptap/core": 3.32.2
+  "@tiptap/extension-bubble-menu": "3.32.2"
+  "@tiptap/extension-code-block-lowlight": "3.32.2"
+  "@tiptap/extension-details": "3.32.2"
+  "@tiptap/extension-highlight": 3.32.2
+  "@tiptap/extension-image": "3.32.2"
+  "@tiptap/extension-placeholder": "3.32.2"
+  "@tiptap/extension-subscript": 3.32.2
+  "@tiptap/extension-superscript": 3.32.2
+  "@tiptap/extension-table": "3.32.2"
+  "@tiptap/extension-task-item": "3.32.2"
+  "@tiptap/extension-task-list": "3.32.2"
+  "@tiptap/extension-text-align": "3.32.2"
+  "@tiptap/extension-text-style": 3.32.2
+  "@tiptap/pm": 3.32.2
+  "@tiptap/starter-kit": "3.32.2"
+  "@tiptap/suggestion": "3.32.2"
+  "@types/node": "26.6.6"
+  "@types/react": 19.3.0
+  "@types/react-dom": 19.3.0
+  "@types/three": "0.187.0"
+  "@viz-js/viz": "3.31.0"
+  "dompurify": "3.4.17"
+  "emojibase-data": "18.0.0"
+  "flowchart.js": "1.18.1"
+  "highlight.js": "11.12.0"
+  "katex": 0.19.1
+  "lowlight": 3.3.0
+  "lunar-typescript": "1.8.6"
+  "oxfmt": "0.75.0"
+  "oxlint": "1.90.0"
+  "oxlint-tsgolint": "7.0.2005"
+  "pele": "1.13.0"
+  "playwright": "1.64.1"
+  "react": 19.3.1
+  "react-dom": 19.3.1
+  "solid-js": 1.9.18
+  "three": "0.187.0"
+  "typescript": 7.0.2
+  "vue": 3.5.44
+
+catalogs:
+  peer:
+    "@semlo-editor/core": "0.0.0-devlpment"
+    "react": ">=18"
+    "react-dom": ">=18"
+    "solid-js": ">=1.8"
+    "vue": ">=3.4"
+
+minimumReleaseAgeExclude:
+  - "@rspress/core@2.1.0"
+  - "@rspress/shared@2.1.0"
+saveExact: true

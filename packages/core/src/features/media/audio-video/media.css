@@ -1,0 +1,53 @@
+/* Local audio and video cards */
+.semlo-editor-prose .semlo-editor-media-node,
+.semlo-editor-prose .semlo-editor-media {
+  position: relative;
+  box-sizing: border-box;
+  margin: 16px 0;
+  max-width: 100%;
+}
+.semlo-editor-prose .semlo-editor-media-video {
+  overflow: hidden;
+  border: 1px solid #e5e7e6;
+  border-radius: 4px;
+  background: #111;
+}
+.semlo-editor-prose .semlo-editor-media-video video {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  background: #111;
+}
+.semlo-editor-prose .semlo-editor-media-audio {
+  padding: 14px;
+  border: 1px solid #e5e7e6;
+  border-radius: 4px;
+  background: #fff;
+}
+.semlo-editor-prose .semlo-editor-media-audio audio {
+  display: block;
+  width: 100%;
+}
+.semlo-editor-media-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e5e7e6;
+  border-radius: 4px;
+  background: #fff;
+  color: #666;
+  font: 20px/1 sans-serif;
+  cursor: pointer;
+  opacity: 0;
+}
+.semlo-editor-media-node:hover .semlo-editor-media-remove,
+.semlo-editor-media-node.ProseMirror-selectednode .semlo-editor-media-remove,
+.semlo-editor-media-remove:focus-visible {
+  opacity: 1;
+}
+.semlo-editor-media-remove[hidden] {
+  display: none;
+}

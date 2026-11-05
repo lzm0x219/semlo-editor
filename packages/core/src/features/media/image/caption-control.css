@@ -1,0 +1,72 @@
+.semlo-editor-image-caption-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-image-caption-toggle:hover,
+.semlo-editor-image-caption-toggle[aria-pressed="true"] {
+  background: #f3f3f3;
+}
+.semlo-editor-image-caption-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-image-caption {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 0 0;
+  color: #999;
+  font:
+    14px/22px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-break: break-all;
+}
+.semlo-editor-image-caption[hidden],
+.semlo-editor-image-caption-input[hidden],
+.semlo-editor-image-caption-readonly[hidden] {
+  display: none;
+}
+.semlo-editor-image-caption-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-all;
+  resize: none;
+}
+.semlo-editor-image-caption-input::placeholder {
+  color: #bfbfbf;
+}
+.semlo-editor-image-caption-toggle:focus-visible,
+.semlo-editor-image-caption-input:focus-visible {
+  outline: 2px solid #429d69;
+  outline-offset: 1px;
+}
+.semlo-editor-image-caption-input.is-pointer-focus:focus-visible {
+  outline: none;
+}

@@ -1,0 +1,121 @@
+.semlo-editor-editor-body.semlo-editor-translation-open {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
+.semlo-editor-translation-panel[hidden] {
+  display: none;
+}
+
+.semlo-editor-translation-panel {
+  position: sticky;
+  top: var(--semlo-editor-toolbar-sticky-top, 0px);
+  grid-column: 2;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  height: min(640px, calc(100vh - 60px));
+  min-height: 260px;
+  padding: 16px 20px;
+  border-left: 1px solid #eee;
+  background: #fff;
+  color: #262626;
+  font-size: 13px;
+}
+
+.semlo-editor-translation-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.semlo-editor-translation-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.semlo-editor-translation-panel select {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.semlo-editor-translation-result {
+  flex: 1 1 auto;
+  min-height: 100px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.semlo-editor-translation-status:empty {
+  display: none;
+}
+
+.semlo-editor-translation-insert,
+.semlo-editor-translation-retry {
+  align-self: flex-start;
+  padding: 7px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+}
+
+.semlo-editor-translation-retry[hidden] {
+  display: none;
+}
+
+.semlo-editor-translation-insert:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .semlo-editor-editor-body.semlo-editor-translation-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .semlo-editor-translation-panel {
+    position: absolute;
+    z-index: 11;
+    right: 0;
+    width: min(300px, 100%);
+    max-width: 100%;
+    box-shadow: -6px 0 24px rgb(0 0 0 / 8%);
+  }
+}
+
+@container semlo-editor-editor (max-width: 640px) {
+  .semlo-editor-editor-body.semlo-editor-translation-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .semlo-editor-translation-panel {
+    position: absolute;
+    z-index: 11;
+    right: 0;
+    width: min(300px, 100%);
+    max-width: 100%;
+    box-shadow: -6px 0 24px rgb(0 0 0 / 8%);
+  }
+}

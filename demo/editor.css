@@ -1,0 +1,2 @@
+/* 使用与组件包相同的样式入口与级联顺序。 */
+@import "../packages/core/src/styles/bundle.css";

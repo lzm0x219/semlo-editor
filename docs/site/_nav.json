@@ -1,0 +1,26 @@
+[
+  {
+    "text": "指南",
+    "link": "/introduction",
+    "position": "left",
+    "activeMatch": "^/(documentation|introduction|getting-started|concepts|editing|text-and-blocks|tables-and-databases|media-and-embeds|rich-content|persistence|uploads-and-mentions|configuration|content-and-integrations|features|yuque-feature-matrix|troubleshooting|development)(/|$)"
+  },
+  {
+    "text": "框架接入",
+    "link": "/frameworks",
+    "position": "left",
+    "activeMatch": "^/frameworks(/|$)"
+  },
+  {
+    "text": "API 参考",
+    "link": "/api",
+    "position": "left",
+    "activeMatch": "^/(api|controller-api|framework-api)(/|$)"
+  },
+  {
+    "text": "博客",
+    "link": "/blog/",
+    "position": "left",
+    "activeMatch": "^/blog(/|$)"
+  }
+]

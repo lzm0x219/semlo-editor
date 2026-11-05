@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "../features/media/upload-unmounted-lifecycle.test.ts",
+    "../features/media/upload-lifetime-host.test.ts",
+    "../fixtures/media/upload-lifetime-host-fixture.ts",
+    "../features/media/upload-pre-destroy-reentry-acceptance.test.ts",
+    "../fixtures/media/upload-pre-destroy-reentry-fixture.ts",
+    "../features/media/gallery-unmount-direct-combined.test.ts",
+    "../lifecycle/initialization-failure.test.ts",
+    "../lifecycle/remove-all-listeners-normal.test.ts",
+    "../lifecycle/remove-all-recovery-bypass.test.ts",
+    "../fixtures/lifecycle/initialization-failure-fixture.ts",
+    "../fixtures/browser/fixture-browser-globals.d.ts",
+    "../fixtures/browser/fixture-browser-runtime.ts",
+    "../../demo/assets.d.ts",
+    "../../packages/core/src/**/*.d.ts"
+  ]
+}

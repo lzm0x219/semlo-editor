@@ -1,0 +1,57 @@
+.semlo-editor-prose .semlo-editor-heading-foldable {
+  position: relative;
+}
+.semlo-editor-prose .semlo-editor-heading-fold-toggle {
+  position: absolute;
+  top: calc((1lh - 20px) / 2);
+  left: -20px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #262626;
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+  opacity: 0;
+}
+.semlo-editor-prose h3.semlo-editor-heading-foldable > .semlo-editor-heading-fold-toggle {
+  top: calc((1lh - 20px) / 2 - 1px);
+}
+.semlo-editor-prose .semlo-editor-heading-fold-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.12s ease;
+}
+.semlo-editor-prose .semlo-editor-heading-fold-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.semlo-editor-prose .semlo-editor-heading-foldable:hover > .semlo-editor-heading-fold-toggle,
+.semlo-editor-prose .semlo-editor-heading-fold-toggle[aria-expanded="false"] {
+  opacity: 1;
+}
+.semlo-editor-prose .semlo-editor-heading-fold-toggle:hover {
+  background: #f4f5f5;
+}
+.semlo-editor-prose .semlo-editor-heading-fold-toggle:focus-visible {
+  outline: 2px solid #52b881;
+  outline-offset: 1px;
+  opacity: 1;
+}
+.semlo-editor-prose .semlo-editor-heading-fold-hidden {
+  display: none !important;
+}
+@media (hover: none) {
+  .semlo-editor-prose .semlo-editor-heading-fold-toggle {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-prose .semlo-editor-heading-fold-toggle svg {
+    transition: none;
+  }
+}

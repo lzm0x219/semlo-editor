@@ -1,0 +1,299 @@
+/* Calendar card */
+.semlo-editor-prose .semlo-editor-calendar-node {
+  box-sizing: border-box;
+  margin: 1em 0;
+  padding: 16px;
+  border: 1px solid #dedede;
+  border-radius: 4px;
+  background: #fafafa;
+  font:
+    13px/1.4 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-calendar-node.is-selected {
+  border-color: #4096ff;
+}
+.semlo-editor-calendar-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+}
+.semlo-editor-calendar-month {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 15px;
+}
+.semlo-editor-calendar-header button {
+  border: 0;
+  background: transparent;
+  color: #999;
+  font:
+    18px -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  cursor: pointer;
+}
+.semlo-editor-calendar-header button:hover {
+  color: #262626;
+}
+.semlo-editor-calendar-header .semlo-editor-calendar-today {
+  position: absolute;
+  right: 0;
+  padding: 5px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  color: #333;
+  background: #fff;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-calendar-weekdays,
+.semlo-editor-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.semlo-editor-calendar-weekdays {
+  padding-top: 12px;
+  color: #888;
+  font-size: 12px;
+  font-weight: 600;
+}
+.semlo-editor-calendar-weekdays span {
+  padding: 5px 0;
+}
+.semlo-editor-calendar-grid {
+  overflow: hidden;
+  border-top: 1px solid #d9d9d9;
+  border-left: 1px solid #d9d9d9;
+  border-radius: 3px;
+  background: #fff;
+}
+.semlo-editor-calendar-cell {
+  position: relative;
+  grid-row: 1;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 84px;
+  padding: 6px 5px 5px;
+  border-right: 1px solid #d9d9d9;
+  border-bottom: 1px solid #d9d9d9;
+}
+.semlo-editor-calendar-cell.is-outside {
+  background: #fafafa;
+  color: #bdbdbd;
+}
+.semlo-editor-calendar-cell.is-calendar-drop-target {
+  background: #e8f4ff;
+}
+.semlo-editor-calendar-day {
+  display: block;
+  width: 19px;
+  height: 19px;
+  margin-left: auto;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 19px;
+}
+.semlo-editor-calendar-day.is-today {
+  color: #fff;
+  background: #4096ff;
+}
+.semlo-editor-calendar-add {
+  position: absolute;
+  top: 7px;
+  left: 5px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 2px;
+  color: #999;
+  background: #fff;
+  font: 14px/12px sans-serif;
+  opacity: 0;
+  cursor: pointer;
+}
+.semlo-editor-calendar-cell:hover .semlo-editor-calendar-add,
+.semlo-editor-calendar-add:focus-visible {
+  opacity: 1;
+}
+.semlo-editor-calendar-event {
+  position: relative;
+  z-index: 1;
+  grid-row: 1;
+  align-self: start;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
+  height: 24px;
+  margin: 28px 4px 5px;
+  padding: 3px 5px 3px 11px;
+  border: 1px solid color-mix(in srgb, var(--semlo-editor-calendar-event-color) 53%, white);
+  border-radius: 2px;
+  color: #333;
+  background: color-mix(in srgb, var(--semlo-editor-calendar-event-color) 16%, white);
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-calendar-event::before {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 4px;
+  width: 2px;
+  background: var(--semlo-editor-calendar-event-color);
+  content: "";
+}
+.semlo-editor-calendar-event.is-active {
+  color: #fff;
+  background: var(--semlo-editor-calendar-event-color);
+}
+.semlo-editor-calendar-event.is-active::before {
+  background: #fff;
+}
+.semlo-editor-calendar-event.is-calendar-dragging {
+  opacity: 0.6;
+}
+.semlo-editor-calendar-event.continues-before {
+  margin-left: 0;
+}
+.semlo-editor-calendar-event.continues-after {
+  margin-right: 0;
+}
+.semlo-editor-calendar-continuation {
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.semlo-editor-calendar-continuation.is-before {
+  left: 0;
+  border-left: 4px solid var(--semlo-editor-calendar-event-color);
+}
+.semlo-editor-calendar-continuation.is-after {
+  right: 0;
+  border-right: 4px solid var(--semlo-editor-calendar-event-color);
+}
+.semlo-editor-calendar-resize-end {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+.semlo-editor-calendar-event-editor {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  width: 330px;
+  padding: 12px 16px;
+  border: 1px solid #eee;
+  background: #fff;
+  box-shadow: 0 8px 24px #00000020;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-calendar-event-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.semlo-editor-calendar-event-actions button {
+  width: 26px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #555;
+  font-size: 19px;
+  cursor: pointer;
+}
+.semlo-editor-calendar-event-editor textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  color: #262626;
+  font: inherit;
+}
+.semlo-editor-calendar-event-title {
+  min-height: 32px;
+  font-size: 16px !important;
+}
+.semlo-editor-calendar-event-editor select {
+  margin: 5px 0 10px;
+  padding: 3px 5px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  background: #fff;
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-calendar-event-dates {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 0 6px;
+  border-top: 1px solid #eee;
+}
+.semlo-editor-calendar-event-dates input {
+  min-width: 0;
+  width: 44%;
+  border: 0;
+  outline: 0;
+  color: #444;
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-calendar-event-dates span {
+  color: #aaa;
+}
+.semlo-editor-calendar-event-description {
+  min-height: 38px;
+}
+@media (max-width: 640px) {
+  .semlo-editor-prose .semlo-editor-calendar-node {
+    padding: 8px;
+  }
+  .semlo-editor-calendar-cell {
+    min-height: 64px;
+    padding: 4px 2px;
+  }
+  .semlo-editor-calendar-weekdays {
+    font-size: 10px;
+  }
+  .semlo-editor-calendar-event {
+    font-size: 10px;
+  }
+}

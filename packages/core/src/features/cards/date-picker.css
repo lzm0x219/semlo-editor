@@ -1,0 +1,103 @@
+/* Date-picker dimensions and period views follow the observed editor panel. */
+.semlo-editor-date-picker {
+  width: min(300px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  padding-top: 0;
+  overflow-y: auto;
+}
+.semlo-editor-date-picker[data-view="months"] {
+  width: min(260px, calc(100vw - 16px));
+}
+.semlo-editor-date-picker[data-view="years"],
+.semlo-editor-date-picker[data-view="decades"] {
+  width: min(280px, calc(100vw - 16px));
+}
+.semlo-editor-date-header {
+  gap: 4px;
+  height: 40px;
+}
+.semlo-editor-date-header .semlo-editor-date-header-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 4px;
+  color: #262626;
+  font-weight: 600;
+}
+.semlo-editor-date-header .semlo-editor-date-title-button {
+  width: auto;
+  padding: 0;
+  color: #262626;
+  font-weight: 600;
+}
+.semlo-editor-date-header .semlo-editor-date-title-button:hover {
+  color: #54b77e;
+}
+.semlo-editor-date-grid {
+  grid-template-rows: 30px repeat(6, 40px);
+  grid-auto-rows: auto;
+  gap: 0;
+  padding: 0 22px;
+}
+.semlo-editor-date-grid button:hover,
+.semlo-editor-date-period-grid button:hover {
+  background: #f1f2f2;
+}
+.semlo-editor-date-grid button.is-selected,
+.semlo-editor-date-grid button.is-selected:hover {
+  background: #54b77e;
+  color: #fff;
+}
+.semlo-editor-date-grid button,
+.semlo-editor-date-period-grid button {
+  max-width: 100%;
+}
+.semlo-editor-date-period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, 68px);
+  padding: 0 22px;
+}
+.semlo-editor-date-period-grid button {
+  align-self: center;
+  justify-self: center;
+  width: 60px;
+  min-height: 24px;
+  padding: 2px 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #595959;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-date-period-grid button.is-outside,
+.semlo-editor-date-period-grid button:disabled {
+  color: #bdbdbd;
+}
+.semlo-editor-date-period-grid button:disabled {
+  cursor: default;
+}
+.semlo-editor-date-period-grid button.is-selected,
+.semlo-editor-date-period-grid button.is-selected:hover {
+  background: #54b77e;
+  color: #fff;
+}
+.semlo-editor-date-picker[data-view="decades"] .semlo-editor-date-period-grid button {
+  width: 76px;
+  min-height: 48px;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-date-footer {
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 6px;
+}
+.semlo-editor-date-time-list {
+  top: auto;
+  bottom: 36px;
+  max-height: min(264px, calc(100vh - 32px));
+}

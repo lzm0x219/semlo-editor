@@ -1,0 +1,580 @@
+/* The manual is a separate reading workspace; these rules never apply to the home page. */
+html:has(.semlo-editor-manual) .rp-nav.semlo-editor-nav {
+  --nav-ink: #22282b;
+  --nav-muted: #606a70;
+  --nav-accent: #397a5d;
+  --nav-hover: #1821260b;
+  --nav-mobile: #fafbfa;
+  --nav-focus: #397a5d;
+  padding-inline: clamp(24px, 3vw, 48px);
+  background: #fdfcf9;
+  color: var(--nav-ink);
+}
+html:has(.semlo-editor-manual) .semlo-editor-nav-brand {
+  color: #252b2d !important;
+}
+html:has(.semlo-editor-manual) .semlo-editor-nav-symbol {
+  color: #659a78;
+}
+html:has(.semlo-editor-manual) .semlo-editor-nav-brand-label {
+  color: #66716d;
+}
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button {
+  background: #f2f4f3;
+  color: #596461;
+}
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button:hover {
+  background: #e9edeb;
+}
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button__word,
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button:hover .rp-search-button__word,
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button__hotkey {
+  color: #5d6864;
+}
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button__hotkey {
+  background: #e8ebe9;
+}
+html:has(.semlo-editor-manual) .rp-nav .rp-search-button--mobile {
+  color: #4c5753;
+}
+html.dark:has(.semlo-editor-manual) .rp-nav.semlo-editor-nav {
+  --nav-ink: #edf0ee;
+  --nav-muted: #adb5b2;
+  --nav-accent: #a6d6b7;
+  --nav-hover: #ffffff0d;
+  --nav-mobile: #1e2022;
+  --nav-focus: #a6d6b7;
+  background: #1d1f1e;
+}
+html.dark:has(.semlo-editor-manual) .semlo-editor-nav-brand {
+  color: #f0f2f1 !important;
+}
+html.dark:has(.semlo-editor-manual) .semlo-editor-nav-symbol {
+  color: #a1cfaf;
+}
+html.dark:has(.semlo-editor-manual) .semlo-editor-nav-brand-label {
+  color: #a6b0ab;
+}
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button {
+  background: #ffffff0d;
+  color: #d5dbd8;
+}
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button:hover {
+  background: #ffffff18;
+}
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button__word,
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button:hover .rp-search-button__word,
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button__hotkey,
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button--mobile {
+  color: #c0c8c4;
+}
+html.dark:has(.semlo-editor-manual) .rp-nav .rp-search-button__hotkey {
+  background: #ffffff0d;
+}
+
+/* These overlays live outside the reading column, so scope them to the current document route. */
+html:has(.semlo-editor-manual) .semlo-editor-mobile-nav {
+  --nav-focus: #397a5d;
+  color: #252b2d;
+}
+html:has(.semlo-editor-manual) .semlo-editor-mobile-nav__footer {
+  color: #626d69;
+}
+html.dark:has(.semlo-editor-manual) .semlo-editor-mobile-nav {
+  --nav-focus: #a6d6b7;
+  color: #edf0ee;
+}
+html.dark:has(.semlo-editor-manual) .semlo-editor-mobile-nav__footer {
+  color: #b8c0bc;
+}
+
+.semlo-editor-manual {
+  --manual-ink: #252a28;
+  --manual-text: #424b48;
+  --manual-muted: #606c65;
+  --manual-link: #287454;
+  --manual-paper: #fdfcf9;
+  --manual-sidebar: #f5f5f1;
+  --manual-surface: #f3f4f1;
+  --manual-surface-hover: #e9ede9;
+  --manual-surface-strong: #e9ece9;
+  --manual-table-body: #fbfcfa;
+  --manual-rule: #e2e6e2;
+  --manual-selected: #e4f0e8;
+  --manual-selected-ink: #256345;
+  --manual-focus: #397a5d;
+  --manual-scrollbar: #afb8b3;
+  --manual-code: #f3f4f1;
+  --manual-code-header: #ecefeb;
+  --manual-demo-frame: #e8ebe7;
+  --rp-c-link: var(--manual-link);
+  --rp-c-brand: var(--manual-link);
+  --rp-code-block-border: 0;
+  --rp-code-block-shadow: none;
+  --rp-code-block-bg: var(--manual-code);
+  --rp-code-title-bg: #e9edeb;
+  --shiki-foreground: #263337;
+  --shiki-token-keyword: #945548;
+  --shiki-token-string-expression: #286e58;
+  --shiki-token-string: #286e58;
+  --shiki-token-function: #50678f;
+  --shiki-token-constant: #77578b;
+  --shiki-token-comment: #63706c;
+  --shiki-token-parameter: #895f3c;
+  --shiki-token-punctuation: #404b4b;
+  min-height: calc(100vh - var(--rp-nav-height));
+  background: var(--manual-paper);
+  color: var(--manual-ink);
+}
+.dark .semlo-editor-manual {
+  --manual-ink: #eef1ef;
+  --manual-text: #c9d0cd;
+  --manual-muted: #a6b0aa;
+  --manual-link: #a6d8b8;
+  --manual-paper: #1b1d1c;
+  --manual-sidebar: #222423;
+  --manual-surface: #262927;
+  --manual-surface-hover: #303431;
+  --manual-surface-strong: #343835;
+  --manual-table-body: #212422;
+  --manual-rule: #3d423e;
+  --manual-selected: #2d4035;
+  --manual-selected-ink: #c2e8cd;
+  --manual-focus: #a6d8b8;
+  --manual-scrollbar: #68736e;
+  --manual-code: #242825;
+  --manual-code-header: #2d312e;
+  --manual-demo-frame: #343936;
+  --rp-c-link: var(--manual-link);
+  --rp-c-brand: var(--manual-link);
+  --rp-code-title-bg: #303436;
+  --shiki-foreground: #e1e7e4;
+  --shiki-token-keyword: #edb4a5;
+  --shiki-token-string-expression: #a9d6ba;
+  --shiki-token-string: #a9d6ba;
+  --shiki-token-function: #bacced;
+  --shiki-token-constant: #d6bce0;
+  --shiki-token-comment: #aab6b0;
+  --shiki-token-parameter: #e5c49d;
+  --shiki-token-punctuation: #d2d9d5;
+}
+.semlo-editor-manual__layout {
+  --manual-sidebar-width: 256px;
+  display: grid;
+  grid-template-columns: var(--manual-sidebar-width) minmax(0, 1fr) 218px;
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .semlo-editor-manual__layout {
+    transition: grid-template-columns 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .semlo-editor-manual__layout.is-sidebar-collapsed {
+    --manual-sidebar-width: 56px;
+  }
+}
+.semlo-editor-manual__sidebar {
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: var(--rp-nav-height);
+  height: calc(100vh - var(--rp-nav-height));
+  overflow: hidden;
+}
+.semlo-editor-manual__sidebar > nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.semlo-editor-manual__main {
+  min-width: 0;
+}
+.semlo-editor-manual__article {
+  max-width: 920px;
+  padding: 54px clamp(38px, 5vw, 76px) 100px;
+  margin: 0 auto;
+}
+.semlo-editor-manual__outline {
+  position: sticky;
+  top: var(--rp-nav-height);
+  max-height: calc(100vh - var(--rp-nav-height));
+  overflow: auto;
+  padding: 55px 20px 32px 0;
+}
+/* The Rspress boundary class is required by its TOC; the outer aside owns our layout. */
+.semlo-editor-manual .semlo-editor-manual__toc-boundary {
+  all: unset;
+  display: block;
+}
+.semlo-editor-manual__mobile-bar,
+.semlo-editor-manual__scrim {
+  display: none;
+}
+.semlo-editor-manual__panel-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.semlo-editor-manual__panel-close svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.semlo-editor-manual .semlo-editor-doc-context {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  font-size: 13px;
+  color: var(--manual-muted);
+}
+.semlo-editor-manual .semlo-editor-doc-context a {
+  color: var(--manual-link);
+  text-decoration: none;
+}
+.semlo-editor-manual .semlo-editor-doc-context a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.semlo-editor-manual .rspress-doc {
+  position: relative;
+}
+.semlo-editor-manual .rspress-doc > h1 {
+  margin: 0 0 28px;
+  padding-right: 185px;
+  color: var(--manual-ink);
+  font-size: 38px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.semlo-editor-manual .rspress-doc :is(h1, h2, h3, h4) {
+  scroll-margin-top: calc(var(--rp-nav-height) + 24px);
+}
+.semlo-editor-manual .rspress-doc > h2 {
+  margin: 56px 0 18px;
+  color: var(--manual-ink);
+  font-size: 23px;
+  line-height: 1.4;
+}
+.semlo-editor-manual .rspress-doc > h2:first-of-type::before {
+  display: none;
+}
+.semlo-editor-manual .rspress-doc > h3 {
+  color: var(--manual-ink);
+  font-size: 19px;
+}
+.semlo-editor-manual .rspress-doc > p,
+.semlo-editor-manual .rspress-doc > ul,
+.semlo-editor-manual .rspress-doc > ol {
+  color: var(--manual-text);
+  line-height: 1.85;
+}
+.semlo-editor-manual .rspress-doc > p:first-of-type {
+  font-size: 17px;
+}
+.semlo-editor-manual .rspress-doc :is(p, li, td) a {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--manual-link) 35%, transparent);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.semlo-editor-manual .rspress-doc :is(p, li, td) a:hover {
+  text-decoration-color: currentColor;
+}
+.semlo-editor-manual .rspress-doc > .rp-llms-container {
+  position: absolute;
+  top: 2px;
+  right: 0;
+}
+.semlo-editor-manual .rp-llms-button {
+  border: 0;
+  background: var(--manual-surface);
+  color: var(--manual-text);
+}
+.semlo-editor-manual .rp-outline {
+  border: 0;
+}
+.semlo-editor-manual .rp-outline__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--manual-muted);
+}
+.semlo-editor-manual .rp-outline__title .rp-progress-circle {
+  display: none;
+}
+.semlo-editor-manual .rp-toc-item {
+  margin-top: 0;
+}
+.semlo-editor-manual .rp-toc-item__text {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 5px;
+  color: var(--manual-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.semlo-editor-manual .rp-toc-item__text:hover {
+  background: var(--manual-surface);
+  color: var(--manual-ink);
+}
+.semlo-editor-manual .rp-outline__action-row {
+  color: var(--manual-muted);
+}
+.semlo-editor-manual .rp-outline__action-row:hover {
+  color: var(--manual-link);
+}
+.semlo-editor-manual .rp-toc-item--active::before {
+  display: none;
+}
+.semlo-editor-manual .rp-toc-item--active .rp-toc-item__text {
+  background: var(--manual-selected);
+  color: var(--manual-selected-ink);
+  font-weight: 650;
+}
+.semlo-editor-manual .rp-codeblock {
+  margin: 26px 0;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.semlo-editor-manual .rp-codeblock__content :where(code) {
+  line-height: 1.8;
+}
+.semlo-editor-manual .rp-codeblock__content pre:focus-visible {
+  outline: 2px solid var(--manual-focus);
+  outline-offset: -2px;
+}
+.semlo-editor-manual .rp-codeblock__content__scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--manual-scrollbar) transparent;
+}
+.semlo-editor-manual .rp-codeblock[data-horizontal-scroll] .rp-codeblock__content__scroll-container {
+  padding-bottom: 22px;
+}
+.semlo-editor-manual .rp-codeblock[data-horizontal-scroll]::after {
+  content: "可横向滚动";
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--manual-surface-strong);
+  color: var(--manual-text);
+  font-size: 11px;
+  pointer-events: none;
+}
+.semlo-editor-manual ::selection {
+  background: var(--manual-selected);
+  color: var(--manual-selected-ink);
+}
+.semlo-editor-manual a:focus-visible,
+.semlo-editor-manual button:focus-visible,
+.semlo-editor-manual .rspress-doc :is(h1, h2, h3, h4):focus-visible {
+  outline: 2px solid var(--manual-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1199px) {
+  .semlo-editor-manual__layout {
+    --manual-sidebar-width: 236px;
+    grid-template-columns: var(--manual-sidebar-width) minmax(0, 1fr);
+  }
+  .semlo-editor-manual__article {
+    padding-inline: 42px;
+  }
+  .semlo-editor-manual__outline {
+    display: none;
+  }
+  .semlo-editor-manual__mobile-bar {
+    display: flex;
+    justify-content: flex-end;
+    position: sticky;
+    top: var(--rp-nav-height);
+    z-index: 20;
+    padding: 8px 26px;
+    background: var(--manual-paper);
+  }
+  .semlo-editor-manual__mobile-bar button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    border: 0;
+    background: transparent;
+    color: var(--manual-ink);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .semlo-editor-manual__mobile-bar .semlo-editor-manual__navigation-trigger {
+    display: none;
+  }
+  .semlo-editor-manual__mobile-bar button:hover,
+  .semlo-editor-manual__mobile-bar button[aria-expanded="true"] {
+    color: var(--manual-link);
+  }
+  .semlo-editor-manual__mobile-bar svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+  .semlo-editor-manual__outline.is-open {
+    display: block;
+    position: fixed;
+    z-index: 51;
+    top: calc(var(--rp-nav-height) + 50px);
+    right: 16px;
+    width: min(300px, calc(100vw - 32px));
+    max-height: 65vh;
+    padding: 20px;
+    border-radius: 10px;
+    background: var(--manual-paper);
+    box-shadow: 0 14px 50px #101d1629;
+  }
+  .semlo-editor-manual__outline.is-open .semlo-editor-manual__panel-close {
+    display: flex;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+  .semlo-editor-manual__outline.is-open .semlo-editor-manual__panel-close:hover {
+    background: var(--manual-surface-hover);
+  }
+  .semlo-editor-manual__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    border: 0;
+    background: #11171980;
+  }
+}
+@media (max-width: 950px) {
+  .semlo-editor-manual .rspress-doc > h1 {
+    padding-right: 0;
+  }
+  .semlo-editor-manual .rspress-doc > .rp-llms-container {
+    position: static;
+    margin-bottom: 24px;
+  }
+}
+@media (max-width: 767px) {
+  .semlo-editor-manual__layout {
+    display: block;
+  }
+  .semlo-editor-manual__mobile-bar {
+    justify-content: space-between;
+    padding-inline: 20px;
+  }
+  .semlo-editor-manual__mobile-bar .semlo-editor-manual__navigation-trigger {
+    display: flex;
+  }
+  .semlo-editor-manual__sidebar {
+    position: fixed;
+    top: var(--rp-nav-height);
+    bottom: 0;
+    left: 0;
+    z-index: 51;
+    width: min(300px, 86vw);
+    height: calc(100dvh - var(--rp-nav-height));
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.22s ease,
+      visibility 0s linear 0.22s;
+  }
+  .semlo-editor-manual__sidebar.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition:
+      transform 0.22s ease,
+      visibility 0s;
+  }
+  .semlo-editor-manual__sidebar.is-open .semlo-editor-manual__panel-close {
+    display: flex;
+  }
+  .semlo-editor-manual__article {
+    padding: 32px 22px 72px;
+  }
+  .semlo-editor-manual .rspress-doc > h1 {
+    font-size: 30px;
+  }
+  .semlo-editor-manual .rspress-doc :is(h1, h2, h3, h4) {
+    scroll-margin-top: calc(var(--rp-nav-height) + 72px);
+  }
+  .semlo-editor-manual .rspress-doc > h2 {
+    margin-top: 42px;
+    font-size: 21px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-manual__sidebar,
+  .semlo-editor-manual__layout {
+    transition: none;
+  }
+}
+
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container {
+  margin: 28px 0;
+  border-radius: 8px;
+  background: var(--manual-table-body);
+  scrollbar-width: thin;
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container[data-horizontal-scroll]::before {
+  content: "表格可横向滚动";
+  display: block;
+  position: sticky;
+  left: 0;
+  width: fit-content;
+  padding: 8px 16px;
+  color: var(--manual-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container:focus-visible {
+  outline: 2px solid var(--manual-focus);
+  outline-offset: 3px;
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container table {
+  border: 0;
+  border-radius: 0;
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container thead {
+  background: var(--manual-surface-strong);
+  color: var(--manual-ink);
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container th,
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container td {
+  padding: 14px 16px;
+  border-color: var(--manual-rule);
+}
+.semlo-editor-manual .rspress-doc > .rp-table-scroll-container tbody {
+  background: var(--manual-table-body);
+}
+.semlo-editor-manual .rp-prev-next-page {
+  gap: 12px;
+}
+.semlo-editor-manual .rp-prev-next-page__item {
+  min-height: 74px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--manual-surface);
+}
+.semlo-editor-manual .rp-prev-next-page__item__desc {
+  padding-inline: 0;
+  margin-bottom: 5px;
+}

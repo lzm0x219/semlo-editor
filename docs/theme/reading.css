@@ -1,0 +1,454 @@
+/* The reading column has its own surfaces; navigation and the home page keep their existing theme. */
+.semlo-editor-manual__article {
+  --reading-rule: var(--manual-rule);
+  --reading-soft: var(--manual-surface);
+  --reading-soft-hover: var(--manual-surface-hover);
+  --reading-code: var(--manual-code);
+  --reading-code-label: var(--manual-muted);
+  --reading-table-head: var(--manual-surface-strong);
+  --reading-table-body: var(--manual-table-body);
+  --reading-table-rule: var(--manual-rule);
+  --reading-inline-code: var(--manual-surface-strong);
+  --reading-inline-ink: var(--manual-ink);
+  --rp-code-block-bg: var(--reading-code);
+  --rp-c-text-code-bg: var(--reading-inline-code);
+  --rp-c-text-code-border: transparent;
+  --rp-c-text-code: var(--reading-inline-ink);
+  max-width: 960px;
+  padding: 52px clamp(40px, 5vw, 76px) 112px;
+}
+
+.semlo-editor-manual__article .semlo-editor-doc-context {
+  align-items: center;
+  margin-bottom: 26px;
+  line-height: 1.4;
+}
+
+.semlo-editor-doc-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 24px;
+  margin-bottom: 28px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid var(--reading-rule);
+}
+
+.semlo-editor-manual__article .semlo-editor-doc-title > h1 {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+  color: var(--manual-ink);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.semlo-editor-doc-title .rp-llms-container {
+  position: relative;
+  flex: none;
+  gap: 6px;
+  margin: 4px 0 0;
+}
+
+.semlo-editor-manual__article .semlo-editor-doc-title .rp-llms-button {
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--reading-soft);
+  color: var(--manual-text);
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.semlo-editor-manual__article .semlo-editor-doc-title .rp-llms-button:hover {
+  background: var(--reading-soft-hover);
+  color: var(--manual-ink);
+}
+
+.semlo-editor-doc-menu__arrow {
+  transition: transform 0.18s ease;
+}
+
+.semlo-editor-doc-menu__arrow.is-open {
+  transform: rotate(180deg);
+}
+
+.semlo-editor-doc-menu__items {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--manual-paper);
+  box-shadow:
+    0 8px 24px #161b1d26,
+    0 0 0 1px var(--reading-rule);
+}
+
+.semlo-editor-doc-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--manual-text);
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.semlo-editor-doc-menu__item:hover {
+  background: var(--reading-soft);
+  color: var(--manual-ink);
+  text-decoration: none;
+}
+
+.semlo-editor-doc-menu__item:focus-visible,
+.semlo-editor-doc-menu__trigger:focus-visible {
+  outline: 2px solid var(--manual-link);
+  outline-offset: 2px;
+}
+
+.semlo-editor-doc-menu__external {
+  margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-doc-menu__arrow {
+    transition: none;
+  }
+}
+
+.semlo-editor-manual__article .rspress-doc > :is(p, ul, ol, blockquote) {
+  max-width: 72ch;
+  color: var(--manual-text);
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.semlo-editor-manual__article .rspress-doc > p:first-of-type {
+  max-width: 68ch;
+  margin-top: 0;
+  color: var(--manual-text);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.semlo-editor-manual__article .rspress-doc > h2 {
+  margin: 56px 0 18px;
+  color: var(--manual-ink);
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+
+.semlo-editor-manual__article .rspress-doc > h3 {
+  margin: 36px 0 16px;
+  color: var(--manual-ink);
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.semlo-editor-manual__article .rspress-doc > :is(ul, ol) > li::marker {
+  color: var(--manual-link);
+}
+
+.semlo-editor-manual__article .rspress-doc :not(pre, a, .docs-feature-demo, .docs-feature-demo *) > code {
+  border: 0;
+  border-radius: 4px;
+  background: var(--reading-inline-code);
+  color: var(--reading-inline-ink);
+}
+
+.semlo-editor-manual__article .rp-codeblock {
+  margin: 28px 0 32px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.semlo-editor-manual__article .rp-codeblock__content pre::before {
+  content: attr(data-lang);
+  display: block;
+  position: sticky;
+  left: 0;
+  padding: 12px 20px 11px;
+  border-bottom: 1px solid var(--reading-rule);
+  background: var(--manual-code-header);
+  color: var(--reading-code-label);
+  font-family: var(--rp-font-family-base, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.semlo-editor-manual__article .rp-codeblock__content :where(code) {
+  padding-top: 14px;
+  padding-bottom: 18px;
+  line-height: 1.8;
+}
+
+.semlo-editor-manual__article .rp-code-button-group {
+  top: 4px;
+  right: 10px;
+  gap: 2px;
+}
+
+.semlo-editor-manual__article .rp-code-button-group__button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  opacity: 1;
+}
+
+.semlo-editor-manual__article .rp-code-button-group__button:hover {
+  background: var(--reading-soft-hover);
+}
+
+.semlo-editor-manual__article .rp-code-button-group__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--reading-code-label);
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container {
+  margin: 28px 0 32px;
+  border-radius: 12px;
+  background: var(--reading-table-body);
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container thead {
+  background: var(--reading-table-head);
+  color: var(--manual-ink);
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container tbody {
+  background: var(--reading-table-body);
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container :is(th, td) {
+  padding: 14px 16px;
+  border-color: var(--reading-table-rule);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.65;
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container th {
+  color: var(--manual-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.semlo-editor-manual__article .rspress-doc > .rp-table-scroll-container td {
+  color: var(--manual-text);
+}
+
+.semlo-editor-manual__article .rp-doc-footer {
+  margin-top: 80px;
+}
+
+.semlo-editor-manual__article .rp-doc-footer__divider {
+  height: 1px;
+  margin: 0 0 14px;
+  background: var(--reading-rule);
+}
+
+.semlo-editor-manual__article .rp-prev-next-page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  min-height: 86px;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--manual-ink);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__prev {
+  grid-column: 1;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__next {
+  grid-column: 2;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item__desc {
+  margin: 0 0 7px 26px;
+  color: var(--manual-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__next .rp-prev-next-page__item__desc {
+  margin-right: 26px;
+  margin-left: 0;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--manual-ink);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item__title > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--manual-muted);
+  opacity: 1;
+  transition:
+    color 0.15s ease,
+    translate 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .semlo-editor-manual__article .rp-prev-next-page__item:hover {
+    background: var(--reading-soft);
+    opacity: 1;
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__item:hover .rp-prev-next-page__item__title,
+  .semlo-editor-manual__article .rp-prev-next-page__item:hover .rp-prev-next-page__icon {
+    color: var(--manual-link);
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__prev:hover .rp-prev-next-page__icon {
+    translate: -3px 0;
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__next:hover .rp-prev-next-page__icon {
+    translate: 3px 0;
+  }
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item:active {
+  background: var(--manual-surface-strong);
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item:focus-visible {
+  outline: 2px solid var(--manual-focus);
+  outline-offset: 2px;
+  background: var(--reading-soft);
+  transition: none;
+}
+
+.semlo-editor-manual__article .rp-prev-next-page__item:focus-visible .rp-prev-next-page__icon {
+  transition: none;
+}
+
+@media (max-width: 1199px) {
+  .semlo-editor-manual__article {
+    padding-inline: 42px;
+  }
+}
+
+@media (max-width: 950px) {
+  .semlo-editor-manual__article .semlo-editor-doc-title > h1 {
+    flex-basis: 100%;
+  }
+
+  .semlo-editor-doc-menu__items {
+    right: auto;
+    left: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .semlo-editor-manual__article {
+    padding: 30px 22px 72px;
+  }
+
+  .semlo-editor-doc-title {
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 22px;
+  }
+
+  .semlo-editor-manual__article .semlo-editor-doc-title > h1 {
+    font-size: 30px;
+  }
+
+  .semlo-editor-doc-title .rp-llms-container {
+    margin-top: 0;
+  }
+
+  .semlo-editor-manual__article .rspress-doc > p:first-of-type {
+    font-size: 17px;
+  }
+
+  .semlo-editor-manual__article .rspress-doc > h2 {
+    margin-top: 44px;
+    font-size: 21px;
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__item {
+    min-height: 72px;
+    padding: 12px;
+  }
+
+  .semlo-editor-manual__article .rp-code-button-group__button {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .semlo-editor-manual__article .rp-prev-next-page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__prev,
+  .semlo-editor-manual__article .rp-prev-next-page__next {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-manual__article .rp-prev-next-page__item,
+  .semlo-editor-manual__article .rp-prev-next-page__icon {
+    transition: none;
+  }
+
+  .semlo-editor-manual__article .rp-prev-next-page__item:hover .rp-prev-next-page__icon {
+    translate: none;
+  }
+}

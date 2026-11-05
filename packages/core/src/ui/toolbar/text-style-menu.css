@@ -1,0 +1,39 @@
+.semlo-editor-dropdown:has(.semlo-editor-text-style-option) {
+  box-sizing: border-box;
+  width: 126px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 16px 4px rgb(0 0 0 / 4%);
+}
+
+.semlo-editor-dropdown .semlo-editor-text-style-option {
+  box-sizing: border-box;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.semlo-editor-dropdown .semlo-editor-text-style-icon {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.semlo-editor-dropdown .semlo-editor-text-style-option .semlo-editor-dropdown-shortcut {
+  margin-left: auto;
+}
+
+.semlo-editor-dropdown .semlo-editor-text-style-option:disabled {
+  color: #bfbfbf;
+  cursor: default;
+}
+
+.semlo-editor-dropdown .semlo-editor-text-style-option:disabled:hover {
+  background: #fff;
+}

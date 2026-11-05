@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "paths": {
+      "@semlo-editor/core": ["./packages/core/src/index.ts"],
+      "@semlo-editor/react": ["./packages/react/src/index.ts"],
+      "@semlo-editor/vue": ["./packages/vue/src/index.ts"],
+      "@semlo-editor/solid": ["./packages/solid/src/index.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "packages/core/src",
+    "packages/*/tests",
+    "packages/*/scripts/**/*.ts",
+    "demo",
+    "packages/core/rslib.config.ts",
+    "tests/config/rslib.browser-test.config.ts",
+    "demo/rsbuild.config.ts",
+    "tests/config/rstest.config.ts",
+    "tests/**/*.test.ts",
+    "tests/fixtures/contracts/controlled.ts",
+    "tests/**/*-fixture.ts",
+    "tests/**/*-helpers.ts",
+    "tests/**/*-server.ts",
+    "tests/**/*-rsbuild.config.ts",
+    "tests/fixtures/browser/fixture-browser-globals.d.ts",
+    "tests/config/rstest-global-setup.ts",
+    "scripts/**/*.ts",
+    "docs/rspress.config.ts",
+    "packages/*/src"
+  ]
+}

@@ -1,0 +1,349 @@
+.semlo-editor-embed {
+  position: relative;
+  width: 100%;
+  margin: 12px 0;
+}
+
+.semlo-editor-embed [hidden] {
+  display: none !important;
+}
+
+.semlo-editor-embed-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 50px;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid #e5e8e6;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.semlo-editor-embed-form:focus-within {
+  border-color: #37b982;
+}
+
+.semlo-editor-embed-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #262b28;
+  font: inherit;
+  font-size: 14px;
+}
+
+.semlo-editor-embed-input::placeholder {
+  color: #b3b8b5;
+}
+
+.semlo-editor-embed-form button,
+.semlo-editor-embed-toolbar button,
+.semlo-editor-embed-toolbar a {
+  flex: none;
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.semlo-editor-embed-example {
+  padding: 6px 0;
+  background: transparent;
+  color: #7b8580;
+}
+
+.semlo-editor-embed-submit {
+  height: 32px;
+  padding: 0 15px;
+  border-radius: 4px;
+  background: #2eb879;
+  color: #fff;
+}
+
+.semlo-editor-embed-form button:disabled,
+.semlo-editor-embed-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.semlo-editor-embed-error {
+  margin: 6px 0 0;
+  color: #e65b54;
+  font-size: 13px;
+}
+
+.semlo-editor-embed-preview {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 500px;
+  overflow: hidden;
+  border: 1px solid #e8ebe9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.semlo-editor-embed-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.semlo-editor-embed[data-provider="netease"] .semlo-editor-embed-preview {
+  height: 90px;
+  padding: 10px;
+}
+
+.semlo-editor-embed-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.semlo-editor-embed.is-selected .semlo-editor-embed-preview {
+  outline: 2px solid #44bb83;
+  outline-offset: 1px;
+}
+
+.semlo-editor-embed-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: -48px;
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  box-sizing: border-box;
+  width: 195px;
+  max-width: calc(100% - 4px);
+  height: 40px;
+  padding: 4px;
+  border: 1px solid #e5e8e6;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  transform: translateX(-50%);
+}
+
+.semlo-editor-embed-toolbar button,
+.semlo-editor-embed-toolbar a {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #454d49;
+  text-decoration: none;
+}
+
+.semlo-editor-embed-toolbar svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.semlo-editor-embed-toolbar button[aria-pressed="true"] {
+  background: #f2f5f3;
+}
+
+.semlo-editor-embed-toolbar button:not(:disabled):hover,
+.semlo-editor-embed-toolbar a:hover {
+  background: #f2f5f3;
+}
+
+@media (max-width: 480px) {
+  .semlo-editor-embed-form {
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  .semlo-editor-embed-submit {
+    padding: 0 10px;
+  }
+}
+
+.semlo-editor-embed-bookmark {
+  position: relative;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 10px;
+  color: #2f6fc7;
+}
+
+.semlo-editor-embed-bookmark [hidden] {
+  display: none !important;
+}
+
+.semlo-editor-embed-bookmark-inline {
+  display: inline-flex;
+  vertical-align: baseline;
+  max-width: 100%;
+}
+
+.semlo-editor-embed-bookmark-block {
+  display: flex;
+  width: 100%;
+  min-height: 104px;
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid #e8ebe9;
+  border-radius: 5px;
+  background: #f5f6f5;
+  color: #252b28;
+  gap: 16px;
+}
+
+.semlo-editor-embed-bookmark.is-selected {
+  outline: 2px solid #44bb83;
+  outline-offset: 1px;
+}
+
+.semlo-editor-embed-bookmark-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.semlo-editor-embed-bookmark-block .semlo-editor-embed-bookmark-icon {
+  width: 78px;
+  height: 78px;
+  border-radius: 8px;
+}
+
+.semlo-editor-embed-bookmark-fallback-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234d83e8' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M3 12h18M12 3c-2.7 2.5-4 5.5-4 9s1.3 6.5 4 9c2.7-2.5 4-5.5 4-9s-1.3-6.5-4-9z'/%3E%3C/svg%3E");
+}
+
+.semlo-editor-embed-bookmark-block .semlo-editor-embed-bookmark-fallback-icon {
+  width: 78px;
+  height: 78px;
+  border-radius: 12px;
+  background-color: #4d83e8;
+  background-size: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M3 12h18M12 3c-2.7 2.5-4 5.5-4 9s1.3 6.5 4 9c2.7-2.5 4-5.5 4-9s-1.3-6.5-4-9z'/%3E%3C/svg%3E");
+}
+
+.semlo-editor-embed-bookmark-block .semlo-editor-embed-bookmark-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.semlo-editor-embed-bookmark-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.semlo-editor-embed-bookmark-title,
+.semlo-editor-embed-bookmark-description,
+.semlo-editor-embed-bookmark-link {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-embed-bookmark-retry {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2f6fc7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.semlo-editor-embed-bookmark-description,
+.semlo-editor-embed-bookmark-link {
+  color: #7b8580;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.semlo-editor-embed-bookmark-toolbar {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: flex;
+  padding: 4px;
+  border: 1px solid #e5e8e6;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  transform: translateX(-50%);
+}
+
+.semlo-editor-embed-bookmark-toolbar.is-below {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+.semlo-editor-embed-bookmark-edit {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(320px, 80vw);
+  padding: 16px;
+  border: 1px solid #e5e8e6;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.semlo-editor-embed-bookmark-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #454d49;
+  font-size: 13px;
+}
+
+.semlo-editor-embed-bookmark-edit input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #7aba9b;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.semlo-editor-embed-bookmark-toolbar button,
+.semlo-editor-embed-bookmark-toolbar a {
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  background: transparent;
+  color: #454d49;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.semlo-editor-embed-bookmark-toolbar button:not(:disabled):hover,
+.semlo-editor-embed-bookmark-toolbar a:hover {
+  background: #f2f5f3;
+}

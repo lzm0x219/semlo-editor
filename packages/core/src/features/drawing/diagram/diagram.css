@@ -1,0 +1,302 @@
+.semlo-editor-diagram {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 12px 0;
+  border: 1px solid #dedfdf;
+  border-radius: 3px;
+  background: #fff;
+  color: #262626;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-diagram:focus-within,
+.semlo-editor-diagram.is-selected {
+  border-color: #65a0ec;
+}
+.semlo-editor-diagram-return-bar {
+  display: none;
+}
+.semlo-editor-diagram-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-height: 37px;
+  padding: 0 10px 0 18px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #f5f6f6;
+  color: #777;
+}
+.semlo-editor-diagram-title {
+  flex: 1;
+  min-width: 0;
+}
+.semlo-editor-diagram-actions {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+.semlo-editor-diagram-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #737777;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-diagram-actions > button:hover,
+.semlo-editor-diagram-actions > button:focus-visible,
+.semlo-editor-diagram-actions > button[aria-expanded="true"] {
+  outline: none;
+  background: #e9ebea;
+}
+.semlo-editor-diagram-actions > button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.semlo-editor-diagram-language::after,
+.semlo-editor-diagram-template::after {
+  margin-left: 7px;
+  content: "⌄";
+}
+.semlo-editor-diagram-toggle-preview::before {
+  margin-right: 5px;
+  content: "⊙";
+}
+.semlo-editor-diagram-actions > .semlo-editor-diagram-fullscreen {
+  position: absolute;
+  top: 0;
+  right: -46px;
+  min-width: 28px;
+  padding: 0 4px;
+  font-size: 17px;
+}
+@container semlo-editor-editor (max-width: 540px) {
+  .semlo-editor-diagram-header {
+    flex-wrap: wrap;
+    padding: 4px 8px;
+  }
+  .semlo-editor-diagram-title {
+    flex-basis: 100%;
+  }
+  .semlo-editor-diagram-actions {
+    margin-left: auto;
+  }
+  .semlo-editor-diagram-actions > .semlo-editor-diagram-fullscreen {
+    position: static;
+  }
+}
+.semlo-editor-diagram-menu {
+  position: absolute;
+  z-index: 1210;
+  top: calc(100% + 4px);
+  min-width: 168px;
+  max-height: min(360px, calc(100vh - 24px));
+  overflow: auto;
+  padding: 4px 0;
+  border: 1px solid #eceeed;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 4px 16px #0000001c;
+}
+.semlo-editor-diagram-menu > button {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: #333;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-diagram-menu > button:hover,
+.semlo-editor-diagram-menu > button:focus-visible {
+  outline: none;
+  background: #f3f5f4;
+}
+.semlo-editor-diagram-menu > button[aria-current="true"] {
+  color: #00a76a;
+}
+.semlo-editor-diagram-body {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.semlo-editor-diagram-editor,
+.semlo-editor-diagram-preview {
+  box-sizing: border-box;
+  flex: 1 1 50%;
+  min-width: 0;
+  min-height: 0;
+}
+.semlo-editor-diagram-editor {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+}
+.semlo-editor-diagram .semlo-editor-diagram-lines,
+.semlo-editor-diagram .semlo-editor-diagram-highlight,
+.semlo-editor-diagram-input {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  font:
+    14px/20px ui-monospace,
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  white-space: pre;
+}
+.semlo-editor-diagram .semlo-editor-diagram-lines {
+  flex: 0 0 28px;
+  overflow: hidden;
+  color: #a0a0a0;
+  text-align: right;
+  user-select: none;
+}
+.semlo-editor-diagram-input {
+  position: relative;
+  display: block;
+  flex: 1;
+  width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 12px;
+  padding-left: 8px;
+  outline: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: #242424;
+  resize: none;
+  tab-size: 2;
+}
+.semlo-editor-diagram .semlo-editor-diagram-highlight {
+  position: absolute;
+  inset: 0 0 0 28px;
+  overflow: hidden;
+  padding-right: 12px;
+  padding-left: 8px;
+  color: #242424;
+  pointer-events: none;
+  tab-size: 2;
+}
+.semlo-editor-diagram-highlight code {
+  font: inherit;
+}
+.semlo-editor-diagram-token-keyword {
+  color: #b34955;
+}
+.semlo-editor-diagram-token-string {
+  color: #738c29;
+}
+@media (forced-colors: active) {
+  .semlo-editor-diagram-highlight {
+    display: none;
+  }
+  .semlo-editor-diagram-input {
+    color: CanvasText;
+  }
+}
+.semlo-editor-diagram-preview {
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 16px;
+  border-left: 1px solid #eeeeee;
+}
+.semlo-editor-diagram-preview[hidden] {
+  display: none;
+}
+.semlo-editor-diagram-preview-content {
+  width: 100%;
+  text-align: center;
+}
+.semlo-editor-diagram-preview-content svg {
+  max-width: 100%;
+  height: auto;
+}
+.semlo-editor-diagram-error {
+  color: #bf4b4b;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-diagram-error[hidden] {
+  display: none;
+}
+.semlo-editor-diagram-resize {
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 28px);
+  width: 56px;
+  height: 8px;
+  border-radius: 5px;
+  background: #d9d9d9;
+  cursor: ns-resize;
+}
+.semlo-editor-diagram-resize[aria-disabled="true"] {
+  display: none;
+}
+.semlo-editor-diagram-fullscreen-active {
+  position: fixed;
+  z-index: 2100;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.semlo-editor-diagram-fullscreen-active .semlo-editor-diagram-return-bar {
+  display: flex;
+  align-items: center;
+  flex: 0 0 54px;
+  padding: 0 20px;
+}
+.semlo-editor-diagram-return {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #555;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-diagram-return:hover,
+.semlo-editor-diagram-return:focus-visible {
+  outline: 0;
+  background: #f4f5f4;
+}
+.semlo-editor-diagram-fullscreen-active .semlo-editor-diagram-fullscreen {
+  display: none;
+}
+.semlo-editor-diagram-fullscreen-active .semlo-editor-diagram-body {
+  flex: 1;
+  height: auto !important;
+}
+.semlo-editor-diagram-export > pre {
+  overflow: auto;
+  white-space: pre-wrap;
+}

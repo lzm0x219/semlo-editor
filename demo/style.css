@@ -1,0 +1,328 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #262626;
+  background: #fff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+}
+.top-info {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+.document-name {
+  font-size: 14px;
+  white-space: nowrap;
+}
+.document-name span {
+  margin-left: 12px;
+  color: #b5b5b5;
+  font-size: 12px;
+}
+.example-picker {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: #737a76;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.example-picker select {
+  height: 30px;
+  max-width: 170px;
+  padding: 0 26px 0 10px;
+  appearance: none;
+  border: 1px solid #e7e9e8;
+  border-radius: 5px;
+  background: #fff;
+  color: #262626;
+  font: inherit;
+  cursor: pointer;
+}
+.example-picker::after {
+  position: absolute;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  transform: translateY(-2px) rotate(45deg);
+  border-right: 1px solid #8a8f8d;
+  border-bottom: 1px solid #8a8f8d;
+  content: "";
+  pointer-events: none;
+}
+.example-picker select:hover {
+  border-color: #b4c6ba;
+}
+.example-picker select:focus-visible {
+  outline: 2px solid #42b779;
+  outline-offset: 2px;
+}
+.show-all-examples {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid #d8eee1;
+  border-radius: 5px;
+  color: #008f54;
+  background: #f2faf5;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.show-all-examples:hover {
+  background: #e6f6ec;
+}
+.show-all-examples:focus-visible {
+  outline: 2px solid #42b779;
+  outline-offset: 2px;
+}
+.example-description {
+  overflow: hidden;
+  color: #a1a5a3;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.top-actions,
+.frame-switch,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.frame-switch {
+  padding-right: 10px;
+  border-right: 1px solid #eee;
+}
+.top-actions {
+  flex: 0 0 auto;
+}
+.frame-switch button,
+.actions button {
+  height: 29px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  color: #888;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.frame-switch button:hover,
+.actions button:hover {
+  background: #f5f5f5;
+  color: #262626;
+}
+.frame-switch button.selected {
+  color: #00a860;
+  background: #e9f7ef;
+}
+.workspace {
+  width: 100%;
+  min-height: calc(100vh - 52px);
+}
+#editor-host {
+  min-height: calc(100vh - 80px);
+}
+#editor-host .semlo-editor-content {
+  max-width: none;
+  margin: 0;
+  padding: 26px 70px 100px;
+}
+#editor-host .semlo-editor-prose {
+  min-height: calc(100vh - 190px);
+}
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 16px;
+  color: #b3b3b3;
+  background: transparent;
+  font-size: 12px;
+  pointer-events: none;
+}
+.footer > span {
+  background: #fff;
+}
+#demo-error {
+  overflow: hidden;
+  color: #c34142;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .topbar {
+    height: auto;
+    min-height: 52px;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+  .document-name span {
+    display: none;
+  }
+  .top-info {
+    width: 100%;
+    gap: 10px;
+  }
+  .example-picker {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .example-picker select {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+  .example-description {
+    display: none;
+  }
+  .top-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .frame-switch {
+    padding-right: 5px;
+  }
+  #editor-host .semlo-editor-content {
+    padding: 30px 24px 70px;
+  }
+  .footer {
+    position: static;
+    padding: 6px 16px;
+  }
+}
+
+.demo-custom-toolbar {
+  position: sticky;
+  top: var(--semlo-editor-toolbar-sticky-top, 0px);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 5px 16px;
+  border-bottom: 1px solid #ededed;
+  background: #fff;
+}
+.demo-custom-toolbar > button,
+.demo-toolbar-link button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #383e3a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.demo-custom-toolbar button:hover:not(:disabled) {
+  background: #f2f5f3;
+}
+.demo-custom-toolbar > button[aria-pressed="true"],
+.demo-custom-toolbar > button[aria-expanded="true"] {
+  color: #007c48;
+  background: #e9f7ef;
+}
+.demo-custom-toolbar button:disabled {
+  color: #a2a9a5;
+  cursor: not-allowed;
+}
+.demo-custom-toolbar button:focus-visible,
+.demo-toolbar-link input:focus-visible {
+  outline: 2px solid #168b56;
+  outline-offset: 2px;
+}
+.demo-toolbar-link {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0 7px;
+}
+.demo-toolbar-link[hidden] {
+  display: none;
+}
+.demo-toolbar-link label {
+  display: flex;
+  flex: 1 1 260px;
+  align-items: center;
+  gap: 8px;
+  color: #525c56;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.demo-toolbar-link input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d7ded9;
+  border-radius: 5px;
+  color: #262626;
+  background: #fff;
+  font: inherit;
+}
+.demo-toolbar-link input[aria-invalid="true"] {
+  border-color: #b53f3f;
+}
+.demo-toolbar-link button[type="submit"] {
+  color: #006d40;
+  background: #e9f7ef;
+}
+.demo-toolbar-link-error {
+  flex-basis: 100%;
+  color: #a33030;
+  font-size: 12px;
+}
+.demo-toolbar-link-error:empty {
+  display: none;
+}
+@media (max-width: 640px) {
+  .demo-custom-toolbar {
+    padding: 5px 8px;
+  }
+  .demo-custom-toolbar > button,
+  .demo-toolbar-link button {
+    min-height: 40px;
+    padding: 0 9px;
+  }
+  .demo-toolbar-link label {
+    flex-basis: 100%;
+  }
+}

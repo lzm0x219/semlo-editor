@@ -1,0 +1,8 @@
+.semlo-editor-format-painter[aria-pressed="true"] {
+  background: #eaf6ef;
+  color: #258b5a;
+}
+.semlo-editor-format-painter-active,
+.semlo-editor-format-painter-active * {
+  cursor: copy;
+}

@@ -1,0 +1,524 @@
+.semlo-editor-database[data-semlo-editor-database-view-kind="chart"] .semlo-editor-database-view-icon {
+  color: #da858b !important;
+}
+.semlo-editor-database-chart-canvas {
+  min-height: 260px;
+  padding: 10px;
+  background: #f8f8f8;
+  color: #262626;
+}
+.semlo-editor-database-chart-canvas.is-populated {
+  container-type: inline-size;
+  padding: 0;
+}
+.semlo-editor-database-chart-empty {
+  display: flex;
+  min-height: 270px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 24px;
+  text-align: center;
+}
+.semlo-editor-database-chart-empty-illustration {
+  color: #d8dad9;
+  font-size: 88px;
+  line-height: 1;
+}
+.semlo-editor-database-chart-empty h2 {
+  margin: 16px 0 10px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.semlo-editor-database-chart-empty p {
+  max-width: 610px;
+  margin: 0;
+  color: #9b9e9c;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.semlo-editor-database-chart-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+}
+.semlo-editor-database-chart-choice {
+  display: flex;
+  min-width: 0;
+  min-height: 156px;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: #fff;
+  color: #333;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-choice:hover:not(:disabled),
+.semlo-editor-database-chart-choice:focus-visible {
+  border-color: #80cda0;
+  outline: none;
+  box-shadow: 0 2px 8px #0000000c;
+}
+.semlo-editor-database-chart-choice:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.semlo-editor-database-chart-choice-label {
+  font-size: 14px;
+}
+.semlo-editor-chart-thumb-art {
+  display: flex;
+  width: 100%;
+  min-height: 90px;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 24px;
+}
+.semlo-editor-chart-thumb-art svg {
+  width: 100%;
+  max-width: 145px;
+  height: 90px;
+}
+.semlo-editor-chart-thumb-pie {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  background: conic-gradient(#7197ee 0 42%, #89d3ae 42% 72%, #f5cd6d 72% 87%, #a4a9bb 87%);
+}
+.semlo-editor-chart-thumb-wordcloud {
+  color: #8aaac5;
+  font-size: 13px;
+}
+.semlo-editor-database-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: var(--semlo-editor-chart-cell, calc(100cqw / 12));
+}
+.semlo-editor-database-chart-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-direction: column;
+  margin: var(--semlo-editor-chart-inset, 10px);
+  padding: min(10px, calc(var(--semlo-editor-chart-cell, 60px) / 8));
+  border-radius: 5px;
+  background: #fff;
+}
+.semlo-editor-database-chart-card-header {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #323632;
+  font-size: 14px;
+}
+.semlo-editor-database-chart-card-header > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-database-chart-more {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8b928d;
+  font-size: 18px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-more:hover {
+  background: #f3f5f4;
+}
+.semlo-editor-database-chart-card-body {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
+  align-items: stretch;
+}
+.semlo-editor-database-chart-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: transparent;
+  opacity: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.semlo-editor-database-chart-resize::after {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7092f1;
+  content: "";
+}
+.semlo-editor-database-chart-card:hover .semlo-editor-database-chart-resize,
+.semlo-editor-database-chart-resize:focus-visible,
+.semlo-editor-database-chart-card.is-resizing .semlo-editor-database-chart-resize {
+  opacity: 1;
+}
+.semlo-editor-database-chart-picker,
+.semlo-editor-database-chart-menu {
+  position: fixed;
+  z-index: 10002;
+  border: 1px solid #e7e9e8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 28px #0000001c;
+  color: #262626;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-database-chart-picker {
+  width: min(780px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 10px;
+}
+.semlo-editor-database-chart-menu {
+  display: flex;
+  min-width: 96px;
+  flex-direction: column;
+  padding: 6px;
+}
+.semlo-editor-database-chart-menu button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #323632;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-menu button:hover,
+.semlo-editor-database-chart-menu button:focus-visible {
+  outline: none;
+  background: #f4f6f5;
+}
+.semlo-editor-database-chart-overlay {
+  position: fixed;
+  z-index: 10003;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #0006;
+  color: #262626;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-database-chart-dialog,
+.semlo-editor-database-chart-dialog * {
+  box-sizing: border-box;
+}
+.semlo-editor-database-chart-dialog {
+  position: relative;
+  display: flex;
+  width: min(1000px, 100%);
+  height: min(426px, calc(100vh - 32px));
+  overflow: hidden;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 10px 36px #0002;
+}
+.semlo-editor-database-chart-preview {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 16px 10px 16px 16px;
+}
+.semlo-editor-database-chart-preview-title {
+  min-height: 22px;
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-database-chart-preview-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+.semlo-editor-database-chart-settings {
+  display: flex;
+  width: 350px;
+  min-width: 0;
+  flex: 0 0 350px;
+  flex-direction: column;
+  padding: 0 22px 16px 10px;
+  border-left: 1px solid #f0f0f0;
+}
+.semlo-editor-database-chart-tabs {
+  display: flex;
+  min-height: 45px;
+  gap: 12px;
+  align-items: end;
+}
+.semlo-editor-database-chart-tabs button {
+  height: 38px;
+  padding: 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #999;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-tabs button[aria-selected="true"] {
+  border-bottom-color: #454a47;
+  color: #262626;
+  font-weight: 600;
+}
+.semlo-editor-database-chart-form {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 0;
+}
+.semlo-editor-database-chart-setting,
+.semlo-editor-database-chart-filter-heading {
+  display: grid;
+  min-height: 29px;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #676c69;
+  font-size: 13px;
+}
+.semlo-editor-database-chart-section {
+  margin: 10px 0 4px;
+  color: #a6aaa8;
+  font-size: 13px;
+}
+.semlo-editor-database-chart-input,
+.semlo-editor-database-chart-select {
+  min-width: 0;
+  max-width: 100%;
+  height: 27px;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  outline: none;
+  background: #fff;
+  color: #343a36;
+  font: inherit;
+}
+.semlo-editor-database-chart-input:hover,
+.semlo-editor-database-chart-select:hover {
+  background: #f6f8f7;
+}
+.semlo-editor-database-chart-input:focus,
+.semlo-editor-database-chart-select:focus {
+  border-color: #9ed8b6;
+}
+.semlo-editor-database-chart-input::placeholder {
+  color: #c0c5c2;
+}
+.semlo-editor-database-chart-metric {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+}
+.semlo-editor-database-chart-metric select {
+  min-width: 0;
+  flex: 1 1 0;
+}
+.semlo-editor-database-chart-checkbox {
+  width: 15px;
+  height: 15px;
+  justify-self: start;
+  margin: 0;
+  accent-color: #00a86b;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-order-item {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background: #f6f8f7;
+  color: #343a36;
+  font-size: 13px;
+}
+.semlo-editor-database-chart-order-item:hover {
+  background: #edf2ee;
+}
+.semlo-editor-database-chart-order-item > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-database-chart-order-grip {
+  color: #9ba39e;
+  cursor: grab;
+}
+.semlo-editor-database-chart-order-move {
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #757d78;
+  cursor: pointer;
+  opacity: 0;
+}
+.semlo-editor-database-chart-order-item:hover .semlo-editor-database-chart-order-move,
+.semlo-editor-database-chart-order-item:focus-within .semlo-editor-database-chart-order-move {
+  opacity: 1;
+}
+.semlo-editor-database-chart-order-move:hover:not(:disabled) {
+  background: #e9eeeb;
+}
+.semlo-editor-database-chart-order-move:disabled {
+  cursor: default;
+}
+.semlo-editor-database-chart-order-item:hover .semlo-editor-database-chart-order-move:disabled,
+.semlo-editor-database-chart-order-item:focus-within .semlo-editor-database-chart-order-move:disabled {
+  opacity: 0.3;
+}
+.semlo-editor-database-chart-add-filter,
+.semlo-editor-database-chart-remove-filter {
+  justify-self: start;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #555c58;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-add-filter:hover,
+.semlo-editor-database-chart-remove-filter:hover {
+  background: #f3f5f4;
+}
+.semlo-editor-database-chart-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 25px;
+  gap: 2px;
+  padding: 4px 0;
+}
+.semlo-editor-database-chart-filter-row .semlo-editor-database-chart-input,
+.semlo-editor-database-chart-filter-row .semlo-editor-database-chart-select {
+  width: 100%;
+  border-color: #eee;
+}
+.semlo-editor-database-chart-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 3px 0;
+}
+.semlo-editor-database-chart-colors button {
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid #0001;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-colors button[aria-pressed="true"]::after {
+  color: white;
+  content: "✓";
+  font-size: 12px;
+}
+.semlo-editor-database-chart-style-empty {
+  padding: 26px 0;
+  color: #a3aaa6;
+  text-align: center;
+}
+.semlo-editor-database-chart-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+.semlo-editor-database-chart-confirm {
+  min-width: 62px;
+  height: 32px;
+  border: 1px solid #e7e9e8;
+  border-radius: 5px;
+  background: #fff;
+  color: #333;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-confirm:hover {
+  border-color: #8ed0a8;
+  color: #008f54;
+}
+.semlo-editor-database-chart-close {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 27px;
+  height: 27px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #444;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+.semlo-editor-database-chart-close:hover {
+  background: #f2f4f3;
+}
+@media (max-width: 700px) {
+  .semlo-editor-database-chart-choices {
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
+  }
+  .semlo-editor-database-chart-dialog {
+    height: min(700px, calc(100vh - 32px));
+    flex-direction: column;
+  }
+  .semlo-editor-database-chart-preview {
+    min-height: 180px;
+    flex: 1 1 40%;
+  }
+  .semlo-editor-database-chart-settings {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 60%;
+    padding: 0 14px 12px;
+    border-top: 1px solid #f0f0f0;
+    border-left: 0;
+  }
+}

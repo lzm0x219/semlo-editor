@@ -1,0 +1,305 @@
+/* Date chip and emoji picker */
+.semlo-editor-date-node {
+  display: inline;
+}
+.semlo-editor-prose .semlo-editor-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: #f2f2f2;
+  color: #303030;
+  font: inherit;
+  font-size: 0.88em;
+  line-height: 1.5;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+.semlo-editor-date svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-date:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.semlo-editor-date-picker {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  width: 300px;
+  padding-top: 6px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px #00000020;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-date-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 14px;
+}
+.semlo-editor-date-header span {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+.semlo-editor-date-header button {
+  width: 20px;
+  border: 0;
+  background: transparent;
+  color: #aaa;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-date-header button:hover {
+  color: #262626;
+}
+.semlo-editor-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 38px;
+  gap: 2px;
+  padding: 6px 22px 10px;
+  text-align: center;
+}
+.semlo-editor-date-weekday {
+  display: grid;
+  place-items: center;
+  height: 29px;
+}
+.semlo-editor-date-grid button {
+  align-self: center;
+  justify-self: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #262626;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-date-grid button:hover {
+  background: #e8f3ff;
+}
+.semlo-editor-date-grid button.is-outside {
+  color: #bdbdbd;
+}
+.semlo-editor-date-grid button.is-selected {
+  background: #54b77e;
+  color: white;
+}
+.semlo-editor-date-footer {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 6px;
+  border-top: 1px solid #eee;
+}
+.semlo-editor-date-footer button {
+  border: 0;
+  background: transparent;
+  color: #1677ff;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-date-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  padding: 0 25px;
+}
+.semlo-editor-date-time label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.semlo-editor-date-time input {
+  accent-color: #54b77e;
+}
+.semlo-editor-date-time-wrap {
+  position: relative;
+}
+.semlo-editor-date-time-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 120px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 5px;
+  background: white;
+  color: #595959;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-date-time-trigger::after {
+  content: "◷";
+  color: #999;
+}
+.semlo-editor-date-time-list {
+  position: absolute;
+  z-index: 1;
+  top: 36px;
+  right: 0;
+  width: 120px;
+  max-height: 224px;
+  overflow: auto;
+  border: 1px solid #eee;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 6px 18px #00000020;
+}
+.semlo-editor-date-time-list[hidden] {
+  display: none;
+}
+.semlo-editor-date-time-list button {
+  display: block;
+  width: 100%;
+  height: 32px;
+  padding: 0 11px;
+  border: 0;
+  background: #fff;
+  color: #262626;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-date-time-list button:hover,
+.semlo-editor-date-time-list button:focus-visible,
+.semlo-editor-date-time-list button[aria-selected="true"] {
+  outline: 0;
+  background: #f2f3f3;
+}
+.semlo-editor-emoji-picker {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 356px;
+  max-height: calc(100vh - 16px);
+  padding: 12px 14px 0;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px #0000001c;
+  font:
+    13px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-emoji-search {
+  display: flex;
+  gap: 6px;
+}
+.semlo-editor-emoji-search input {
+  min-width: 0;
+  flex: 1;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid #91caff;
+  border-radius: 4px;
+  outline: 2px solid #e6f4ff;
+  font: inherit;
+}
+.semlo-editor-emoji-search select {
+  max-width: 94px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  background: #fff;
+  color: #666;
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-emoji-content {
+  flex: 1;
+  min-height: 0;
+  margin-top: 8px;
+  overflow: auto;
+}
+.semlo-editor-emoji-heading {
+  padding: 4px 2px 6px;
+  color: #999;
+  font-size: 12px;
+}
+.semlo-editor-emoji-empty {
+  padding: 22px 4px;
+  color: #999;
+  text-align: center;
+}
+.semlo-editor-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+  gap: 0;
+}
+.semlo-editor-emoji-item {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font:
+    23px/1 -apple-system,
+    BlinkMacSystemFont,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    sans-serif;
+  cursor: pointer;
+}
+.semlo-editor-emoji-item:hover,
+.semlo-editor-emoji-item:focus-visible {
+  outline: 0;
+  background: #f0f0f0;
+}
+.semlo-editor-emoji-tabs {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  overflow: auto;
+  margin: 0 -14px;
+  padding: 4px 8px;
+  border-top: 1px solid #eee;
+}
+.semlo-editor-emoji-tabs button {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  color: #999;
+  font:
+    12px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  cursor: pointer;
+}
+.semlo-editor-emoji-tabs button[aria-selected="true"] {
+  color: #262626;
+  font-weight: 600;
+}

@@ -1,0 +1,215 @@
+.semlo-editor {
+  container: semlo-editor-editor / inline-size;
+}
+.semlo-editor-editor-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  min-width: 0;
+}
+.semlo-editor-editor-body > .semlo-editor-content {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 0;
+}
+.semlo-editor-outline {
+  --semlo-editor-outline-rail-clearance: 58px;
+  box-sizing: border-box;
+  position: sticky;
+  top: calc(var(--semlo-editor-toolbar-sticky-top, 0px) + var(--semlo-editor-outline-toolbar-height, 0px) + 35px);
+  z-index: 9;
+  grid-area: 1 / 1;
+  align-self: start;
+  justify-self: end;
+  width: 50px;
+  max-width: calc(100% - 8px);
+  max-height: calc(100vh - 90px);
+  margin: 35px 8px 0 0;
+  color: #585a5a;
+  font:
+    14px/22px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-outline.is-expanded {
+  width: 305px;
+  background: #fff;
+}
+.semlo-editor-editor-body:has(> .semlo-editor-outline.is-inline:not([hidden])) {
+  grid-template-rows: 28px auto;
+}
+.semlo-editor-editor-body:has(> .semlo-editor-outline.is-inline:not([hidden])) > .semlo-editor-content {
+  grid-area: 2 / 1;
+}
+.semlo-editor-outline.is-inline {
+  position: relative;
+  top: auto;
+  margin: 0;
+}
+.semlo-editor-outline.is-inline.is-compact {
+  width: 44px;
+}
+.semlo-editor-outline.is-inline.is-compact .semlo-editor-outline-compact {
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+  max-height: 24px;
+  padding: 2px 8px;
+}
+.semlo-editor-outline[hidden],
+.semlo-editor-outline [hidden] {
+  display: none !important;
+}
+.semlo-editor-outline-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding-left: 28px;
+}
+.semlo-editor-outline-title {
+  color: #262626;
+  font-weight: 600;
+}
+.semlo-editor-outline-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+}
+.semlo-editor-outline.is-expanded .semlo-editor-outline-actions,
+.semlo-editor-outline:hover .semlo-editor-outline-actions,
+.semlo-editor-outline:focus-within .semlo-editor-outline-actions {
+  opacity: 1;
+}
+.semlo-editor-outline-action,
+.semlo-editor-outline-toggle,
+.semlo-editor-outline-link,
+.semlo-editor-outline-compact {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-outline-action {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+.semlo-editor-outline-action:hover,
+.semlo-editor-outline-action:focus-visible,
+.semlo-editor-outline-toggle:hover,
+.semlo-editor-outline-toggle:focus-visible {
+  outline: none;
+  background: #f2f3f3;
+}
+.semlo-editor-outline-action:disabled {
+  color: #c6c8c7;
+  cursor: default;
+}
+.semlo-editor-outline-action svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.semlo-editor-outline-list {
+  max-height: calc(100vh - 150px);
+  margin-top: 12px;
+  overflow: auto;
+  border-left: 2px solid #e9eae9;
+  padding: 0 0 2px;
+}
+.semlo-editor-outline-row {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 28px;
+  padding-right: 12px;
+}
+.semlo-editor-outline-toggle,
+.semlo-editor-outline-spacer {
+  display: grid;
+  flex: 0 0 17px;
+  place-items: center;
+  width: 17px;
+  height: 22px;
+}
+.semlo-editor-outline-toggle svg {
+  width: 12px;
+  height: 12px;
+  fill: #9a9d9b;
+  transition: transform 100ms ease;
+}
+.semlo-editor-outline-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.semlo-editor-outline-link {
+  flex: 1;
+  overflow: hidden;
+  color: #585a5a;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.semlo-editor-outline-link:hover,
+.semlo-editor-outline-link:focus-visible,
+.semlo-editor-outline-link[aria-current="location"] {
+  color: #262626;
+}
+.semlo-editor-outline-link:focus-visible,
+.semlo-editor-outline-compact:focus-visible {
+  outline: 2px solid #74bd97;
+  outline-offset: 2px;
+}
+.semlo-editor-outline-compact {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 26px;
+  width: 100%;
+  max-height: calc(
+    100vh - var(--semlo-editor-toolbar-sticky-top, 0px) - var(--semlo-editor-outline-toolbar-height, 0px) - 70px
+  );
+  overflow: hidden;
+  padding: 52px 8px 8px;
+}
+.semlo-editor-outline-compact span {
+  display: block;
+  flex: 0 0 2px;
+  max-width: 100%;
+  height: 2px;
+  background: #d6d8d6;
+}
+.semlo-editor-prose :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 80px;
+}
+@container semlo-editor-editor (max-width: 640px) {
+  .semlo-editor-outline {
+    --semlo-editor-outline-rail-clearance: 24px;
+  }
+  .semlo-editor-outline.is-compact {
+    width: 24px;
+    margin-right: 0;
+  }
+  .semlo-editor-outline.is-expanded {
+    max-width: min(305px, max(80px, calc(100% - 64px)), calc(100% - 8px));
+  }
+  .semlo-editor-outline-compact {
+    padding-right: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .semlo-editor-outline-toggle svg {
+    transition: none;
+  }
+}

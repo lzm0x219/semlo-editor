@@ -1,0 +1,127 @@
+.semlo-editor-table-context-menu {
+  position: fixed;
+  z-index: 2101;
+  box-sizing: border-box;
+  width: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  padding: 4px 0;
+  overflow: auto;
+  border: 1px solid #ebebeb;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 6px 24px #00000018;
+  color: #262626;
+  font:
+    14px -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.semlo-editor-table-context-action,
+.semlo-editor-table-context-insert,
+.semlo-editor-table-context-numbering {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+}
+.semlo-editor-table-context-action,
+.semlo-editor-table-context-insert > button,
+.semlo-editor-table-context-numbering > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.semlo-editor-table-context-action {
+  padding: 0 10px;
+}
+.semlo-editor-table-context-insert > button {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 34px;
+  padding: 0 0 0 10px;
+  white-space: nowrap;
+}
+.semlo-editor-table-context-action:hover,
+.semlo-editor-table-context-insert:hover,
+.semlo-editor-table-context-numbering:hover,
+.semlo-editor-table-context-action:focus-visible,
+.semlo-editor-table-context-insert > button:focus-visible,
+.semlo-editor-table-context-numbering > button:focus-visible {
+  outline: none;
+  background: #f5f6f5;
+}
+.semlo-editor-table-context-icon {
+  flex: 0 0 26px;
+  text-align: left;
+  font-size: 16px;
+}
+.semlo-editor-table-context-insert input,
+.semlo-editor-table-context-numbering input {
+  box-sizing: border-box;
+  width: 46px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  outline: none;
+  color: #262626;
+  background: #fff;
+  font: inherit;
+  text-align: center;
+  appearance: textfield;
+}
+.semlo-editor-table-context-insert input::-webkit-inner-spin-button,
+.semlo-editor-table-context-insert input::-webkit-outer-spin-button,
+.semlo-editor-table-context-numbering input::-webkit-inner-spin-button,
+.semlo-editor-table-context-numbering input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+.semlo-editor-table-context-insert input:focus,
+.semlo-editor-table-context-numbering input:focus {
+  border-color: #48b987;
+}
+.semlo-editor-table-context-insert input[aria-invalid="true"],
+.semlo-editor-table-context-numbering input[aria-invalid="true"] {
+  border-color: #df5f5f;
+}
+.semlo-editor-table-context-numbering > button {
+  height: 34px;
+  padding: 0 0 0 10px;
+  white-space: nowrap;
+}
+.semlo-editor-table-context-numbering > span:last-child {
+  flex: 1;
+  padding-left: 4px;
+  cursor: pointer;
+}
+.semlo-editor-table-context-unit {
+  flex: 0 0 28px;
+  text-align: center;
+}
+.semlo-editor-table-context-shortcut {
+  margin-left: auto;
+  color: #aaa;
+  font-size: 12px;
+}
+.semlo-editor-table-context-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: #eee;
+}
+.semlo-editor-table-context-status {
+  color: #a46318;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.semlo-editor-table-context-status:not(:empty) {
+  padding: 5px 10px;
+}
