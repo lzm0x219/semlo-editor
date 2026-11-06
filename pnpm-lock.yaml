@@ -231,8 +231,8 @@ catalogs:
       specifier: 1.2.5
       version: 1.2.5
     '@lezer/php-legacy':
-      specifier: npm:@lezer/php@1.0.2
-      version: 1.0.2
+      specifier: npm:@lezer/php@1.0.6
+      version: 1.0.6
     '@plantuml/core':
       specifier: 1.2026.9
       version: 1.2026.9
@@ -592,7 +592,7 @@ importers:
         version: 1.2.5
       '@lezer/php-legacy':
         specifier: 'catalog:'
-        version: '@lezer/php@1.0.2'
+        version: '@lezer/php@1.0.6'
       '@plantuml/core':
         specifier: 'catalog:'
         version: 1.2026.9
@@ -946,9 +946,6 @@ packages:
 
   '@lezer/markdown@1.8.1':
     resolution: {integrity: sha512-M5YmEcKWO4mJ45Y1hECwqyu8cLv25EiXOK554PVOvDOWOP0olwelHHQUWr9sjF+d1bENVhy0nfJ8E57XZUTiXg==}
-
-  '@lezer/php@1.0.2':
-    resolution: {integrity: sha512-GN7BnqtGRpFyeoKSEqxvGvhJQiI4zkgmYnDk/JIyc7H7Ifc1tkPnUn/R2R8meH3h/aBf5rzjvU8ZQoyiNDtDrA==}
 
   '@lezer/php@1.0.6':
     resolution: {integrity: sha512-QJ2xNXPmsm/Z3IpThq8fnJrEIVpxhsIoj6GZBW0JYEd/l9zxpJZW216X4fzqQY4vgpdGIumypvI4uQjd4tnYtw==}
@@ -3180,12 +3177,6 @@ snapshots:
     dependencies:
       '@lezer/common': 1.5.5
       '@lezer/highlight': 1.2.5
-
-  '@lezer/php@1.0.2':
-    dependencies:
-      '@lezer/common': 1.5.5
-      '@lezer/highlight': 1.2.5
-      '@lezer/lr': 1.4.12
 
   '@lezer/php@1.0.6':
     dependencies:
