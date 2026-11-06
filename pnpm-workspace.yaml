@@ -86,4 +86,8 @@ catalogs:
 minimumReleaseAgeExclude:
   - "@rspress/core@2.1.0"
   - "@rspress/shared@2.1.0"
+  # 已合并的版本在满 24 小时前临时豁免；2026-11-07 14:09（北京时间）后可移除。
+  - "@rspress/core@2.1.1"
+  - "@rspress/shared@2.1.1"
+  - "lunar-typescript@1.8.7"
 saveExact: true

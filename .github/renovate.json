@@ -3,7 +3,13 @@
   "extends": ["config:recommended", ":semanticCommits"],
   "labels": ["dependencies"],
   "assignees": ["lzm0x219"],
+  "internalChecksFilter": "strict",
+  "prCreation": "not-pending",
   "packageRules": [
+    {
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "1 day"
+    },
     {
       "groupName": "oxc",
       "matchPackageNames": ["ox**"]
