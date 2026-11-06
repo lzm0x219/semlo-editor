@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: 收集浏览器测试耗时追踪
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,7 +43,23 @@ jobs:
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm exec playwright install --with-deps chromium
       - run: mise exec -- pnpm build:browser-test
-      - run: mise exec -- pnpm test:run --shard ${{ matrix.shard }}/4
+      - name: 运行浏览器回归
+        env:
+          PROFILE: ${{ inputs.profile }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ "$PROFILE" = "true" ]; then
+            mise exec -- pnpm test:run --shard "$SHARD/4" --pool.maxWorkers 2 --trace
+          else
+            mise exec -- pnpm test:run --shard "$SHARD/4" --pool.maxWorkers 2
+          fi
+      - name: 保存耗时追踪
+        if: ${{ always() && inputs.profile }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rstest-trace-${{ matrix.shard }}
+          path: .rstest/trace-*
+          if-no-files-found: warn
 
   cross-browser-smoke:
     name: Firefox 与 WebKit 烟雾检查
