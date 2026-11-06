@@ -26,7 +26,7 @@ catalog:
   "@codemirror/legacy-modes": "6.5.5"
   "@codemirror/state": "6.7.6"
   "@lezer/highlight": "1.2.5"
-  "@lezer/php-legacy": "npm:@lezer/php@1.0.2"
+  "@lezer/php-legacy": "npm:@lezer/php@1.0.6"
   "@plantuml/core": "1.2026.9"
   "@rsbuild/core": 2.3.1
   "@rslib/core": 1.0.5
