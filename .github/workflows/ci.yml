@@ -55,7 +55,7 @@ jobs:
           fi
       - name: 保存耗时追踪
         if: ${{ always() && inputs.profile }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rstest-trace-${{ matrix.shard }}
           path: .rstest/trace-*
