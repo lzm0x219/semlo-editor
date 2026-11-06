@@ -1,0 +1,25 @@
+{
+  "name": "@semlo-editor/tests",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@rsbuild/core": "catalog:",
+    "@rslib/core": "catalog:",
+    "@rspress/core": "catalog:",
+    "@rstest/core": "catalog:",
+    "@rstest/playwright": "catalog:",
+    "@tiptap/core": "catalog:",
+    "@tiptap/extension-highlight": "catalog:",
+    "@tiptap/extension-subscript": "catalog:",
+    "@tiptap/extension-superscript": "catalog:",
+    "@tiptap/extension-text-style": "catalog:",
+    "@tiptap/pm": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "playwright": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "solid-js": "catalog:",
+    "vue": "catalog:"
+  }
+}

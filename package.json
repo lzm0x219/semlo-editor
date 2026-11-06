@@ -12,38 +12,21 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.docs.json && tsc --noEmit -p tsconfig.browser-fixtures.json",
     "lint": "oxlint --deny-warnings packages/*/src packages/*/scripts packages/*/tests demo docs/components docs/theme scripts tests demo/rsbuild.config.ts packages/*/rslib.config.ts tests/config/rslib.browser-test.config.ts tests/config/rstest.config.ts docs/rspress.config.ts",
     "lint:fix": "pnpm lint --fix",
-    "format": "oxfmt packages/*/src packages/*/scripts packages/*/tests demo docs/components docs/theme scripts tests demo/rsbuild.config.ts packages/*/rslib.config.ts tests/config/rslib.browser-test.config.ts tests/config/rstest.config.ts docs/rspress.config.ts package.json packages/*/package.json demo/package.json docs/package.json packages/react/tsconfig.json packages/vue/tsconfig.json packages/solid/tsconfig.json tsconfig.json tsconfig.browser-fixtures.json packages/core/tsconfig.lib.json tsconfig.docs.json .oxlintrc.json .oxfmtrc.json",
+    "format": "oxfmt packages/*/src packages/*/scripts packages/*/tests demo docs/components docs/theme scripts tests demo/rsbuild.config.ts packages/*/rslib.config.ts tests/config/rslib.browser-test.config.ts tests/config/rstest.config.ts docs/rspress.config.ts package.json packages/*/package.json demo/package.json docs/package.json tests/package.json packages/react/tsconfig.json packages/vue/tsconfig.json packages/solid/tsconfig.json tsconfig.json tsconfig.browser-fixtures.json packages/core/tsconfig.lib.json tsconfig.docs.json .oxlintrc.json .oxfmtrc.json",
     "format:check": "pnpm format --check",
     "docs:dev": "pnpm --filter @semlo-editor/docs dev",
     "docs:build": "pnpm --filter @semlo-editor/docs build",
     "docs:preview": "pnpm --filter @semlo-editor/docs preview",
-    "build:browser-fixtures": "rslib build --config tests/config/rslib.browser-test.config.ts && node scripts/copy-browser-fixtures.ts",
-    "test:run": "rstest run --config tests/config/rstest.config.ts"
+    "build:browser-fixtures": "tests/node_modules/.bin/rslib build --config tests/config/rslib.browser-test.config.ts && node scripts/copy-browser-fixtures.ts",
+    "test:run": "tests/node_modules/.bin/rstest run --config tests/config/rstest.config.ts"
   },
   "devDependencies": {
-    "@rsbuild/core": "catalog:",
-    "@rslib/core": "catalog:",
-    "@rspress/core": "catalog:",
-    "@rstest/core": "catalog:",
     "@rstest/playwright": "catalog:",
-    "@tiptap/core": "catalog:",
-    "@tiptap/extension-highlight": "catalog:",
-    "@tiptap/extension-subscript": "catalog:",
-    "@tiptap/extension-superscript": "catalog:",
-    "@tiptap/extension-text-style": "catalog:",
-    "@tiptap/pm": "catalog:",
     "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "playwright": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "solid-js": "catalog:",
-    "typescript": "catalog:",
-    "vue": "catalog:"
+    "typescript": "catalog:"
   },
   "packageManager": "pnpm@12.16.1"
 }

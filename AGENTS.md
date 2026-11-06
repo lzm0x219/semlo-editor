@@ -1,6 +1,6 @@
 # Semlo Editor 开发指南
 
-Semlo Editor 是 Web 富文本编辑器组件库。语雀功能对照是开发记录，不应宣称与语雀功能或数据格式完全兼容。`packages/core` 提供编辑器及默认界面，`packages/react`、`packages/vue`、`packages/solid` 是框架适配器；`demo`、`docs` 和 `tests` 分别是体验页、文档站和测试目录；测试依赖由根工作区管理。
+Semlo Editor 是 Web 富文本编辑器组件库。语雀功能对照是开发记录，不应宣称与语雀功能或数据格式完全兼容。`packages/core` 提供编辑器及默认界面，`packages/react`、`packages/vue`、`packages/solid` 是框架适配器；`demo`、`docs` 和 `tests` 分别是体验页、文档站和测试目录；测试依赖由 `tests` 工作区管理。
 
 ## 修改原则
 

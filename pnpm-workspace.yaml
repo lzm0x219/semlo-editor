@@ -2,6 +2,7 @@ packages:
   - packages/*
   - demo
   - docs
+  - tests
 
 catalog:
   "@codemirror/commands": "6.11.1"

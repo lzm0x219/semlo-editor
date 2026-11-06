@@ -380,48 +380,12 @@ importers:
 
   .:
     devDependencies:
-      '@rsbuild/core':
-        specifier: 'catalog:'
-        version: 2.3.1
-      '@rslib/core':
-        specifier: 'catalog:'
-        version: 1.0.5(typescript@7.0.2)
-      '@rspress/core':
-        specifier: 'catalog:'
-        version: 2.1.0(@rspack/core@2.3.1(@swc/helpers@0.5.23))(micromark-util-types@2.0.3)(micromark@4.0.3)
-      '@rstest/core':
-        specifier: 'catalog:'
-        version: 0.12.5
       '@rstest/playwright':
         specifier: 'catalog:'
         version: 0.12.5(@rstest/core@0.12.5)(playwright@1.64.1)
-      '@tiptap/core':
-        specifier: 'catalog:'
-        version: 3.32.2(@tiptap/pm@3.32.2)
-      '@tiptap/extension-highlight':
-        specifier: 'catalog:'
-        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))
-      '@tiptap/extension-subscript':
-        specifier: 'catalog:'
-        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))(@tiptap/pm@3.32.2)
-      '@tiptap/extension-superscript':
-        specifier: 'catalog:'
-        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))(@tiptap/pm@3.32.2)
-      '@tiptap/extension-text-style':
-        specifier: 'catalog:'
-        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))
-      '@tiptap/pm':
-        specifier: 'catalog:'
-        version: 3.32.2
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.3.0(@types/react@19.3.0)
       oxfmt:
         specifier: 'catalog:'
         version: 0.75.0
@@ -431,24 +395,9 @@ importers:
       oxlint-tsgolint:
         specifier: 'catalog:'
         version: 7.0.2005
-      playwright:
-        specifier: 'catalog:'
-        version: 1.64.1
-      react:
-        specifier: 'catalog:'
-        version: 19.3.1
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.3.1(react@19.3.1)
-      solid-js:
-        specifier: 'catalog:'
-        version: 1.9.18
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
-      vue:
-        specifier: 'catalog:'
-        version: 3.5.44(typescript@7.0.2)
 
   demo:
     devDependencies:
@@ -730,6 +679,63 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.44(typescript@7.0.2)
+
+  tests:
+    devDependencies:
+      '@rsbuild/core':
+        specifier: 'catalog:'
+        version: 2.3.1
+      '@rslib/core':
+        specifier: 'catalog:'
+        version: 1.0.5(typescript@7.0.2)
+      '@rspress/core':
+        specifier: 'catalog:'
+        version: 2.1.0(@rspack/core@2.3.1(@swc/helpers@0.5.23))(micromark-util-types@2.0.3)(micromark@4.0.3)
+      '@rstest/core':
+        specifier: 'catalog:'
+        version: 0.12.5
+      '@rstest/playwright':
+        specifier: 'catalog:'
+        version: 0.12.5(@rstest/core@0.12.5)(playwright@1.64.1)
+      '@tiptap/core':
+        specifier: 'catalog:'
+        version: 3.32.2(@tiptap/pm@3.32.2)
+      '@tiptap/extension-highlight':
+        specifier: 'catalog:'
+        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))
+      '@tiptap/extension-subscript':
+        specifier: 'catalog:'
+        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))(@tiptap/pm@3.32.2)
+      '@tiptap/extension-superscript':
+        specifier: 'catalog:'
+        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))(@tiptap/pm@3.32.2)
+      '@tiptap/extension-text-style':
+        specifier: 'catalog:'
+        version: 3.32.2(@tiptap/core@3.32.2(@tiptap/pm@3.32.2))
+      '@tiptap/pm':
+        specifier: 'catalog:'
+        version: 3.32.2
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      playwright:
+        specifier: 'catalog:'
+        version: 1.64.1
+      react:
+        specifier: 'catalog:'
+        version: 19.3.1
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.1(react@19.3.1)
+      solid-js:
+        specifier: 'catalog:'
+        version: 1.9.18
       vue:
         specifier: 'catalog:'
         version: 3.5.44(typescript@7.0.2)
