@@ -60,7 +60,7 @@ index.ts        核心包公开导出
 
 测试按功能、工具栏、生命周期和适配器归组。共享 fixture 按用途存放在 `tests/fixtures/`，专项配置位于 `tests/config/`；`tests/browser/cases/` 存放 `browser-*.ts` 场景，由 `tests/browser/browser-regressions.ts` 发现并分配给四个测试文件。`tests/browser/checks/` 中的独立浏览器检查由 `standalone-checks.test.ts` 纳入标准测试，并在临时目录构建所需的画布 fixture。静态资源的源文件放在 `tests/fixtures/assets/`，构建后仍使用原来的浏览器访问路径。移动场景或 fixture 时，须同步检查发现规则、类型配置、构建入口及静态资源路径，确认测试集合没有减少。
 
-CI 将完整回归分成四片，每片使用两个 worker；手动运行 CI 时可选择 `profile`，为各片收集 Rstest 耗时追踪和摘要。常规运行不启用追踪，避免增加采集开销。
+CI 将完整回归分成八片，每片使用两个 worker；手动运行 CI 时可选择 `profile`，为各片收集 Rstest 耗时追踪和摘要。常规运行不启用追踪，避免增加采集开销。
 
 ## 命名与注释
 
