@@ -10,6 +10,7 @@ test-results/
 work/
 outputs/
 /output/
+/engineering/development-timing.md
 doc_build/
 .rspress/
 
