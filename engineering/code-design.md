@@ -182,7 +182,7 @@
 | 事件携带 `user` / `programmatic` 来源 | 监听者可以区分来源               | 来源必须覆盖组合操作、插件和异步回调，契约更复杂           |
 | 程序写入不触发用户变化事件            | 宿主回写路径简单                 | 应用不能依赖该事件确认自己的写入；错误和完成状态须另有约定 |
 
-**Semlo 当前依据。**现有[控制器 API](site/controller-api.md#setcontentcontent)、[框架 API](site/framework-api.md#内容更新与文档切换)和[替换实现](../packages/core/src/editor/content/replace.ts)给出以下语义；这里整理为设计案例，具体变更仍应检查当前源码与测试：
+**Semlo 当前依据。**现有[控制器 API](../docs/site/controller-api.md#setcontentcontent)、[框架 API](../docs/site/framework-api.md#内容更新与文档切换)和[替换实现](../packages/core/src/editor/content/replace.ts)给出以下语义；这里整理为设计案例，具体变更仍应检查当前源码与测试：
 
 | 操作                             | 应观察的契约                                                                     | 接入方需要知道什么                                        |
 | -------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -192,7 +192,7 @@
 | 同一实例提交前重入并替换不同文档 | 可抛出 `ReentrantTransactionError`；提交被销毁打断可抛 `TransactionAbortedError` | 调用方捕获异常；不要在未提交的回调中同步重试              |
 | 切换另一篇文档                   | 接入文档建议先保存，再按文档身份重新挂载实例                                     | 区分同一文档回写与跨文档切换，避免沿用不属于新文档的历史  |
 
-需要区分替换结果时可使用 `trySetContent()`；它只报告同步返回时的状态，不代表持久化完成。旧 `setContent()` 的返回类型和事务异常契约不变，具体状态见[控制器 API](site/controller-api.md#trysetcontentcontent)。
+需要区分替换结果时可使用 `trySetContent()`；它只报告同步返回时的状态，不代表持久化完成。旧 `setContent()` 的返回类型和事务异常契约不变，具体状态见[控制器 API](../docs/site/controller-api.md#trysetcontentcontent)。
 
 一个基于实际公开入口的 React 接入片段：
 
@@ -215,7 +215,7 @@ export function ArticleEditor({ initialContent }: { initialContent: EditorConten
 }
 ```
 
-这里的 `content` 只是应用内状态，示例不包含持久化，也不把 `onError` 当成捕获所有创建异常的机制。如果 `initialContent` 代表另一篇文档，宿主需要先处理旧内容，再明确重置此状态及实例；例如按文档身份重新创建包含该状态的组件。不能只改 `initialContent` 而假定 `useState` 会自动重新初始化。Vue 和 Solid 的实际事件与示例见[框架适配](site/frameworks.md)。构建器需要支持 CSS 导入；如果 TypeScript 报告找不到样式模块，应按应用工具链提供 CSS 类型声明，项目体验页的[声明文件](../demo/assets.d.ts)是一种做法。
+这里的 `content` 只是应用内状态，示例不包含持久化，也不把 `onError` 当成捕获所有创建异常的机制。如果 `initialContent` 代表另一篇文档，宿主需要先处理旧内容，再明确重置此状态及实例；例如按文档身份重新创建包含该状态的组件。不能只改 `initialContent` 而假定 `useState` 会自动重新初始化。Vue 和 Solid 的实际事件与示例见[框架适配](../docs/site/frameworks.md)。构建器需要支持 CSS 导入；如果 TypeScript 报告找不到样式模块，应按应用工具链提供 CSS 类型声明，项目体验页的[声明文件](../demo/assets.d.ts)是一种做法。
 
 **验证方法。**在核心及受影响框架中检查：用户输入一次只产生符合约定的变化；把回调快照回写后不重复替换；程序替换不触发该回调；无效输入、事务重入与销毁中断分别走正确错误路径；两个实例互不影响。还要检查内容、选区和历史是否符合各场景要求，不能因为事件次数正确就认为整个交互正确。现有[事务保护测试](../tests/contracts/transaction-guard-formal-candidate.test.ts)和[跨框架快照测试](../tests/adapters/nested-snapshot-framework.test.ts)是具体证据入口；测试文件的存在本身不代表当前运行通过。
 
@@ -231,7 +231,7 @@ export function ArticleEditor({ initialContent }: { initialContent: EditorConten
 | 局部合并配置    | 修改单项方便                     | 必须额外定义如何清除、`undefined` 与缺省的区别，以及并发更新顺序 |
 | 每项独立 setter | 每个操作的影响范围清晰           | 多项同时更新时可能暴露中间状态，API 表面更大                     |
 
-**Semlo 当前依据。**[控制器文档](site/controller-api.md#setintegrationsintegrations)将 `setIntegrations` 定义为整体替换；保留的项必须一并传入。已有上传使用启动时的回调；提及搜索提供方变化会中止旧搜索并刷新。图片或附件上传回调的类型只接收 `File`、返回地址；编辑器使旧结果失效不代表自动取消回调内部网络请求，见[集成指南](site/content-and-integrations.md#图片与附件上传)和[类型定义](../packages/core/src/types.ts)。
+**Semlo 当前依据。**[控制器文档](../docs/site/controller-api.md#setintegrationsintegrations)将 `setIntegrations` 定义为整体替换；保留的项必须一并传入。已有上传使用启动时的回调；提及搜索提供方变化会中止旧搜索并刷新。图片或附件上传回调的类型只接收 `File`、返回地址；编辑器使旧结果失效不代表自动取消回调内部网络请求，见[集成指南](../docs/site/content-and-integrations.md#图片与附件上传)和[类型定义](../packages/core/src/types.ts)。
 
 下面的 TypeScript 片段展示如何由宿主保存**完整**配置后替换搜索能力，而不是只传新搜索回调。它依赖当前公开类型，不代表应用必须采用这种状态管理方式：
 
@@ -681,7 +681,7 @@ UX 关注用户完成任务的全过程，包括理解、操作、反馈、出�
 
 **用户任务。**用户插入图片后继续编辑，同时上传可能成功、失败或仍在进行。用户需要知道当前发生什么、能否继续、文档何时拥有可保存的地址，以及切换文档或权限时会怎样。
 
-当前[接入指南](site/content-and-integrations.md#图片与附件上传)说明上传期间存在占位，替换文档、销毁或切换只读后旧结果不会写入新文档；它也说明接入方网络请求不会因此自动中止。对于“显示什么进度”“允许怎样重试”或“何时保存”的细节，必须根据对应功能实际契约确认，不能从一般原则推断。
+当前[接入指南](../docs/site/content-and-integrations.md#图片与附件上传)说明上传期间存在占位，替换文档、销毁或切换只读后旧结果不会写入新文档；它也说明接入方网络请求不会因此自动中止。对于“显示什么进度”“允许怎样重试”或“何时保存”的细节，必须根据对应功能实际契约确认，不能从一般原则推断。
 
 | 情境                   | 设计选择                                     | 取舍与验证                                                   |
 | ---------------------- | -------------------------------------------- | ------------------------------------------------------------ |

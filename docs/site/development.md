@@ -22,7 +22,7 @@ mise exec -- pnpm dev
 
 体验页和文档站分别由 `demo/`、`docs/` 工作区管理依赖；浏览器测试依赖、通用检查工具和统一命令由根工作区管理。
 
-核心源码按编辑器组合、功能、运行时、共享能力和默认界面分目录维护。内部职责、样式顺序、测试组织及命名和注释约定见仓库中的 `docs/architecture.md`。
+核心源码按编辑器组合、功能、运行时、共享能力和默认界面分目录维护。内部职责、样式顺序、测试组织及命名和注释约定见仓库中的 `engineering/architecture.md`。
 
 工作区共享的外部依赖版本集中在 `pnpm-workspace.yaml` 的 `catalog` 中，更新这些依赖时请修改对应的精确版本；包内的 `catalog:` 引用会使用该版本。`pnpm build` 按依赖顺序构建所有组件包。
 
@@ -47,4 +47,4 @@ mise exec -- pnpm docs:build
 mise exec -- pnpm docs:preview
 ```
 
-静态文件输出到 `doc_build/`。`docs/reference.md` 和 `docs/validation.md` 是项目内部的参考及验证记录，不属于文档站页面。
+静态文件输出到 `doc_build/`。`engineering/reference.md` 和 `engineering/validation.md` 是项目内部的参考及验证记录，不属于文档站页面。
