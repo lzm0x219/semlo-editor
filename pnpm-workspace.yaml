@@ -73,7 +73,7 @@ catalog:
   "solid-js": 1.9.18
   "three": "0.187.0"
   "typescript": 7.0.2
-  "vue": 3.5.44
+  "vue": 3.5.45
 
 catalogs:
   peer:
