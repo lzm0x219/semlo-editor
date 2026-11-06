@@ -336,8 +336,8 @@ catalogs:
       specifier: 3.3.0
       version: 3.3.0
     lunar-typescript:
-      specifier: 1.8.6
-      version: 1.8.6
+      specifier: 1.8.7
+      version: 1.8.7
     oxfmt:
       specifier: 0.75.0
       version: 0.75.0
@@ -619,7 +619,7 @@ importers:
         version: 3.3.0
       lunar-typescript:
         specifier: 'catalog:'
-        version: 1.8.6
+        version: 1.8.7
       pele:
         specifier: 'catalog:'
         version: 1.13.0
@@ -2147,8 +2147,8 @@ packages:
   lowlight@3.3.0:
     resolution: {integrity: sha512-0JNhgFoPvP6U6lE/UdVsSq99tn6DhjjpAj5MxG49ewd2mOBVtwWYIT8ClyABhq198aXXODMU6Ox8DrGy/CpTZQ==}
 
-  lunar-typescript@1.8.6:
-    resolution: {integrity: sha512-5Eo4T/cnuXfrgO4k5LCpOGHIUOuz5hCF/IfNv0T29WY2shR36Hiz+ecN9WjnUuxUKhql9gbOkPaQoqLFKtPRNA==}
+  lunar-typescript@1.8.7:
+    resolution: {integrity: sha512-w1ZxRf+mmIqXGnk40Dl2U+qPdm2phHsoxpOEIy7BPc/+kkWZtfW98NCZvsBTYCuNXQMBanaw+u+DboXD65NrVA==}
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -4227,7 +4227,7 @@ snapshots:
       devlop: 1.1.0
       highlight.js: 11.11.2
 
-  lunar-typescript@1.8.6: {}
+  lunar-typescript@1.8.7: {}
 
   magic-string@0.30.21:
     dependencies:
