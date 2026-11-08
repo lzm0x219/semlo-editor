@@ -267,22 +267,32 @@ export function insertSequenceColumn(view: EditorView): boolean {
   return true;
 }
 
-/** This explicit action replaces cells in the first column from the requested row onward. */
+/** 显式编号只覆盖起始行之后的首逻辑列内容，其他列与范围外文字保持原样。 */
 export function numberSequenceColumn(view: EditorView, startRow: number): boolean {
   const state = view.state;
   const rect = selectedRect(state);
   if (rect.left !== 0 || startRow < 1 || startRow > rect.map.height) return false;
   const cells = [...new Set(Array.from({ length: rect.map.height }, (_, row) => rect.map.map[row * rect.map.width]))];
-  // The input is a physical row number, while a rowspan contributes only one
-  // logical sequence item. Skip a cell that begins above the requested row,
-  // and do not overwrite a cell in the requested range that covers other columns.
+  const markedStart = rect.table.nodeAt(cells[0])?.attrs.semloEditorSequence;
+  // 不能借用其他列的标记；完整且一致的首列标记才代表已有序号列。
+  const markedFirstColumn =
+    Number.isSafeInteger(markedStart) &&
+    markedStart >= 1 &&
+    markedStart <= cells.length + 1 &&
+    cells.every((offset) => rect.table.nodeAt(offset)?.attrs.semloEditorSequence === markedStart);
+  // 输入仍是物理行号；跨行格只算一项，起点上方的跨行内容继续跳过。
   const firstIndex = cells.findIndex((offset) => rect.map.findCell(offset).top >= startRow - 1);
   if (
     firstIndex < 0 ||
     cells.some((offset, index) => {
       const cell = rect.table.nodeAt(offset);
       return (
-        !cell || (index >= firstIndex && rect.map.findCell(offset).right !== 1) || !cell.type.createAndFill(cell.attrs)
+        !cell ||
+        // 只放开已有序号列的显式单行跨列覆盖，不扩大跨行混合跨度或自动续号策略。
+        (index >= firstIndex &&
+          rect.map.findCell(offset).right !== 1 &&
+          (!markedFirstColumn || cell.attrs.rowspan !== 1)) ||
+        !cell.type.createAndFill(cell.attrs)
       );
     })
   )

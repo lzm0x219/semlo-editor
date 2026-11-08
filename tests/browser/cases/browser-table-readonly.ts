@@ -106,14 +106,14 @@ async function _browserTest(page: import("playwright").Page) {
     const afterTyping = await snapshot("normal");
     if (JSON.stringify(afterTyping.json) === JSON.stringify(afterSecondResize.json))
       throw new Error("Typing after table resize failed");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     if (JSON.stringify((await snapshot("normal")).json) !== JSON.stringify(afterSecondResize.json))
       throw new Error("Undo combined typing with a preceding resize");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     if (JSON.stringify((await snapshot("normal")).json) !== JSON.stringify(beforeSecondResize.json))
       throw new Error("Undo did not isolate the resize");
-    await page.keyboard.press("Meta+Shift+z");
-    await page.keyboard.press("Meta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
     if (JSON.stringify((await snapshot("normal")).json) !== JSON.stringify(afterTyping.json))
       throw new Error("Redo lost a resize or subsequent typing");
     await page.evaluate(() => window.__semloRequireTableEditor("toggled").setEditable(true));

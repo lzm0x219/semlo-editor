@@ -23,7 +23,7 @@ test("plain tab-separated text pastes as paragraphs in the active cell", async (
       const host = document.createElement('div')
       host.id = 'table-paste-test'
       document.body.prepend(host)
-      window.tablePasteEditor = createEditor({ element: host, content: '<table><tbody><tr><td><p>留</p></td><td><p></p></td></tr><tr><td><p></p></td><td><p></p></td></tr></tbody></table><p>后文</p>' })
+      window.tablePasteEditor = createEditor({ element: host, content: '<table><tbody><tr><td><p>留</p></td><td><p></p></td><td><p></p></td></tr><tr><td><p></p></td><td><p></p></td><td><p></p></td></tr><tr><td><p></p></td><td><p></p></td><td><p></p></td></tr></tbody></table><p>后文</p>' })
     `,
   });
   await page.waitForFunction(() => Boolean(window.tablePasteEditor));
@@ -33,12 +33,18 @@ test("plain tab-separated text pastes as paragraphs in the active cell", async (
   await page.keyboard.press("End");
   const before = await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot());
   await page.evaluate(() => navigator.clipboard.writeText("甲\t乙\n丙\t丁"));
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(cell.locator("p")).toHaveText(["留甲\t乙", "丙\t丁"]);
-  await expect(prose.locator("tr").first().locator("td").nth(1)).toHaveText("");
+  expect(await prose.locator("td").count()).toBe(9);
+  expect(await prose.locator("td").allTextContents()).toEqual(["留甲\t乙丙\t丁", "", "", "", "", "", "", "", ""]);
+  const after = await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot());
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
   expect((await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot())).json).toEqual(
     before.json,
+  );
+  expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.redo())).toBe(true);
+  expect((await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot())).json).toEqual(
+    after.json,
   );
 });
 
@@ -72,7 +78,7 @@ test("pasting an HTML table fills cells and adds rows when necessary", async ({ 
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr")).toHaveCount(3);
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["A", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["甲", "乙"]);
@@ -95,7 +101,7 @@ test("pasting an HTML table fills cells and adds rows when necessary", async ({ 
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["甲", "乙"]);
   await expect(prose.locator("tr").nth(2).locator("td")).toHaveText(["丙", "丁"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
@@ -134,7 +140,7 @@ test("HTML table paste follows physical cells and preserves destination merges",
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙"]);
   await expect(prose.locator("tr").nth(0).locator("td").first()).toHaveAttribute("colspan", "2");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙", "丁"]);
@@ -188,7 +194,7 @@ test("HTML table paste preserves a vertical merge and does not overwrite it twic
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙", "B"]);
   await expect(prose.locator("td[rowspan='2']")).toHaveText("甲");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丁", "D"]);
@@ -216,7 +222,7 @@ test("HTML table paste preserves a vertical merge and does not overwrite it twic
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr")).toHaveCount(4);
   await expect(prose.locator("td[rowspan='2']")).toHaveText("一");
   await expect(prose.locator("tr").nth(1).locator("td").first()).toHaveText("B");
@@ -254,7 +260,7 @@ test("HTML table paste preserves a vertical merge and does not overwrite it twic
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙", "丙", "丁"]);
   await expect(prose.locator("td[rowspan='2']")).toHaveText("甲");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["己", "庚", "辛"]);
@@ -293,7 +299,7 @@ test("merged source cells do not replace destination structure or covered values
         ]),
       html,
     );
-    await page.keyboard.press("Meta+v");
+    await page.keyboard.press("ControlOrMeta+v");
   };
   const horizontal =
     '<table><tbody><tr><td colspan="2"><p>首横</p></td></tr><tr><td><p>甲横</p></td><td><p>乙横</p></td></tr></tbody></table>';
@@ -360,7 +366,7 @@ test("pasting a single HTML cell repeats it over a selected rectangle", async ({
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["填", "填"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["填", "填"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
@@ -372,7 +378,7 @@ test("pasting a single HTML cell repeats it over a selected rectangle", async ({
   await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2, { steps: 5 });
   await page.mouse.up();
   await page.evaluate(() => navigator.clipboard.writeText("甲\t乙\n丙\t丁"));
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲\t乙", "甲\t乙"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙\t丁", "丙\t丁"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
@@ -387,7 +393,7 @@ test("pasting a single HTML cell repeats it over a selected rectangle", async ({
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td strong")).toHaveText(["粗体", "粗体"]);
   await expect(prose.locator("tr").nth(1).locator("td em")).toHaveText(["第二", "第二"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
@@ -404,7 +410,7 @@ test("pasting a single HTML cell repeats it over a selected rectangle", async ({
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["并", "并"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["并", "并"]);
   await expect(prose.locator("td[colspan='2']")).toHaveCount(0);
@@ -446,7 +452,7 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td[rowspan='2']")).toHaveText("填");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["填", "填", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["填", "D"]);
@@ -471,7 +477,7 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td[rowspan='2']")).toHaveText("甲");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["甲", "D"]);
@@ -487,7 +493,7 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td[rowspan='2']")).toHaveCount(0);
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙", "丁", "D"]);
@@ -502,13 +508,13 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td[rowspan='2']")).toHaveText("并");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["并", "并", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["并", "D"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
   await page.evaluate(() => navigator.clipboard.writeText("甲\t乙\n丙\t丁"));
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td[rowspan='2']")).toHaveText("甲\t乙");
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲\t乙", "甲\t乙", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙\t丁", "D"]);
@@ -553,7 +559,7 @@ test("pasting lists and quotes into a selected rectangle follows their observed 
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td").nth(0).locator("li")).toHaveText(["条目一", "条目二"]);
   await expect(prose.locator("tr").nth(0).locator("td").nth(1)).toHaveText("");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["", ""]);
@@ -570,7 +576,7 @@ test("pasting lists and quotes into a selected rectangle follows their observed 
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td").first().locator("p")).toHaveText(["引用甲", "引用乙"]);
   await expect(prose.locator("tr").nth(0).locator("td").nth(1)).toHaveText("引用甲");
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["引用甲", "引用甲"]);
@@ -587,7 +593,7 @@ test("pasting lists and quotes into a selected rectangle follows their observed 
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("td pre")).toHaveCount(4);
   await expect(prose.locator("td pre")).toHaveText(["alpha\nbeta", "alpha\nbeta", "alpha\nbeta", "alpha\nbeta"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
@@ -628,7 +634,7 @@ test("formatted paragraph rows cycle over a taller selected rectangle", async ({
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td strong")).toHaveText(["首", "首"]);
   await expect(prose.locator("tr").nth(1).locator("td em")).toHaveText(["次", "次"]);
   await expect(prose.locator("tr").nth(2).locator("td strong")).toHaveText(["首", "首"]);
@@ -670,7 +676,7 @@ test("table paste applies explicit cell backgrounds and otherwise keeps destinat
         ]),
       html,
     );
-    await page.keyboard.press("Meta+v");
+    await page.keyboard.press("ControlOrMeta+v");
   };
   await paste(
     '<table><tbody><tr><td style="background-color:#ff0000"><p style="text-align:center"><strong>格式</strong></p></td></tr></tbody></table>',
@@ -746,7 +752,7 @@ test("table paste applies explicit cell backgrounds and otherwise keeps destinat
         ]),
       html,
     );
-    await page.keyboard.press("Meta+v");
+    await page.keyboard.press("ControlOrMeta+v");
     await expect(prose.locator("td").first()).toHaveCSS("background-color", "rgb(0, 255, 0)");
     await expect(prose.locator("td").last()).toHaveCSS("background-color", "rgb(0, 255, 0)");
   }
@@ -778,7 +784,7 @@ test("table paste applies explicit cell backgrounds and otherwise keeps destinat
       }),
     ]),
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   await expect(prose.locator("tr").nth(0).locator("td").first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(prose.locator("tr").nth(0).locator("td").last()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(prose.locator("tr").nth(1).locator("td").first()).toHaveCSS("background-color", "rgb(0, 0, 255)");

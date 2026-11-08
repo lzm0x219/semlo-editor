@@ -51,6 +51,21 @@ test("merging untouched sequence cells treats them as one number; splitting leav
     true,
   );
   expect((await snapshot()).json).toEqual(merged.json);
+  await prose.getByRole("cell", { name: "C", exact: true }).click({ button: "right" });
+  await page.getByRole("menu", { name: "表格操作" }).getByRole("menuitem", { name: "向下插入" }).click();
+  await expect(column).toHaveText(["标题", "1", "2", "3", "4"]);
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").editor.commands.undo())).toBe(
+    true,
+  );
+  expect((await snapshot()).json).toEqual(merged.json);
+  await prose.getByRole("cell", { name: "B", exact: true }).click({ button: "right" });
+  await page.getByRole("menu", { name: "表格操作" }).getByRole("menuitem", { name: "向下插入" }).click();
+  await expect(prose.locator("td[rowspan='3']")).toHaveText("1");
+  await expect(column).toHaveText(["标题", "1", "2", "3"]);
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").editor.commands.undo())).toBe(
+    true,
+  );
+  expect((await snapshot()).json).toEqual(merged.json);
   await prose.locator("td[rowspan='2']").click({ button: "right" });
   await page.getByRole("menu", { name: "表格操作" }).getByRole("menuitem", { name: "拆分单元格" }).click();
   await expect(prose.locator("tr td:first-child")).toHaveText(["标题", "1", "", "2", "3"]);
@@ -104,5 +119,32 @@ test("merging an edited sequence never drops the edited text", async ({ page }) 
   );
   expect((await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").getSnapshot())).json).toEqual(
     before.json,
+  );
+});
+
+test("starting numbering inside a rowspan preserves that cell and numbers the next cell", async ({ page }) => {
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div'); host.id = 'sequence-merge-test'; document.body.prepend(host)
+      window.sequenceMergeEditor = createEditor({ element: host, content: '<table><tbody><tr><td>表头</td><td>内容</td></tr><tr><td rowspan="2">跨行原文</td><td>甲</td></tr><tr><td>乙</td></tr><tr><td>后格原文</td><td>丙</td></tr></tbody></table>' })
+    `,
+  });
+  await page.waitForFunction(() => Boolean(window.sequenceMergeEditor));
+  const prose = page.locator("#sequence-merge-test .semlo-editor-prose");
+  const before = await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").getSnapshot().json);
+  await prose.getByRole("cell", { name: "跨行原文", exact: true }).click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "表格操作" });
+  await menu.getByRole("spinbutton", { name: "自动编号起始行" }).fill("3");
+  await menu.getByRole("menuitem", { name: "自动编号", exact: true }).click();
+  await expect(prose.locator("td[rowspan='2']")).toHaveText("跨行原文");
+  await expect(prose.locator("tr").nth(3).locator("td").first()).toHaveText("1");
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").editor.commands.undo())).toBe(
+    true,
+  );
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceMergeEditor").getSnapshot().json)).toEqual(
+    before,
   );
 });

@@ -46,7 +46,7 @@ test("copying a merged selection uses physical cells in text while retaining HTM
       return tablePlugin.props.clipboardTextSerializer!.call(tablePlugin, state.doc.slice(end - 3, end - 1), view);
     }),
   ).toBe("");
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("合并\t甲\n乙");
   const html = await page.evaluate(async () => {
     const items = await navigator.clipboard.read();
@@ -59,7 +59,7 @@ test("copying a merged selection uses physical cells in text while retaining HTM
   await page.getByRole("menuitem", { name: "复制", exact: true }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("合并\t甲\n乙");
   const original = await page.evaluate(() => window.__semloRequireFixture("tableClipboardEditor").getSnapshot());
-  await page.keyboard.press("Meta+x");
+  await page.keyboard.press("ControlOrMeta+x");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("合并\t甲\n乙");
   await expect(prose.locator("td[rowspan='2']")).toHaveText("");
   await expect(prose.locator("td[rowspan='2']")).toHaveCSS("background-color", "rgb(0, 255, 255)");
@@ -86,7 +86,7 @@ test("copying a merged selection uses physical cells in text while retaining HTM
   await page.mouse.move(lower.x + lower.width - 15, lower.y + lower.height / 2, { steps: 5 });
   await page.mouse.up();
   await expect(prose.locator(".selectedCell")).toHaveCount(3);
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("上\n下\n左\t右");
 });
 
@@ -113,7 +113,7 @@ test("copying Semlo table content preserves custom font sizes on paste", async (
   await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2, { steps: 5 });
   await page.mouse.up();
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   const html = await page.evaluate(async () => {
     const items = await navigator.clipboard.read();
     return (await items.find((item) => item.types.includes("text/html"))!.getType("text/html")).text();
@@ -130,7 +130,7 @@ test("copying Semlo table content preserves custom font sizes on paste", async (
       ]),
     html,
   );
-  await page.keyboard.press("Meta+v");
+  await page.keyboard.press("ControlOrMeta+v");
   const pasted = prose.locator("tr").nth(1).locator("td").first();
   await expect(pasted).toHaveText("来源");
   await expect(pasted.getByText("来源")).toHaveCSS("font-size", "20px");
