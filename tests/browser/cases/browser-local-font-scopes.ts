@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(new URL("/", page.url()).href);
@@ -21,11 +24,10 @@ async function _browserTest(page: import("playwright").Page) {
   });
   const host = page.locator("#font-scope-test"),
     prose = host.locator(".semlo-editor-prose");
-  const button = host.getByRole("button", { name: "字体", exact: true }),
-    menu = page.getByRole("dialog", { name: "选择字体" });
+  const menu = page.getByRole("dialog", { name: "选择字体" });
   await prose.locator("p").first().click();
   await page.keyboard.press("End");
-  await button.click();
+  await fonts.open(host);
   if (await menu.getByRole("radio").count()) throw new Error("The menu should not show a scope selector");
   await menu.getByRole("option", { name: "字体甲", exact: true }).click();
   let snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
@@ -62,7 +64,7 @@ async function _browserTest(page: import("playwright").Page) {
     if (result !== "天地") throw new Error("Could not select text for the test");
   };
   await selectHeaven();
-  await button.click();
+  await fonts.open(host);
   await menu.getByLabel("搜索字体").fill("字体乙");
   await menu.getByRole("option", { name: "字体乙", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
@@ -75,7 +77,7 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Selected-text face did not preserve the document font and text marks");
 
   await selectHeaven();
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "默认字体", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
   const resetText = snapshot.json.content![0].content!.find((node) => node.text?.startsWith("天地"));
@@ -87,7 +89,7 @@ async function _browserTest(page: import("playwright").Page) {
 
   await prose.locator("p").last().click();
   await page.keyboard.press("End");
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "字体丙", exact: true }).click();
   await page.waitForFunction(() => document.activeElement?.matches("#font-scope-test .semlo-editor-prose"));
   await page.keyboard.type("X");
@@ -101,11 +103,11 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("A cursor did not change the document font");
 
   await selectHeaven();
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "字体乙", exact: true }).click();
   await prose.locator("p").last().click();
   await page.keyboard.press("ArrowRight");
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "字体甲", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
   if (
@@ -119,7 +121,7 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Document font lost another text style");
   await prose.locator("p").last().click();
   await page.keyboard.press("ArrowRight");
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "默认字体", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
   if (snapshot.json.attrs?.semloEditorDocumentFontFamily || (await prose.evaluate((el) => el.style.fontFamily)))
@@ -132,7 +134,7 @@ async function _browserTest(page: import("playwright").Page) {
     return editor.state.selection.toJSON().type;
   });
   if (allSelection !== "all") throw new Error("Test failed to create an AllSelection: " + allSelection);
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "字体乙", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
   const allTexts = snapshot.json.content!.flatMap(
@@ -185,7 +187,7 @@ async function _browserTest(page: import("playwright").Page) {
   });
   if (cellSelection.type !== "cell" || cellSelection.cells !== 4)
     throw new Error("Test failed to create a table selection: " + JSON.stringify(cellSelection));
-  await button.click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "字体乙", exact: true }).click();
   snapshot = await page.evaluate(() => window.__semloRequireFixture("scopeApi").getSnapshot());
   const table = snapshot.json.content!.find((node) => node.type === "table");
@@ -224,7 +226,7 @@ async function _browserTest(page: import("playwright").Page) {
     return editor.state.selection.toJSON().type;
   });
   if (nodeSelection !== "node") throw new Error("Test failed to create a non-text node selection: " + nodeSelection);
-  await button.click();
+  await fonts.open(host);
   await menu.getByText("请选择文字或将光标置于正文，再设置字体。").waitFor();
   if (!(await menu.getByRole("option", { name: "默认字体", exact: true }).isDisabled()))
     throw new Error("A non-text node selection allowed applying a font");
@@ -241,7 +243,7 @@ async function _browserTest(page: import("playwright").Page) {
       value: () => new Promise((resolve) => (window.scopeLateResolve = resolve)),
     }),
   );
-  await button.click();
+  await fonts.open(host);
   await page.evaluate(() => window.__semloRequireFixture("scopeApi").setContent("<p>新文档</p>"));
   if (await menu.count()) throw new Error("Document replacement left the old font picker open");
   const before = await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("scopeApi").getSnapshot().json));

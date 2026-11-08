@@ -77,7 +77,12 @@ async function _browserTest(page: import("playwright").Page) {
       ).fontFamily.includes("FZCaoQuanBeiLiShuS")
     )
       fail("Code content did not inherit the document font");
-    if (!host.querySelector(".semlo-editor-font-family")!.textContent!.includes("方正曹全碑隶书 简"))
+    if (
+      !document
+        .getElementById(host.querySelector(".semlo-editor-toolbar-more")!.getAttribute("aria-controls")!)!
+        .querySelector(".semlo-editor-font-family")!
+        .textContent!.includes("方正曹全碑隶书 简")
+    )
       fail("Toolbar did not show the document font");
     if (
       attrs.fontFamily ||

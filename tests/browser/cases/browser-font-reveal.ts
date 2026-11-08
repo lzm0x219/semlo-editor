@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(new URL("/", page.url()).href);
@@ -41,12 +44,11 @@ async function _browserTest(page: import("playwright").Page) {
     window.scrollTo(0, 780);
   });
   const host = page.locator("#font-reveal-test");
-  const button = host.getByRole("button", { name: "字体", exact: true });
   const menu = page.getByRole("dialog", { name: "选择字体" });
   const search = menu.getByLabel("搜索字体");
   const selected = () => menu.locator('button[role="option"][aria-selected="true"]');
   const open = async () => {
-    await button.click();
+    await fonts.open(host);
     await menu.waitFor();
   };
   const close = async () => {
@@ -338,7 +340,13 @@ async function _browserTest(page: import("playwright").Page) {
   // Trigger user actions in the opening task, before the first positioning frame.
   await setContentAndSelection(documentContent("Face-0950", "字体 0950"), 1);
   await page.evaluate(() => {
-    document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     const input = document.querySelector<HTMLInputElement>(".semlo-editor-local-font-search-row input")!;
     input.value = "字体 0";
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -354,7 +362,13 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Search was overridden by the opening reveal: " + JSON.stringify(interaction));
   await close();
   await page.evaluate(() => {
-    document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     const input = document.querySelector<HTMLInputElement>(".semlo-editor-local-font-search-row input")!;
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
   });
@@ -366,7 +380,13 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Keyboard navigation was overridden by the opening reveal: " + JSON.stringify(interaction));
   await close();
   await page.evaluate(() => {
-    document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     const list = document.querySelector<HTMLElement>(".semlo-editor-local-font-list")!;
     list.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 100 }));
     list.scrollTop = 100;
@@ -377,7 +397,13 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Manual scrolling was overridden by the opening reveal: " + JSON.stringify(interaction));
   await close();
   await page.evaluate(() => {
-    document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#font-reveal-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     document.querySelector<HTMLElement>(".semlo-editor-local-font-read")!.click();
     const list = document.querySelector<HTMLElement>(".semlo-editor-local-font-list")!;
     list.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 100 }));

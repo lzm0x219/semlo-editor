@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(() => {
@@ -24,7 +27,7 @@ async function _browserTest(page: import("playwright").Page) {
   };
   const choose = async (host: import("playwright").Locator) => {
     await assertCollapsed(host, "Before applying document font");
-    await host.getByRole("button", { name: "字体", exact: true }).click();
+    await fonts.open(host);
     if (await menu.getByRole("radio").count()) throw new Error("Font menu still exposes a scope selector");
     await menu.getByRole("option", { name: "测试字体", exact: true }).click();
     await page.waitForFunction(
@@ -39,7 +42,12 @@ async function _browserTest(page: import("playwright").Page) {
       computed: getComputedStyle(root).fontFamily,
       paragraph: getComputedStyle(root.querySelector("p")!).fontFamily,
       active: root.dataset.semloEditorDocumentFontActive,
-      label: root.closest(".semlo-editor")!.querySelector(".semlo-editor-font-family")!.textContent,
+      label:
+        root.ownerDocument
+          .getElementById(
+            root.closest(".semlo-editor")!.querySelector(".semlo-editor-toolbar-more")!.getAttribute("aria-controls")!,
+          )
+          ?.querySelector(".semlo-editor-font-family")?.textContent ?? "",
     }));
     if (
       !details.inline.includes("Semlo Editor Test Font") ||
@@ -79,7 +87,7 @@ async function _browserTest(page: import("playwright").Page) {
     );
     await assertFont(host, framework + " after controlled update");
     await assertCollapsed(host, framework + " before resetting document font");
-    await host.getByRole("button", { name: "字体", exact: true }).click();
+    await fonts.open(host);
     if (await menu.getByRole("radio").count())
       throw new Error(framework + ": font menu still exposes a scope selector");
     await menu.getByRole("option", { name: "默认字体", exact: true }).click();
@@ -97,7 +105,12 @@ async function _browserTest(page: import("playwright").Page) {
       inline: root.style.fontFamily,
       computed: getComputedStyle(root).fontFamily,
       active: root.dataset.semloEditorDocumentFontActive,
-      label: root.closest(".semlo-editor")!.querySelector(".semlo-editor-font-family")!.textContent,
+      label:
+        root.ownerDocument
+          .getElementById(
+            root.closest(".semlo-editor")!.querySelector(".semlo-editor-toolbar-more")!.getAttribute("aria-controls")!,
+          )
+          ?.querySelector(".semlo-editor-font-family")?.textContent ?? "",
     }));
     if (
       reset.inline ||

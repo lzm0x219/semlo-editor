@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const origin = new URL("/", page.url()).origin;
@@ -42,8 +45,7 @@ async function _browserTest(page: import("playwright").Page) {
   });
   const host = page.locator("#emphasis-first"),
     paragraph = host.locator(".semlo-editor-prose p");
-  const toolbar = host.locator(".semlo-editor-toolbar"),
-    fontButton = toolbar.getByRole("button", { name: "字体", exact: true });
+  const toolbar = host.locator(".semlo-editor-toolbar");
   const menu = page.getByRole("dialog", { name: "选择字体" });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("DOM.enable");
@@ -77,14 +79,14 @@ async function _browserTest(page: import("playwright").Page) {
   };
   const choose = async (name: string | undefined) => {
     if (name === undefined) throw new Error("Selected local font has no full name");
-    await fontButton.click();
+    await fonts.open(host);
     await menu.getByLabel("搜索字体").fill(name);
     const option = menu.getByRole("option", { name, exact: true });
     if ((await option.count()) !== 1) throw new Error("Expected one font option: " + name);
     await option.click();
   };
   await paragraph.click();
-  await fontButton.click();
+  await fonts.open(host);
   try {
     await page.waitForFunction(
       () => Array.isArray(window.emphasisFonts) || window.emphasisRequest?.status === "rejected",

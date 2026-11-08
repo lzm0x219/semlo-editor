@@ -1,23 +1,13 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 
 let origin: string;
 let closeServer: () => Promise<void>;
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/cards/encrypted-text-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  closeServer = () => server.close();
+  ({ origin, stop: closeServer } = await startFixtureServer("./tests/fixtures/cards/encrypted-text-fixture.ts"));
 });
 afterAll(async () => closeServer?.());
 

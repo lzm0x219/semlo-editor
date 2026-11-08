@@ -114,7 +114,7 @@ test("week segments retain editing, readonly, undo, month navigation and isolate
   await dialog.getByRole("button", { name: "关闭日程" }).click();
   await expect(calendar.getByRole("button", { name: "日程：更新的行程" })).toHaveCount(2);
   await expect(other.getByRole("button", { name: "日程：跨周日程" })).toHaveCount(2);
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect(calendar.getByRole("button", { name: "日程：跨周日程" })).toHaveCount(2);
 
   await calendar.getByRole("button", { name: "日历下个月" }).click();

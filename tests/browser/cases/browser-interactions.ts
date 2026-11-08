@@ -24,7 +24,7 @@ async function _browserTest(page: import("playwright").Page) {
       throw new Error(framework + ": lost body");
   }
   await page.getByText("记录一闪而过的灵感").click();
-  await page.keyboard.press("Meta+/");
+  await page.keyboard.press("ControlOrMeta+/");
   const dialog = page.getByRole("dialog", { name: "插入内容" });
   await dialog.waitFor();
   await dialog.getByLabel("搜索插入内容").fill("高亮");

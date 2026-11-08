@@ -397,14 +397,16 @@ test("the reading title and code tools preserve document behavior", async ({ pag
   await example.getByTitle("复制代码").click();
   await page.waitForFunction(async (text) => (await navigator.clipboard.readText()).trim() === text, expected);
 
+  // 用明确的窄屏条件制造横向溢出，避免依赖 API 示例是否按单行排版。
+  await page.setViewportSize({ width: 320, height: 850 });
   await page.goto(`${origin}/api`);
   const overflowing = page.locator(".rp-codeblock").first();
+  await expect(overflowing).toBeVisible();
   await expect(overflowing).toHaveAttribute("data-horizontal-scroll", "");
   await overflowing.getByRole("button", { name: "切换代码换行" }).click();
   await expect(overflowing.locator(".rp-codeblock__content")).toHaveClass(/rp-codeblock__content--wrap-code/);
   await expect(overflowing).not.toHaveAttribute("data-horizontal-scroll", "");
 
-  await page.setViewportSize({ width: 320, height: 850 });
   await page.getByRole("button", { name: "更多文档操作" }).click();
   const menu = page.getByRole("group", { name: "更多文档操作" });
   const bounds = await menu.boundingBox();

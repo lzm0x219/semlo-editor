@@ -82,13 +82,27 @@ for (const { width, height } of [
     await more.click();
     const panel = page.getByRole("toolbar", { name: "更多工具" });
     await expect(panel).toBeVisible();
-    await expect
-      .poll(async () => {
-        const panelBox = await panel.boundingBox();
-        const editorBox = await editor.boundingBox();
-        return Boolean(panelBox && editorBox && panelBox.y + panelBox.height <= editorBox.y);
-      })
-      .toBe(true);
+    try {
+      await expect
+        .poll(async () => {
+          const panelBox = await panel.boundingBox();
+          const editorBox = await editor.boundingBox();
+          return Boolean(panelBox && editorBox && panelBox.y + panelBox.height <= editorBox.y);
+        })
+        .toBe(true);
+    } catch (error) {
+      console.log("mobile-overflow-diagnostic", {
+        panel: await panel.boundingBox(),
+        editor: await editor.boundingBox(),
+        geometry: await panel.evaluate((element) => ({
+          css: element.getAttribute("style"),
+          scrollHeight: element.scrollHeight,
+          offsetHeight: (element as HTMLElement).offsetHeight,
+        })),
+      });
+      await page.screenshot({ path: "test-results/docs/mobile-overflow-failure.png" });
+      throw error;
+    }
     await panel.getByRole("button", { name: "段落样式" }).click();
     await expect(page.getByRole("menu", { name: "段落样式" })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -182,6 +196,8 @@ test("短屏示例菜单可触摸滚动并选择末项", async ({ page }) => {
       await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
       await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     }
+    // 坐标触摸不执行 Playwright 的可操作性检查，先等待滚动后的入口稳定并可接收事件。
+    await trigger.click({ trial: true });
     const triggerBounds = await trigger.boundingBox();
     if (!triggerBounds) throw new Error("找不到示例菜单入口");
     await tap(triggerBounds.x + triggerBounds.width / 2, triggerBounds.y + triggerBounds.height / 2);
@@ -199,6 +215,7 @@ test("短屏示例菜单可触摸滚动并选择末项", async ({ page }) => {
     await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect.poll(() => menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     const last = menu.getByRole("menuitem").last();
+    await last.click({ trial: true });
     const lastBounds = await last.boundingBox();
     if (!lastBounds) throw new Error("找不到最后一个示例");
     await tap(lastBounds.x + lastBounds.width / 2, lastBounds.y + lastBounds.height / 2);
@@ -474,7 +491,23 @@ test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ pa
     });
     const previousY = await page.evaluate(() => window.scrollY);
     await swipeUp();
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(previousY);
+    try {
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(previousY);
+    } catch (error) {
+      console.log("touch-scroll-diagnostic", {
+        previousY,
+        currentY: await page.evaluate(() => window.scrollY),
+        host: await host.evaluate((element) => ({
+          rect: element.getBoundingClientRect().toJSON(),
+          scrollTop: element.scrollTop,
+          scrollHeight: element.scrollHeight,
+          clientHeight: element.clientHeight,
+          overscroll: getComputedStyle(element).overscrollBehaviorY,
+        })),
+      });
+      await page.screenshot({ path: "test-results/docs/touch-scroll-failure.png" });
+      throw error;
+    }
     const next = page.getByRole("link", { name: "继续浏览", exact: true });
     await next.scrollIntoViewIfNeeded();
     const nextBounds = await next.boundingBox();

@@ -33,9 +33,9 @@ async function _browserTest(page: import("playwright").Page) {
   await page.keyboard.press("Enter");
   await page.keyboard.type("value");
   const beforeUndo = await card.locator("code").innerText();
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if ((await card.locator("code").innerText()) === beforeUndo) throw new Error("Code undo failed");
-  await page.keyboard.press("Meta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   if ((await card.locator("code").innerText()) !== beforeUndo) throw new Error("Code redo failed");
   await card.getByLabel("代码块名称").fill("跨框架代码");
   await card.getByLabel("代码语言").click();

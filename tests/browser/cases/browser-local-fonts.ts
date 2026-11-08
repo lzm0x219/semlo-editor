@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(new URL("/", page.url()).href);
@@ -47,7 +50,7 @@ async function _browserTest(page: import("playwright").Page) {
   await prose.locator("p").click();
   await page.keyboard.press("Home");
   for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+ArrowRight");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   let menu = page.getByRole("dialog", { name: "选择字体" });
   if ((await page.evaluate(() => window.__semloRequireFixture("fontCalls"))) !== 1)
     throw new Error("Opening the menu did not automatically query local fonts");
@@ -119,7 +122,7 @@ async function _browserTest(page: import("playwright").Page) {
     return selected.toString();
   });
   if (namedSelection !== "abc") throw new Error("Test did not select text for the named font");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   if ((await page.evaluate(() => window.__semloRequireFixture("fontCalls"))) !== 1)
     throw new Error("Reopening the menu unnecessarily queried fonts again");
   await menu.getByLabel("搜索字体").fill("清晰字体");
@@ -166,7 +169,7 @@ async function _browserTest(page: import("playwright").Page) {
     if (selected !== "abc") throw new Error("Could not reselect text for another font face");
   };
   await reselectABC();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByLabel("搜索字体").fill("测试字体");
   if (
     (await menu.getByRole("option", { name: "测试字体 Normal", exact: true }).count()) !== 1 ||
@@ -185,7 +188,7 @@ async function _browserTest(page: import("playwright").Page) {
   if (fallbackAttrs?.fontFamily !== '"000814"' || fallbackAttrs.semloEditorFontName !== "测试字体 Normal")
     throw new Error("A face without PostScript name did not fall back to its family: " + JSON.stringify(fallbackAttrs));
   await reselectABC();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByLabel("搜索字体").fill("000813");
   if ((await menu.getByRole("option", { name: /清晰字体/ }).count()) !== 2)
     throw new Error("Family search did not return both faces");
@@ -196,7 +199,7 @@ async function _browserTest(page: import("playwright").Page) {
     ?.marks?.find((mark) => mark.type === "textStyle")?.attrs;
   if (numericAttrs?.fontFamily !== '"Clear-Regular"' || numericAttrs.semloEditorFontName !== "清晰字体 Regular")
     throw new Error("Regular face or readable name was not stored correctly: " + JSON.stringify(numericAttrs));
-  if (!(await host.getByRole("button", { name: "字体", exact: true }).innerText()).includes("清晰字体 Regular"))
+  if (!(await (await fonts.control(host)).innerText()).includes("清晰字体 Regular"))
     throw new Error("Font toolbar displayed an opaque family instead of the full name");
   if (!numeric.html.includes('data-semlo-editor-font-name="清晰字体 Regular"'))
     throw new Error("Readable font name missing from HTML");
@@ -245,7 +248,7 @@ async function _browserTest(page: import("playwright").Page) {
   await prose.locator("p").click();
   await page.keyboard.press("Home");
   for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+ArrowRight");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "默认字体", exact: true }).click();
   if (await prose.locator('span[style*="font-family"]').count())
     throw new Error("Default font did not remove the selected family");
@@ -272,7 +275,7 @@ async function _browserTest(page: import("playwright").Page) {
     return selected.toString();
   });
   if (specialSelection !== "abc") throw new Error("Test did not select text for the quoted font");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "思源宋体", exact: true }).waitFor();
   if (await menu.getByRole("option", { name: /Bad|伪造字体|Injected|UnsafeFamily/ }).count())
     throw new Error("Unsafe font family or full name was offered");
@@ -299,7 +302,7 @@ async function _browserTest(page: import("playwright").Page) {
   if (!escapedRoundtrip) throw new Error("Quoted font name did not survive HTML roundtrip");
   await page.evaluate(() => window.__semloRequireFixture("fontApi").setContent("<p></p>"));
   await prose.locator("p").click();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("option", { name: "PingFang SC", exact: true }).click();
   await page.waitForFunction(() => document.activeElement?.matches("#font-test .semlo-editor-prose"));
   await page.keyboard.type("x");
@@ -324,14 +327,14 @@ async function _browserTest(page: import("playwright").Page) {
     });
     if (selection !== "x") throw new Error("Test did not select the intended character");
   };
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await page.keyboard.press("Escape");
   if (await menu.count()) throw new Error("Escape left font picker open");
   await page.evaluate(() => {
     window.fontMode = "denied";
   });
   await selectX();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
   await menu.getByText("字体访问被拒绝，请检查浏览器权限").waitFor();
   if (
@@ -357,7 +360,7 @@ async function _browserTest(page: import("playwright").Page) {
     Object.defineProperty(window, "queryLocalFonts", { configurable: true, writable: true, value: undefined });
   });
   await selectX();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByText("当前浏览器不支持读取本机字体").waitFor();
   if (await menu.getByRole("button", { name: "刷新本机字体" }).count())
     throw new Error("Unavailable API still offered refresh");
@@ -370,7 +373,7 @@ async function _browserTest(page: import("playwright").Page) {
       return new Promise((resolve) => window.__semloRequireFixture("fontResolvers").push(resolve));
     };
   });
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByText(/仍在等待浏览器授权.*Chrome/).waitFor({ timeout: 8000 });
   if (await menu.getByRole("button", { name: "刷新本机字体" }).isDisabled())
     throw new Error("A stalled request did not allow an explicit retry");
@@ -381,7 +384,7 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Late permission result stole focus from refresh");
   await page.keyboard.press("Escape");
   await selectX();
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
   await menu.getByRole("option", { name: "延迟字体", exact: true }).click();
   const beforeLate = await page.evaluate(() =>
@@ -395,7 +398,7 @@ async function _browserTest(page: import("playwright").Page) {
       beforeLate
   )
     throw new Error("A late result changed the selected font");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
   await page.evaluate(() => window.__semloRequireFixture("fontApi").setEditable(false));
   if (await menu.count()) throw new Error("Read-only transition left font picker open");
@@ -405,7 +408,7 @@ async function _browserTest(page: import("playwright").Page) {
   });
   await page.waitForTimeout(30);
   if (await menu.count()) throw new Error("Late font result reopened the picker");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(host);
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
   await page.evaluate(() => {
     window.__semloRequireFixture("fontApi").destroy();
@@ -424,7 +427,7 @@ async function _browserTest(page: import("playwright").Page) {
   await page.keyboard.type("sample");
   await page.keyboard.press("Home");
   for (let i = 0; i < 6; i++) await page.keyboard.press("Shift+ArrowRight");
-  await demo.getByRole("button", { name: "字体", exact: true }).click();
+  await fonts.open(demo);
   await menu.getByRole("option", { name: "清晰字体 Regular", exact: true }).click();
   for (const framework of ["React", "SolidJS", "Vue"]) {
     await page.getByRole("button", { name: framework, exact: true }).click();
@@ -434,7 +437,12 @@ async function _browserTest(page: import("playwright").Page) {
     if (!(await text.count())) throw new Error(`${framework}: font style or readable name lost`);
     await text.click();
     await page.waitForFunction(() =>
-      document.querySelector("#editor-host .semlo-editor-font-family")?.textContent?.includes("清晰字体 Regular"),
+      document
+        .getElementById(
+          document.querySelector("#editor-host .semlo-editor-toolbar-more")?.getAttribute("aria-controls") ?? "",
+        )
+        ?.querySelector(".semlo-editor-font-family")
+        ?.textContent?.includes("清晰字体 Regular"),
     );
   }
   await page.goto(new URL("/tests/controlled.html", page.url()).href);
@@ -465,7 +473,7 @@ async function _browserTest(page: import("playwright").Page) {
       return selected.toString();
     });
     if (selection !== "abc") throw new Error(`${framework}: test did not select the intended text`);
-    await controlled.getByRole("button", { name: "字体", exact: true }).click();
+    await fonts.open(controlled);
     await menu.getByRole("option", { name: "PingFang SC", exact: true }).click();
     if (!(await controlled.locator('.semlo-editor-column span[style*="font-family"]').getByText("abc").count()))
       throw new Error(`${framework}: controlled font update lost`);

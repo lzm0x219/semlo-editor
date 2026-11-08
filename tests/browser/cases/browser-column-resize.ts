@@ -53,12 +53,12 @@ async function _browserTest(page: import("playwright").Page) {
   const saved = resized.json.content![0].attrs!.widths;
   if (!Array.isArray(saved) || saved[0] <= saved[1] || !resized.html.includes("data-widths"))
     throw new Error("Resized widths not serialized");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   let restored = await page.evaluate(
     () => window.__semloRequireFixture("resizeApi").getSnapshot().json.content![0].attrs!.widths,
   );
   if (restored !== null) throw new Error("Undo did not restore original widths: " + JSON.stringify(restored));
-  await page.keyboard.press("Meta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   restored = await page.evaluate(
     () => window.__semloRequireFixture("resizeApi").getSnapshot().json.content![0].attrs!.widths,
   );
@@ -77,7 +77,7 @@ async function _browserTest(page: import("playwright").Page) {
     () => window.__semloRequireFixture("resizeApi").getSnapshot().json.content![0].attrs!.widths,
   );
   if (fromKey[0] <= fromHtml[0]) throw new Error("Keyboard resize failed");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   const keyUndo = await page.evaluate(
     () => window.__semloRequireFixture("resizeApi").getSnapshot().json.content![0].attrs!.widths,
   );

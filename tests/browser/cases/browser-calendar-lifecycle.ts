@@ -30,14 +30,14 @@ async function _browserTest(page: import("playwright").Page) {
   let dialog = page.getByRole("dialog", { name: "编辑日程" });
   await dialog.getByLabel("日程标题").fill("修改日程");
   await dialog.getByRole("button", { name: "关闭日程" }).click();
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if (!(await calendar.getByRole("button", { name: "日程：原日程" }).count()))
     throw new Error("Event edit undo failed");
   await calendar.getByRole("button", { name: "日程：原日程" }).click();
   dialog = page.getByRole("dialog", { name: "编辑日程" });
   await dialog.getByRole("button", { name: "删除日程" }).click();
   if (await calendar.getByRole("button", { name: "日程：原日程" }).count()) throw new Error("Event delete failed");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if (!(await calendar.getByRole("button", { name: "日程：原日程" }).count()))
     throw new Error("Event delete undo failed");
   await calendar.getByRole("button", { name: `${today} 添加日程` }).click();

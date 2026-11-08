@@ -1,16 +1,10 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 let origin: string;
 let closeServer: () => Promise<void>;
 beforeAll(async () => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/cards/cards-iframe-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
+  const r = await createFixtureRsbuild("./tests/fixtures/cards/cards-iframe-fixture.ts");
   const { port, server } = await r.startDevServer();
   origin = `http://127.0.0.1:${port}`;
   closeServer = () => server.close();

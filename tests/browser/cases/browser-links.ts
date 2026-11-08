@@ -28,7 +28,7 @@ async function _browserTest(page: import("playwright").Page) {
   )
     throw new Error("Link lost its selection or formatting");
   await anchor.click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   form = page.getByRole("dialog", { name: "插入链接" });
   if (
     (await form.getByLabel("文本").inputValue()) !== "abc" ||
@@ -43,7 +43,7 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Editing existing link failed");
   await page.evaluate(() => window.__semloRequireFixture("linkApi").setContent("<p></p>"));
   await prose.locator("p").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   form = page.getByRole("dialog", { name: "插入链接" });
   if ((await form.getByLabel("文本").inputValue()) !== "链接") throw new Error("Default link text missing");
   await form.getByLabel("文本").fill("独立链接");
@@ -60,7 +60,7 @@ async function _browserTest(page: import("playwright").Page) {
   anchor = prose.locator("a");
   if ((await form.count()) || (await anchor.innerText()) !== "链接" || (await anchor.getAttribute("href")) !== null)
     throw new Error("Cancelling slash link did not keep the unaddressed placeholder");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if ((await prose.innerText()).trim() !== "/") throw new Error("Undo did not restore the slash");
   await page.keyboard.press("Escape");
   await host.getByRole("button", { name: "插入内容" }).click();

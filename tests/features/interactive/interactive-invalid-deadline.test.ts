@@ -1,24 +1,14 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 
 import type { InteractiveCardHost } from "../../../packages/core/src/features/interactive/interactive-card-host";
 import type { EditorController } from "../../../packages/core/src/types";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 
 let origin: string;
 let closeServer: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const build = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/cards/encrypted-text-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await build.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  closeServer = () => server.close();
+  ({ origin, stop: closeServer } = await startFixtureServer("./tests/fixtures/cards/encrypted-text-fixture.ts"));
 });
 afterAll(async () => closeServer?.());
 test.beforeEach(async ({ page }) => {

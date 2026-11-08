@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(new URL("/", page.url()).href);
@@ -22,23 +25,21 @@ async function _browserTest(page: import("playwright").Page) {
   });
   const first = page.locator("#first-font-editor"),
     second = page.locator("#second-font-editor");
-  const firstButton = first.getByRole("button", { name: "字体", exact: true });
-  const secondButton = second.getByRole("button", { name: "字体", exact: true });
   const menu = page.getByRole("dialog", { name: "选择字体" });
-  await firstButton.click();
+  await fonts.open(first);
   if (
     (await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 1 ||
     !(await page.evaluate(() => window.__semloRequireFixture("reads")[0].activated))
   )
     throw new Error("First query did not happen during the toolbar click");
   await page.keyboard.press("Escape");
-  await secondButton.click();
+  await fonts.open(second);
   if ((await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 1)
     throw new Error("Reopening while pending started a duplicate read");
   await page.evaluate(() => window.__semloRequireFixture("reads")[0].resolve([{ family: "字体一" }]));
   await menu.getByRole("option", { name: "字体一", exact: true }).waitFor();
   await page.keyboard.press("Escape");
-  await firstButton.click();
+  await fonts.open(first);
   if (
     (await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 1 ||
     !(await menu.getByRole("option", { name: "字体一", exact: true }).count())
@@ -60,7 +61,7 @@ async function _browserTest(page: import("playwright").Page) {
   if ((await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 2)
     throw new Error("Explicit refresh did not start a new query");
   await page.keyboard.press("Escape");
-  await secondButton.click();
+  await fonts.open(second);
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
   if ((await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 3)
     throw new Error("A new refresh could not replace an older pending request");
@@ -71,7 +72,7 @@ async function _browserTest(page: import("playwright").Page) {
   if (await menu.getByRole("option", { name: "过期字体", exact: true }).count())
     throw new Error("An older result replaced the refreshed list");
   await page.keyboard.press("Escape");
-  await firstButton.click();
+  await fonts.open(first);
   if (!(await menu.getByRole("option", { name: "新字体", exact: true }).count()))
     throw new Error("An older result replaced the shared cache");
   await menu.getByRole("button", { name: "刷新本机字体" }).click();
@@ -90,7 +91,7 @@ async function _browserTest(page: import("playwright").Page) {
   );
   await menu.getByText("字体访问被拒绝，请检查浏览器权限").waitFor();
   await page.keyboard.press("Escape");
-  await firstButton.click();
+  await fonts.open(first);
   if ((await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 7)
     throw new Error("Opening after a failure did not retry");
   await page.evaluate(() => window.__semloRequireFixture("reads")[6].resolve([{ family: "恢复字体" }]));
@@ -140,7 +141,7 @@ async function _browserTest(page: import("playwright").Page) {
       return callbacks.length;
     });
   });
-  await firstButton.click();
+  await fonts.open(first);
   const lastFont = menu.getByRole("option", { name: "展示字体 424", exact: true });
   await lastFont.waitFor({ state: "attached" });
   if ((await menu.getByRole("option").count()) !== 426) throw new Error("The full font list was truncated");
@@ -195,7 +196,7 @@ async function _browserTest(page: import("playwright").Page) {
   if ((await menu.getByRole("option").count()) !== 426) throw new Error("Family search did not return all faces");
   await lastFont.click();
   await menu.waitFor({ state: "detached" });
-  await firstButton.click();
+  await fonts.open(first);
   await page.waitForFunction(() => {
     const list = document.querySelector(".semlo-editor-local-font-list");
     const selected = list?.querySelector<HTMLElement>('button[role="option"][aria-selected="true"]');
@@ -208,7 +209,7 @@ async function _browserTest(page: import("playwright").Page) {
   await page.evaluate(() =>
     Object.defineProperty(window, "queryLocalFonts", { configurable: true, writable: true, value: undefined }),
   );
-  await firstButton.click();
+  await fonts.open(first);
   await menu.getByText("当前浏览器不支持读取本机字体").waitFor();
   if (await menu.getByRole("option", { name: "恢复字体", exact: true }).count())
     throw new Error("Unavailable API showed fonts from an earlier API");

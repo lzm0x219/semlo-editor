@@ -233,10 +233,10 @@ async function _browserTest(page: import("playwright").Page) {
     await select("simple", "简例", 0, "简例", 2);
     if (!(await page.evaluate(() => window.__semloRequireFixture("fontShortcutFixture").focused("simple"))))
       throw new Error("Editor did not receive keyboard focus");
-    await page.keyboard.press("Meta+Alt+-");
+    await page.keyboard.press("ControlOrMeta+Alt+-");
     if (!characters(await snapshot("simple")).every((char) => size(char) === "14px"))
       throw new Error("15px decrease should produce 14px");
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     if (!characters(await snapshot("simple")).every((char) => size(char) === "15px"))
       throw new Error("14px increase should produce 15px");
 
@@ -252,13 +252,13 @@ async function _browserTest(page: import("playwright").Page) {
     await page.mouse.up();
     if ((await page.evaluate(() => window.getSelection()!.toString())) !== "甲乙丙丁")
       throw new Error("Mouse did not select the mixed-size text");
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     if (!characters(await snapshot("mouse")).every((char) => size(char) === "29px"))
       throw new Error("Shortcut did not apply to a real mouse selection");
 
     const before = await snapshot("mixed");
     await select("mixed", "甲乙", 1, "戊己", 1, true);
-    await page.keyboard.press("Meta+Alt+=");
+    await page.keyboard.press("ControlOrMeta+Alt+=");
     const adjusted = await snapshot("mixed"),
       originalChars = characters(before),
       adjustedChars = characters(adjusted);
@@ -274,17 +274,17 @@ async function _browserTest(page: import("playwright").Page) {
     }
     await page.keyboard.type("X");
     const typed = await snapshot("mixed");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     if (!same(await snapshot("mixed"), adjusted)) throw new Error("Undo did not isolate subsequent typing");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     if (!same(await snapshot("mixed"), before)) throw new Error("Undo did not restore mixed original sizes");
-    await page.keyboard.press("Meta+Shift+z");
-    await page.keyboard.press("Meta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
     if (!same(await snapshot("mixed"), typed)) throw new Error("Redo did not restore font sizes and subsequent typing");
 
     const beforeCode = await snapshot("code");
     await select("code", "前段", 0, "let abc", 3);
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     const afterCode = await snapshot("code"),
       codeOriginal = characters(beforeCode),
       codeAdjusted = characters(afterCode);
@@ -298,29 +298,29 @@ async function _browserTest(page: import("playwright").Page) {
     }
 
     await select("cursor", "ab", 2, "ab", 2);
-    await page.keyboard.press("Meta+Alt+-");
+    await page.keyboard.press("ControlOrMeta+Alt+-");
     await page.keyboard.type("Z");
     let cursor = characters(await snapshot("cursor"));
     if (size(cursor.find((char) => char.char === "Z")) !== "14px")
       throw new Error("Collapsed selection did not apply 14px to subsequent typing");
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     await page.keyboard.type("Y");
     cursor = characters(await snapshot("cursor"));
     if (size(cursor.find((char) => char.char === "Y")) !== "15px")
       throw new Error("Collapsed selection did not retain the updated stored size");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     cursor = characters(await snapshot("cursor"));
     if (!cursor.some((char) => char.char === "Z") || cursor.some((char) => char.char === "Y"))
       throw new Error("Undo grouped text typed across separate cursor size changes");
-    await page.keyboard.press("Meta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
     if (size(characters(await snapshot("cursor")).find((char) => char.char === "Y")) !== "15px")
       throw new Error("Redo lost cursor font size");
 
     const bounds = await snapshot("bounds");
     await select("bounds", "低", 0, "低", 1);
-    await page.keyboard.press("Meta+Alt+-");
+    await page.keyboard.press("ControlOrMeta+Alt+-");
     await select("bounds", "高", 0, "高", 1);
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     if (!same(await snapshot("bounds"), bounds)) throw new Error("Font size exceeded supported bounds");
     if (
       !(await page.evaluate(() => window.__semloRequireFixture("fontShortcutEvents").slice(-2))).every(
@@ -331,17 +331,17 @@ async function _browserTest(page: import("playwright").Page) {
     await select("bounds", "低", 0, "低", 1);
     const steps = [12, 13, 14, 15, 16, 19, 22, 24, 29, 32, 40, 48];
     for (const expected of steps.slice(1)) {
-      await page.keyboard.press("Meta+Alt+Shift+=");
+      await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
       if (size(characters(await snapshot("bounds")).find((char) => char.char === "低")) !== `${expected}px`)
         throw new Error(`Increasing skipped the ${expected}px step`);
     }
     for (const expected of steps.slice(0, -1).reverse()) {
-      await page.keyboard.press("Meta+Alt+-");
+      await page.keyboard.press("ControlOrMeta+Alt+-");
       if (size(characters(await snapshot("bounds")).find((char) => char.char === "低")) !== `${expected}px`)
         throw new Error(`Decreasing skipped the ${expected}px step`);
     }
     await select("fallback", "未知", 0, "未知", 2);
-    await page.keyboard.press("Meta+Alt+Shift+=");
+    await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
     if (
       !characters(await snapshot("fallback"))
         .filter((char) => "未知".includes(char.char))
@@ -349,7 +349,7 @@ async function _browserTest(page: import("playwright").Page) {
     )
       throw new Error("Unsupported font size did not fall back to 15px");
     await select("fallback", "默认", 0, "默认", 2);
-    await page.keyboard.press("Meta+Alt+-");
+    await page.keyboard.press("ControlOrMeta+Alt+-");
     if (
       !characters(await snapshot("fallback"))
         .filter((char) => "默认".includes(char.char))

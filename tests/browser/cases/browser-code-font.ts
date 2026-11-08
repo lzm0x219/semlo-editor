@@ -1,4 +1,7 @@
-async function _browserTest(page: import("playwright").Page) {
+async function _browserTest(
+  page: import("playwright").Page,
+  fonts: import("../../fixtures/browser/font-toolbar").FontToolbarTools,
+) {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(new URL("/", page.url()).href);
@@ -33,8 +36,7 @@ async function _browserTest(page: import("playwright").Page) {
   });
   const host = page.locator("#code-font-test"),
     prose = host.locator(".semlo-editor-prose");
-  const toolbar = host.getByRole("button", { name: "字体", exact: true }),
-    menu = page.getByRole("dialog", { name: "选择字体" });
+  const menu = page.getByRole("dialog", { name: "选择字体" });
   const selectText = async (container: import("playwright").Locator, text: string) => {
     await container.click();
     const selected = await container.evaluate((el, text) => {
@@ -56,7 +58,7 @@ async function _browserTest(page: import("playwright").Page) {
     if (selected !== text) throw new Error("Could not select code text: " + text);
   };
   const choose = async (name: string) => {
-    await toolbar.click();
+    await fonts.open(host);
     await menu.getByRole("option", { name, exact: true }).click();
     await page.waitForFunction(() => document.activeElement?.matches("#code-font-test .semlo-editor-prose"));
   };
@@ -299,7 +301,13 @@ async function _browserTest(page: import("playwright").Page) {
       node: isNodeSelection(pmSelection) ? pmSelection.node.type.name : undefined,
       selected: selection.toString(),
     };
-    document.querySelector<HTMLElement>("#node-font-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#node-font-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     return before;
   });
   if (delayed.node !== "image" || delayed.selected !== "天地玄黄")
@@ -389,7 +397,13 @@ async function _browserTest(page: import("playwright").Page) {
       node: isNodeSelection(pmSelection) ? pmSelection.node.type.name : undefined,
       selected: selection.toString(),
     };
-    document.querySelector<HTMLElement>("#node-font-test .semlo-editor-font-family")!.click();
+    const more = document.querySelector<HTMLElement>("#node-font-test .semlo-editor-toolbar-more")!;
+    if (more.getAttribute("aria-expanded") !== "true")
+      more.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+    document
+      .getElementById(more.getAttribute("aria-controls")!)!
+      .querySelector<HTMLElement>(".semlo-editor-font-family")!
+      .click();
     return before;
   });
   if (stale.node !== "image" || stale.selected !== "天地")

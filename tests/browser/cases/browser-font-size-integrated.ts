@@ -11,11 +11,11 @@ async function _browserTest(page: import("playwright").Page) {
     window.__semloRequireFixture("integratedSize").editor.commands.focus();
     window.__semloRequireFixture("integratedSize").editor.commands.setTextSelection({ from: 1, to: 5 });
   });
-  await page.keyboard.press("Meta+Alt+-");
+  await page.keyboard.press("ControlOrMeta+Alt+-");
   let json = await page.evaluate(() => window.__semloRequireFixture("integratedSize").getSnapshot().json);
   if (json.content?.[0]?.content?.[0]?.marks?.find((mark) => mark.type === "textStyle")?.attrs?.fontSize !== "14px")
     throw new Error("The integrated editor did not register the font-size shortcut");
-  await page.keyboard.press("Meta+Alt+Shift+=");
+  await page.keyboard.press("ControlOrMeta+Alt+Shift+=");
   json = await page.evaluate(() => window.__semloRequireFixture("integratedSize").getSnapshot().json);
   if (json.content?.[0]?.content?.[0]?.marks?.find((mark) => mark.type === "textStyle")?.attrs?.fontSize !== "15px")
     throw new Error("The integrated editor did not restore the next font-size step");

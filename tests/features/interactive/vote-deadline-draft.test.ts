@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { createRsbuild } from "@rsbuild/core";
 import { beforeAll, afterAll, expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createInlineFixtureRsbuild, readInlineFixtureBundle } from "../../fixtures/browser/fixture-bundle";
 import type {} from "../../fixtures/interactive/interactive-deadline-fixture";
 import { readEditorStyles } from "../../fixtures/shared/editor-styles";
 
@@ -15,24 +15,14 @@ test.beforeEach(async ({ page }) => {
 let directory: string, bundle: string, styles: string;
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "semlo-editor-deadline-"));
-  const builder = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { deadline: resolve("tests/fixtures/interactive/interactive-deadline-fixture.ts") } },
-      output: { distPath: { root: directory }, filename: { js: "[name].js" }, cleanDistPath: false },
-      tools: { rspack: { optimization: { splitChunks: false, runtimeChunk: false } } },
-    },
-  });
+  const builder = await createInlineFixtureRsbuild(
+    "deadline",
+    resolve("tests/fixtures/interactive/interactive-deadline-fixture.ts"),
+    directory,
+  );
   await builder.build();
   styles = readEditorStyles();
-  bundle = await readFile(
-    join(
-      directory,
-      "static/js",
-      (await readdir(join(directory, "static/js"))).find((name) => name.endsWith(".js"))!,
-    ),
-    "utf8",
-  );
+  bundle = await readInlineFixtureBundle(directory);
 });
 afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });

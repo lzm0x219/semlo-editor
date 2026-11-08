@@ -68,7 +68,7 @@ async function _browserTest(page: import("playwright").Page) {
   if (!attrs) throw new Error("Image attributes are missing from the editor snapshot");
   if (!attrs.width || !attrs.height || !snapshot.html.includes(`width="${attrs.width}"`))
     throw new Error("Image dimensions not persisted");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   let current = await page.evaluate(
     () =>
       window
@@ -78,7 +78,7 @@ async function _browserTest(page: import("playwright").Page) {
         .find((node) => node.type === "image")!.attrs!,
   );
   if (current.width !== 480) throw new Error("Resize undo failed");
-  await page.keyboard.press("Meta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   current = await page.evaluate(
     () =>
       window
@@ -116,7 +116,7 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Image address fallback failed");
   await host.getByRole("button", { name: "删除图片" }).click();
   if (await image.count()) throw new Error("Image delete failed");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if (!(await image.count())) throw new Error("Image delete undo failed");
   await page.evaluate((html) => {
     window.__semloRequireFixture("imageApi").setContent("<p>reset</p>");

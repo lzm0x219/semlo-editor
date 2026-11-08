@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { createRsbuild } from "@rsbuild/core";
 import { beforeAll, afterAll, expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createInlineFixtureRsbuild, readInlineFixtureBundle } from "../../fixtures/browser/fixture-bundle";
 import type {} from "../../fixtures/interactive/interactive-history-public-fixture";
 import { readEditorStyles } from "../../fixtures/shared/editor-styles";
 
@@ -15,32 +15,14 @@ test.beforeEach(async ({ page }) => {
 let directory: string, bundle: string, styles: string;
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "semlo-editor-public-history-"));
-  const builder = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: {
-        entry: { integration: resolve("tests/fixtures/interactive/interactive-history-public-fixture.ts") },
-        define: {
-          "process.env.NODE_ENV": JSON.stringify("production"),
-          __VUE_OPTIONS_API__: true,
-          __VUE_PROD_DEVTOOLS__: false,
-          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-        },
-      },
-      resolve: { alias: { "@semlo-editor/core$": resolve("packages/core/src/index.ts") } },
-      output: { distPath: { root: directory }, filename: { js: "[name].js" }, cleanDistPath: false },
-      tools: { rspack: { optimization: { splitChunks: false, runtimeChunk: false } } },
-    },
-  });
-  await builder.build();
-  bundle = await readFile(
-    join(
-      directory,
-      "static/js",
-      (await readdir(join(directory, "static/js"))).find((name) => name.endsWith(".js"))!,
-    ),
-    "utf8",
+  const builder = await createInlineFixtureRsbuild(
+    "integration",
+    resolve("tests/fixtures/interactive/interactive-history-public-fixture.ts"),
+    directory,
+    { framework: true },
   );
+  await builder.build();
+  bundle = await readInlineFixtureBundle(directory);
   styles = [
     readEditorStyles(),
     await readFile(resolve("packages/core/src/features/blocks/actions/block-actions.css"), "utf8"),

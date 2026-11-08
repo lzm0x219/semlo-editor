@@ -26,8 +26,10 @@ test("顶部选区的浮动工具栏不遮挡自定义主工具栏", async ({ pa
     const paragraph = root.querySelector("p")!.firstChild!;
     root.ownerDocument.getSelection()!.setBaseAndExtent(text, 0, paragraph, paragraph.textContent!.length);
   });
-  const bubble = host.getByRole("toolbar", { name: "选中文字格式" });
+  const bubble = host.getByRole("toolbar", { name: "选中文字工具" });
   await expect(bubble).toBeVisible();
+  await expect(bubble.getByRole("button")).toHaveCount(1);
+  await expect(bubble.getByRole("button", { name: "AI 写作", exact: true })).toBeDisabled();
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const bounds = await page.evaluate(() => {
     const toolbar = document.querySelector("#editor-host .demo-custom-toolbar")!.getBoundingClientRect();
@@ -81,8 +83,10 @@ test("窄屏顶部选区可触屏使用主工具栏并通过键盘撤销", async
       const paragraph = root.querySelector("p")!.firstChild!;
       root.ownerDocument.getSelection()!.setBaseAndExtent(text, 0, paragraph, paragraph.textContent!.length);
     });
-    const bubble = host.getByRole("toolbar", { name: "选中文字格式" });
+    const bubble = host.getByRole("toolbar", { name: "选中文字工具" });
     await expect(bubble).toBeVisible();
+    await expect(bubble.getByRole("button")).toHaveCount(1);
+    await expect(bubble.getByRole("button", { name: "AI 写作", exact: true })).toBeDisabled();
     await expect
       .poll(() =>
         host.evaluate((element) => {
@@ -101,7 +105,7 @@ test("窄屏顶部选区可触屏使用主工具栏并通过键盘撤销", async
     await expect(editor.locator("h1 strong")).toHaveCount(0);
     await expect(editor.locator("p").first().locator("strong")).toHaveText("选中这段文字，试试加粗或添加链接。");
     await editor.focus();
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect(editor.locator("p").first().locator("strong")).toHaveCount(0);
   } finally {
     await context.close();
@@ -183,9 +187,9 @@ test("体验页的自定义工具栏在各框架中编辑真实文档并保留�
     await expect(editor.locator("ol li")).toContainText("把这一段变成列表。");
     await expect(toolbar.getByRole("button", { name: "有序列表" })).toHaveAttribute("aria-pressed", "true");
     await editor.focus();
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect(editor.locator("ol li")).toHaveCount(0);
-    await page.keyboard.press("Meta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
     await expect(editor.locator("ol li")).toContainText("把这一段变成列表。");
 
     await page.getByRole("button", { name: "只读预览" }).click();
