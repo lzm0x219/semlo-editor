@@ -130,6 +130,7 @@ const sqlLanguage = StreamLanguage.define(
 const plsqlLanguage = StreamLanguage.define(plSQL);
 const stexLanguage = StreamLanguage.define(stex);
 const shellLanguage = StreamLanguage.define(shell);
+// 与自动缩进共用固定的 1.0.2 语法，保留带 PHP 标签时已观察到的解析与高亮。
 const phpParser = legacyPhpParser.configure({ top: "Program" });
 const cppSupport = cpp();
 const javaSupport = java();

@@ -6,6 +6,7 @@ import { runInThisContext } from "node:vm";
 import { test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../fixtures/browser/fixture-browser-runtime";
+import { fontToolbar, type FontToolbarTools } from "../fixtures/browser/font-toolbar";
 
 const fixtureDir = join(process.cwd(), "tests", "browser", "cases");
 const fixtures = readdirSync(fixtureDir)
@@ -26,8 +27,11 @@ export function registerBrowserRegressions(group: number) {
       const path = join(fixtureDir, name);
       const body = readFileSync(path, "utf8");
       const compiled = stripTypeScriptTypes(`(${body}\n)`);
-      const run = runInThisContext(compiled, { filename: path }) as (page: Page) => Promise<unknown>;
-      const result = (await run(page)) as Record<string, unknown> | undefined;
+      const run = runInThisContext(compiled, { filename: path }) as (
+        page: Page,
+        fontToolbar: FontToolbarTools,
+      ) => Promise<unknown>;
+      const result = (await run(page, fontToolbar)) as Record<string, unknown> | undefined;
       if (errors.length) throw new Error(`Browser errors in ${name}: ${errors.join("; ")}`);
       if (typeof result?.skipped === "string") {
         process.stderr.write(`${name}: skipped: ${result.skipped}\n`);

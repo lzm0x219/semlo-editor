@@ -26,6 +26,7 @@
     "tests/config/rslib.browser-test.config.ts",
     "demo/rsbuild.config.ts",
     "tests/config/rstest.config.ts",
+    "tests/config/unit-rstest.config.ts",
     "tests/**/*.test.ts",
     "tests/fixtures/contracts/controlled.ts",
     "tests/**/*-fixture.ts",

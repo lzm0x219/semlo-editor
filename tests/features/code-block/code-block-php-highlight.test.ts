@@ -32,6 +32,7 @@ test("tagged and untagged PHP use observed grammar and theme colors", async ({ p
   for (let i = 0; i < 12; i++) {
     const card = cards.nth(i),
       theme = i % 6;
+    expect(await card.locator("code").textContent()).toBe(values[i < 6 ? 0 : 1]);
     const tokens = [
       card.locator(".semlo-editor-syntax-keyword").getByText("public", { exact: true }),
       card.locator(".semlo-editor-syntax-type").getByText("string", { exact: true }).first(),

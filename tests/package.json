@@ -16,6 +16,7 @@
     "@tiptap/pm": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "happy-dom": "catalog:",
     "playwright": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

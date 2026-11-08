@@ -42,7 +42,7 @@ test("Enter finishes a code block title and the saved title survives HTML and JS
   await card.hover();
   await title.click();
   await title.fill("示例标题追加");
-  await title.press("Meta+z");
+  await title.press("ControlOrMeta+z");
   await expect(title).toHaveValue("示例标题");
   expect(
     (await page.evaluate(() => window.__semloRequireFixture("codeTitleEditor").getSnapshot())).json.content?.[0].attrs

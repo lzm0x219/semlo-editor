@@ -59,6 +59,18 @@ test("Solidity indentation and GraphQL fallback preserve saved language", async 
         true,
       );
       await expect(card.locator("code")).toHaveText(expected);
+    } else {
+      await card.locator("code").click();
+      await page.evaluate(() => {
+        const editor = window.__semloRequireFixture("extraIndentEditor").editor;
+        editor.commands.setTextSelection("query {".length + 1);
+      });
+      await page.keyboard.press("Enter");
+      await expect(card.locator("code")).toHaveText("query {\n\nuser {\nname\n}\n}");
+      expect(await page.evaluate(() => window.__semloRequireFixture("extraIndentEditor").editor.commands.undo())).toBe(
+        true,
+      );
+      await expect(card.locator("code")).toHaveText(input);
     }
   }
 });
