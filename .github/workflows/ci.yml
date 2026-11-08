@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm build
       - run: mise exec -- pnpm typecheck
@@ -40,7 +40,7 @@ jobs:
         total: [8]
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm exec playwright install --with-deps chromium
       - run: mise exec -- pnpm build:browser-test
@@ -69,7 +69,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm build
       - run: mise exec -- pnpm exec playwright install --with-deps firefox webkit
