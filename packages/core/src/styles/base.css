@@ -261,6 +261,32 @@
 .semlo-editor-prose ul:not([data-type="taskList"]) > li[data-semlo-editor-list-indent="6"] {
   list-style-type: disc;
 }
+/* 与mixed-roman.ts保持同一加法规则；超出标准Roman范围时保守回退decimal。 */
+@counter-style semlo-mixed-roman {
+  system: additive;
+  range: 1 3999;
+  additive-symbols:
+    1000 M,
+    900 CM,
+    500 D,
+    400 CD,
+    100 C,
+    90 XC,
+    50 L,
+    40 XL,
+    10 X,
+    9 ⅸ,
+    8 ⅷ,
+    7 ⅶ,
+    6 ⅵ,
+    5 ⅴ,
+    4 ⅳ,
+    3 ⅲ,
+    2 ⅱ,
+    1 ⅰ;
+  suffix: ". ";
+  fallback: decimal;
+}
 ol > li[data-semlo-editor-list-indent="1"],
 ol > li[data-semlo-editor-list-indent="4"],
 ol > li[data-semlo-editor-list-indent="7"] {
@@ -270,6 +296,15 @@ ol > li[data-semlo-editor-list-indent="2"],
 ol > li[data-semlo-editor-list-indent="5"],
 ol > li[data-semlo-editor-list-indent="8"] {
   list-style-type: lower-roman;
+}
+/* raw显式类型及其他样式保留旧fallback，默认mixed才覆盖；不提高派生marker选择器的权重。 */
+ol:where(:not([type])):where(:not([data-semlo-editor-ordered-style]), [data-semlo-editor-ordered-style="mixed"])
+  > li[data-semlo-editor-list-indent="2"],
+ol:where(:not([type])):where(:not([data-semlo-editor-ordered-style]), [data-semlo-editor-ordered-style="mixed"])
+  > li[data-semlo-editor-list-indent="5"],
+ol:where(:not([type])):where(:not([data-semlo-editor-ordered-style]), [data-semlo-editor-ordered-style="mixed"])
+  > li[data-semlo-editor-list-indent="8"] {
+  list-style-type: semlo-mixed-roman;
 }
 ol > li[data-semlo-editor-list-indent="3"],
 ol > li[data-semlo-editor-list-indent="6"] {
@@ -286,6 +321,9 @@ ol > li[data-semlo-editor-ordered-marker="upper-alpha"] {
 }
 ol > li[data-semlo-editor-ordered-marker="lower-roman"] {
   list-style-type: lower-roman;
+}
+ol > li[data-semlo-editor-ordered-marker="semlo-mixed-roman"] {
+  list-style-type: semlo-mixed-roman;
 }
 ol > li[data-semlo-editor-ordered-marker="upper-roman"] {
   list-style-type: upper-roman;

@@ -425,6 +425,33 @@
 .semlo-editor-database-label[hidden] {
   display: none;
 }
+.semlo-editor-database-ai-badge {
+  display: inline-block;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #dff5e9;
+  color: #218c58;
+  font-size: 10px;
+  line-height: 16px;
+}
+.semlo-editor-database-ai-status {
+  padding: 4px 12px;
+  color: #66716a;
+  font-size: 12px;
+}
+.semlo-editor-database-ai-status[hidden],
+.semlo-editor-database-ai-settings[hidden] {
+  display: none;
+}
+.semlo-editor-database-label.semlo-editor-database-ai-toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.semlo-editor-database-ai-settings > p {
+  color: #69736c;
+  font-size: 12px;
+}
 .semlo-editor-database-default-choices {
   display: flex;
   flex-wrap: wrap;

@@ -16,7 +16,7 @@ export function createSelectionSync({
 
   const syncTextSelection = () => {
     const editor = getEditor();
-    if (!editor || editor.isDestroyed || !editor.view.hasFocus() || editor.view.composing) return;
+    if (!editor || editor.isDestroyed || !editor.view.hasFocus() || editor.view.composing) return false;
     const selection = editor.view.dom.ownerDocument.getSelection();
     if (
       !selection?.anchorNode ||
@@ -24,7 +24,7 @@ export function createSelectionSync({
       !editor.view.dom.contains(selection.anchorNode) ||
       !editor.view.dom.contains(selection.focusNode)
     )
-      return;
+      return false;
     const current = editor.state.selection;
     // Browser ranges are unreliable for cell, node and all-document selections.
     // A real subsequent text drag is the one case where its range is newer than
@@ -33,7 +33,7 @@ export function createSelectionSync({
       !(current instanceof TextSelection) &&
       !(draggedFromSelection?.eq(current) && !selection.isCollapsed && selection.toString().length)
     )
-      return;
+      return true;
     draggedFromSelection = undefined;
     let next: Selection | undefined;
     try {
@@ -44,9 +44,14 @@ export function createSelectionSync({
         next = TextSelection.between(pmDoc.resolve(anchor), pmDoc.resolve(head));
     } catch {
       /* DOM can change while a selection is being updated */
-      return;
+      return false;
     }
-    if (next) editor.view.dispatch(editor.state.tr.setSelection(next));
+    if (next) {
+      const before = editor.state.doc;
+      editor.view.dispatch(editor.state.tr.setSelection(next));
+      return !editor.isDestroyed && editor.state.doc.eq(before) && editor.state.selection.eq(next);
+    }
+    return true;
   };
 
   function pointerDown(event: PointerEvent) {

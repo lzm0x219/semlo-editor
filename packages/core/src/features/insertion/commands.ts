@@ -12,6 +12,7 @@ import { createMindmapContent } from "../drawing/mindmap/extension";
 import { insertGallery } from "../media/gallery/extension";
 import { insertEmbed } from "../references/embed";
 import { insertMentionTrigger } from "../references/mention";
+import { getWritingAssistant } from "../writing-assistant/session";
 import { slashHistoryProbeKey } from "./keys";
 import { recentIds, remember } from "./recent";
 import { filterInsertCommands, isInsertCommandAllowed } from "./toolbar-insert-context";
@@ -65,23 +66,24 @@ const cardIcons: Record<string, string> = {
   video: '<rect x="3" y="6" width="26" height="20" rx="2"/><path d="m13 11 8 5-8 5z" fill="#2dbb79" stroke="none"/>',
   audio: '<path d="M20 4v18a4 4 0 1 1-2-3.5V8l8-2v13a4 4 0 1 1-2-3.5V3z"/>',
 };
-// These entries mirror the current block menu, but are disabled until their
-// backing integrations and document types are implemented.
-function unavailableBlockCommands(): CommandItem[] {
-  const entries: Array<[string, string, string, CommandItem["group"], string?]> = [
-    ["ai", "语雀 AI 助手-写作助手", "把文本变成表格、代码块等", "smart"],
+/** 保留目录项；服务未配置时明确禁用，不制造成功占位。 */
+function unavailableBlockCommands(editor?: Editor, openWriting?: (range?: Range) => void): CommandItem[] {
+  return [
+    {
+      id: "ai",
+      title: "语雀 AI 助手-写作助手",
+      description: "把文本变成表格、代码块等",
+      group: "smart",
+      key: "AI 写作 助手 ai /ai",
+      shortcut: "/ai",
+      icon: "",
+      disabled: !editor || !getWritingAssistant(editor)?.getSnapshot().available,
+      run: (active, range) => {
+        if (openWriting) openWriting(range);
+        else getWritingAssistant(active)?.open({ range });
+      },
+    },
   ];
-  return entries.map(([id, title, description, group, shortcut]) => ({
-    id,
-    title,
-    description,
-    group,
-    shortcut,
-    key: `${title} ${id} ${shortcut ?? ""}`,
-    icon: "",
-    disabled: true,
-    run: () => {},
-  }));
 }
 export type InteractiveKind = "vote" | "checkin" | "yuque" | "encrypted";
 export type InteractiveAction = (kind: InteractiveKind, range?: Range) => void;
@@ -665,6 +667,7 @@ function recentCommands(
     ...[
       ...commands(openImage, openAttachment, openEmoji, openMedia),
       ...interactiveCommands(interactive, interactiveAvailable),
+      ...unavailableBlockCommands(editor),
     ].filter((item) => !item.searchOnly && !item.disabled),
     ...searchableQuickCommands(openLink, "", true),
   ];

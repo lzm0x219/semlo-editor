@@ -57,16 +57,16 @@ test("changing a link label keeps the selected text formatting", async ({ page }
 
   await page.waitForTimeout(600);
   await prose.locator("a").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await form.getByLabel("文本").fill("再次修改");
   await form.getByLabel("链接", { exact: true }).fill("https://example.org");
   await form.getByRole("button", { name: "确定" }).click();
   await checkMarks("再次修改", "https://example.org");
   await page.evaluate(() => window.__semloRequireFixture("linkFormatTest").editor.commands.focus());
   await expect(prose).toBeFocused();
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await checkMarks("新名称", "https://example.com");
-  await page.keyboard.press("Meta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   await checkMarks("再次修改", "https://example.org");
 
   await page.evaluate(() => window.__semloRequireFixture("linkFormatTest").destroy());

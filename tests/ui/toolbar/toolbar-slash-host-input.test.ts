@@ -1,15 +1,11 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 
 for (const mode of ["observe", "transform"] as const) {
   test(`host input extension can ${mode} a slash`, async ({ page }) => {
-    const rsbuild = await createRsbuild({
-      cwd: process.cwd(),
-      rsbuildConfig: {
-        source: { entry: { index: "./tests/fixtures/toolbar/toolbar-slash-host-input-fixture.ts" } },
-        server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-        dev: { hmr: false, liveReload: false },
-      },
+    const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-slash-host-input-fixture.ts", {
+      publicDir: false,
     });
     const { port, server } = await rsbuild.startDevServer();
     try {

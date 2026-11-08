@@ -4,12 +4,21 @@ export interface ContentChoice {
   title: string;
   href: string;
   kind: "document" | "table";
+  description?: string;
+}
+
+export interface ContentEmbedTarget {
+  url: string;
+  /** 仅当宿主信任阅读页及其跳转目标时，允许页面使用自身源的存储和身份。 */
+  allowSameOrigin?: boolean;
 }
 
 /** The integrating application owns access, search, and link interpretation. */
 export interface ContentPickerProvider {
   search(query: string, signal: AbortSignal): Promise<readonly ContentChoice[]>;
   resolveLink(link: string, signal: AbortSignal): Promise<ContentChoice | null>;
+  /** 返回可嵌入的阅读页地址或配置；实际权限由宿主负责，返回值不保存到文档。 */
+  resolveEmbed?(choice: ContentChoice): string | ContentEmbedTarget | null | undefined;
 }
 
 export type PickerResult<T> =
@@ -51,6 +60,14 @@ export class ContentPickerController {
 
   resolveLink(link: string): Promise<PickerResult<ContentChoice | null>> {
     return this.run((signal) => this.provider.resolveLink(link, signal));
+  }
+
+  cancel() {
+    if (this.disposed) return;
+    this.revision++;
+    const previous = this.active;
+    this.active = undefined;
+    previous?.abort();
   }
 
   dispose() {

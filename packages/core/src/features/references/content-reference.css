@@ -1,0 +1,187 @@
+.semlo-editor-content-reference {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.semlo-editor-prose .semlo-editor-content-reference-link {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: #1677ff;
+  text-decoration: none;
+}
+
+.semlo-editor-content-reference-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 18px;
+  flex: none;
+  color: #4784d2;
+}
+
+.semlo-editor-content-reference-icon svg,
+.semlo-editor-content-reference-tools svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.semlo-editor-content-reference-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.semlo-editor-content-reference-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-content-reference-description {
+  margin-top: 4px;
+  color: #8b9098;
+  font-size: 12px;
+}
+
+.semlo-editor-content-reference[data-display-mode="card"],
+.semlo-editor-content-reference[data-display-mode="embedded"] {
+  display: grid;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 8px 0;
+  overflow: visible;
+  border: 1px solid #e4e6e9;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.semlo-editor-content-reference[data-display-mode="card"] .semlo-editor-content-reference-link {
+  min-height: 102px;
+  box-sizing: border-box;
+  padding: 12px 18px;
+  background: #f3f6f8;
+  color: #30343b;
+}
+
+.semlo-editor-content-reference[data-display-mode="card"] .semlo-editor-content-reference-icon {
+  width: 64px;
+  height: 68px;
+  box-sizing: border-box;
+  margin-right: 12px;
+  padding: 16px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 9%);
+}
+
+.semlo-editor-content-reference[data-display-mode="embedded"] .semlo-editor-content-reference-link {
+  min-height: 30px;
+  padding: 0 12px;
+  border-bottom: 1px solid #e4e6e9;
+  color: #747980;
+  font-size: 12px;
+}
+
+.semlo-editor-content-reference[data-display-mode="embedded"] .semlo-editor-content-reference-link::before {
+  content: "引用自：";
+}
+
+.semlo-editor-content-reference[data-display-mode="embedded"] .semlo-editor-content-reference-icon,
+.semlo-editor-content-reference[data-display-mode="embedded"] .semlo-editor-content-reference-description {
+  display: none;
+}
+
+.semlo-editor-content-reference.ProseMirror-selectednode {
+  outline: 1px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.semlo-editor-content-reference-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.semlo-editor-content-reference-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.semlo-editor-content-reference-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: #8b9098;
+  font-size: 13px;
+  text-align: center;
+}
+
+.semlo-editor-content-reference-tools {
+  position: absolute;
+  z-index: 25;
+  bottom: calc(100% + 8px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 12%);
+}
+
+.semlo-editor-prose .semlo-editor-content-reference-tools > button,
+.semlo-editor-prose .semlo-editor-content-reference-tools > a {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+}
+
+.semlo-editor-content-reference-tools > :hover {
+  background: #f3f4f6;
+}
+
+.semlo-editor-prose .semlo-editor-content-reference-tools > [aria-pressed="true"] {
+  background: #edf4ff;
+  color: #1677ff;
+}
+
+.semlo-editor-content-reference-tools > :focus-visible,
+.semlo-editor-content-reference-link:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+
+.semlo-editor-content-reference > .semlo-editor-attachment-resize {
+  width: 100%;
+  margin: 0;
+}
+
+.semlo-editor-content-reference > [hidden],
+.semlo-editor-content-reference [hidden] {
+  display: none !important;
+}

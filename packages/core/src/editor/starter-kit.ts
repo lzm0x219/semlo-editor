@@ -36,7 +36,9 @@ export function createStarterKitWithCodeFonts(extraExtensions: Extensions) {
               ];
             },
             renderHTML(props) {
-              if (!props.node.textContent.includes("\t")) return this.parent?.(props) ?? ["p", props.HTMLAttributes, 0];
+              // 沿用已有标记，让旧版读取器也能保留行首、行尾和连续空格。
+              if (!/\t| {2}|^ | $/.test(props.node.textContent))
+                return this.parent?.(props) ?? ["p", props.HTMLAttributes, 0];
               const HTMLAttributes = mergeAttributes(props.HTMLAttributes, {
                 "data-semlo-editor-preserve-tab": "",
                 style: "white-space: pre-wrap;",

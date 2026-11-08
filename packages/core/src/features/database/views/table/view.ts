@@ -104,6 +104,13 @@ export function createTableView({
       columnDrag.bind(cell, field.id);
       const name = doc.createElement("span");
       name.textContent = `${fieldIcons[field.type]}  ${field.name}`;
+      if (field.ai) {
+        const badge = doc.createElement("span");
+        badge.className = "semlo-editor-database-ai-badge";
+        badge.textContent = "AI";
+        badge.title = "已配置 AI 智能填写";
+        name.append(" ", badge);
+      }
       const menu = button(
         `${field.name}列菜单`,
         "⌄",

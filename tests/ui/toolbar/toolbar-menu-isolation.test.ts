@@ -1,7 +1,8 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
+import { openFontToolbar, revealFontToolbar } from "../../fixtures/browser/font-toolbar";
 
 declare global {
   interface Window {
@@ -18,13 +19,8 @@ test.beforeEach(async ({ page }) => {
 
 for (const label of ["有序列表样式", "对齐方式"])
   test(`keyboard Escape closes only focused editor ${label} menu`, async ({ page }) => {
-    const rsbuild = await createRsbuild({
-      cwd: process.cwd(),
-      rsbuildConfig: {
-        source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-        server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-        dev: { hmr: false, liveReload: false },
-      },
+    const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+      publicDir: false,
     });
     const { port, server } = await rsbuild.startDevServer();
     try {
@@ -50,13 +46,8 @@ for (const label of ["有序列表样式", "对齐方式"])
   });
 
 test("keyboard choices, mouse focus and overflow retain Escape behavior", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -96,13 +87,8 @@ test("keyboard choices, mouse focus and overflow retain Escape behavior", async 
 });
 
 test("controlled replacement and read-only close only their own list menu", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -137,13 +123,8 @@ test("controlled replacement and read-only close only their own list menu", asyn
 });
 
 test("Escape closes only the focused editor overflow", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -176,13 +157,8 @@ test("Escape closes only the focused editor overflow", async ({ page }) => {
 });
 
 test("font size dropdown routes ArrowDown and Escape to focused editor", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -219,13 +195,8 @@ test("font size dropdown routes ArrowDown and Escape to focused editor", async (
 });
 
 test("mouse-opened dropdown uses editor focus while heading menu retains its keyboard boundary", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -256,13 +227,8 @@ test("mouse-opened dropdown uses editor focus while heading menu retains its key
 });
 
 test("Escape closes only focused editor color palette", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -287,22 +253,17 @@ test("Escape closes only focused editor font picker", async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(window, "queryLocalFonts", { value: undefined, configurable: true }),
   );
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
     await page.setViewportSize({ width: 1920, height: 900 });
     await page.goto(`http://127.0.0.1:${port}`);
-    const a = page.locator("#editor-a").getByRole("button", { name: "字体", exact: true }),
-      b = page.locator("#editor-b").getByRole("button", { name: "字体", exact: true });
+    const a = await revealFontToolbar(page.locator("#editor-a"), true);
     await a.focus();
     await page.keyboard.press("Enter");
+    const b = await revealFontToolbar(page.locator("#editor-b"), true);
     await b.focus();
     await page.keyboard.press("Enter");
     await expect(a).toHaveAttribute("aria-expanded", "true");
@@ -316,13 +277,8 @@ test("Escape closes only focused editor font picker", async ({ page }) => {
 });
 
 test("Escape closes only focused editor emoji picker", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -342,13 +298,8 @@ test("Escape closes only focused editor emoji picker", async ({ page }) => {
 });
 
 test("nested custom color Escape stays in its editor and restores focus", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -382,13 +333,8 @@ test("nested custom color Escape stays in its editor and restores focus", async 
 });
 
 test("Escape closes keyboard-opened overflow menus after returning focus to their editor", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -417,13 +363,8 @@ test("Escape closes keyboard-opened overflow menus after returning focus to thei
 });
 
 test("block-below insertion menu ignores Escape in another editor", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -487,13 +428,8 @@ test("block below table submenu Escape closes its owning panel", async ({ page }
 });
 
 test("emoji search Escape during IME composition stays open", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -530,19 +466,14 @@ test("font search Escape during IME composition stays open", async ({ page }) =>
       ],
     }),
   );
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
     await page.setViewportSize({ width: 1920, height: 900 });
     await page.goto(`http://127.0.0.1:${port}`);
-    await page.locator("#editor-a").getByRole("button", { name: "字体", exact: true }).click();
+    await openFontToolbar(page.locator("#editor-a"));
     const panel = page.getByRole("dialog", { name: "选择字体" }),
       search = panel.getByRole("searchbox", { name: "搜索字体" });
     await expect(search).toBeEnabled();
@@ -567,13 +498,8 @@ test("font search Escape during IME composition stays open", async ({ page }) =>
 });
 
 test("open overflow ignores composition Escape in editor text", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -603,13 +529,8 @@ test("open overflow ignores composition Escape in editor text", async ({ page })
 });
 
 test("mouse-opened formatting menus ignore composition Escape in editor text", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -637,13 +558,8 @@ test("mouse-opened formatting menus ignore composition Escape in editor text", a
 });
 
 test("insert search keeps composition keys separate from ordinary keyboard actions", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -690,13 +606,8 @@ test("insert search keeps composition keys separate from ordinary keyboard actio
 });
 
 test("closing insert search does not steal focus from a later action", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -763,13 +674,8 @@ test("color drag onChange reentrant destroy cannot register late pointer handler
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {

@@ -15,6 +15,7 @@ import { mountHeadingNumberingInteraction } from "../features/heading/numbering-
 import { openEmojiPicker } from "../features/insertion/emoji";
 import { slashSuggestionKey } from "../features/insertion/keys";
 import { createCardMenuSession } from "../features/insertion/menu-session";
+import { createSlashDraftCommitObserver } from "../features/insertion/slash-draft";
 import { slashHistoryCandidate } from "../features/insertion/slash-history-candidate";
 import {
   closeSlashSuggestion,
@@ -32,6 +33,9 @@ import {
   defaultVoteConfig,
   type InteractiveInsertTarget,
 } from "../features/interactive/interactive-card-insert";
+import { listShortcut } from "../features/list/keyboard";
+import { withAttachmentGuard } from "../features/media/attachment/guard";
+import { createAttachmentViews } from "../features/media/attachment/runtime";
 import { clearAttachments, uploadAttachments } from "../features/media/attachment/uploads";
 import { clearGalleryUploads } from "../features/media/gallery/uploads";
 import { clearUploads, uploadImages } from "../features/media/image/uploads";
@@ -42,6 +46,8 @@ import { cancelTableResize } from "../features/table/resize";
 import { mountTableToolbar } from "../features/table/toolbar";
 import { extractDocumentFontHTML, readDocumentFont } from "../features/text/document-font";
 import { applyHighlightColor, DEFAULT_HIGHLIGHT_COLOR } from "../features/text/highlight";
+import { withWritingAssistantGuard } from "../features/writing-assistant/guard";
+import { installWritingAssistant } from "../features/writing-assistant/session";
 import { createIntegrationBindings } from "../integrations/bindings";
 import { createIntegrationUpdateCoordinator } from "../integrations/update-coordinator";
 import { createSelectionSync } from "../runtime/selection-sync";
@@ -55,6 +61,7 @@ import { createDefaultToolbar } from "../ui/toolbar/default-toolbar";
 import { mountToolbarOverflow, type ToolbarOverflowController } from "../ui/toolbar/overflow";
 import { createToolbarRoot } from "../ui/toolbar/toolbar";
 import { mountTranslationPanel, type TranslationPanelController } from "../ui/toolbar/translation";
+import { mountWritingAssistantPanel } from "../ui/writing-assistant/panel";
 import { initializeEditorContent } from "./content/initialize";
 import { createContentReplacement } from "./content/replace";
 import { getEditorSnapshot } from "./content/snapshot";
@@ -134,6 +141,8 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
   const viewUnavailable = () => unavailable() || editor.isDestroyed;
   const { registerViewDisposer, closeViewDisposers } = lifecycle;
   const integrations = createIntegrationBindings(options);
+  const attachmentViews = createAttachmentViews();
+  registerViewDisposer(() => attachmentViews.destroy());
   const interactiveController = new InteractiveCardHostController(options.interactiveCardHost ?? null);
   let mentionRefreshQueued = false;
   const report = (error: unknown) => {
@@ -280,6 +289,8 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     report,
   });
   let closeCardMenu: (() => void) | undefined;
+  let writingAssistant: ReturnType<typeof installWritingAssistant> | undefined;
+  let unmountWritingPanel: (() => void) | undefined;
   function documentWasReplaced(transaction: Transaction, appendedTransactions: Transaction[] = []) {
     const replaced = [transaction, ...appendedTransactions].some((part) =>
       part.mapping.maps.some((map, index) => {
@@ -327,6 +338,10 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     insertInteractive,
     interactiveAvailable,
     getEncryptedTextProvider: () => integrations.current.encryptedTextProvider,
+    openWriting: (target) => {
+      if (target) writingAssistant?.openBelow(target);
+      else writingAssistant?.controller.open();
+    },
   });
   function showEmoji(anchor?: HTMLElement) {
     if (!editor?.isEditable) return;
@@ -467,7 +482,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     mediaInputs[kind].click();
   }
   const { createPointerExtension } = selectionSync;
-  const ControllerEditor = createControllerEditorClass(lifecycle);
+  const ControllerEditor = withAttachmentGuard(withWritingAssistantGuard(createControllerEditorClass(lifecycle)));
   options.element.append(shell);
   try {
     const initialFont = typeof options.content === "string" ? extractDocumentFontHTML(options.content, doc) : null;
@@ -482,6 +497,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
         options,
         bubbleExtension: bubbleToolbar?.createExtension,
         getIntegrations: () => integrations.current,
+        attachmentViews,
         interactiveController,
         registerViewDisposer,
         pointerExtension: createPointerExtension,
@@ -524,11 +540,16 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
             return false;
           },
           keydown: (view, event) => {
-            if (view.editable && !event.defaultPrevented && lineHeightShortcut(view, event)) {
+            const listKind = view.editable && !event.defaultPrevented ? listShortcut(view, event) : null;
+            if (view.editable && !event.defaultPrevented && (lineHeightShortcut(view, event) || listKind)) {
               const platform = view.dom.ownerDocument.defaultView?.navigator.platform ?? "";
               const altGraph = !/Mac|iPhone|iPad|iPod/i.test(platform) && event.getModifierState("AltGraph");
               if (event.isComposing || event.keyCode === 229 || view.composing || altGraph) return true;
-              syncTextSelection();
+              const synced = syncTextSelection();
+              if (listKind && !synced) {
+                event.preventDefault();
+                return true;
+              }
               return false;
             }
             if (
@@ -592,11 +613,31 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       closeCardMenu?.();
       applyHighlightColor(editor, DEFAULT_HIGHLIGHT_COLOR, false, Symbol("color-apply"));
     });
+    writingAssistant = installWritingAssistant(
+      editor,
+      () => integrations.current.writingService,
+      report,
+      viewUnavailable,
+      () => integrations.current.writingFeedback,
+    );
+    unmountWritingPanel = mountWritingAssistantPanel(editor, writingAssistant);
     translationPanel = mountTranslationPanel(editor, editorBody, () => integrations.current.translate, report);
     unmountHeadingNumbering = mountHeadingNumberingInteraction(editor);
     findReplace = mountFindReplace(editor, defaultActions?.findButton, shell);
     if (options.toolbar !== false && toolbar && defaultActions)
-      toolbarOverflow = mountToolbarOverflow(toolbar, shell, defaultActions.moreButton);
+      toolbarOverflow = mountToolbarOverflow(
+        toolbar,
+        shell,
+        defaultActions.moreButton,
+        defaultActions.overflowOnly,
+        () => {
+          try {
+            return !editor.isDestroyed && editor.view.composing;
+          } catch {
+            return false;
+          }
+        },
+      );
     if (options.toolbar !== false) unmountTableToolbar = mountTableToolbar(editor, shell);
     if (options.outline !== false)
       unmountOutline = mountOutline(editor, editorBody, (pos) => {
@@ -619,6 +660,8 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       () => unmountPainter?.(),
       () => unmountOutline?.(),
       () => unmountColorShortcuts?.(),
+      () => unmountWritingPanel?.(),
+      () => writingAssistant?.destroy(),
       () => translationPanel?.destroy(),
       () => unmountHeadingNumbering?.(),
       () => toolbarOverflow?.destroy(),
@@ -628,6 +671,9 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       () => shell.remove(),
     ]);
   }
+  const observeDraftCommit = createSlashDraftCommitObserver(editor.state, () => {
+    if (!viewUnavailable()) options.onChange?.(snapshot());
+  });
   const pointerTransaction = ({
     transaction,
     appendedTransactions = [],
@@ -666,6 +712,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       }
     }
     selectionSync.onTransaction(transaction, appendedTransactions);
+    if (!viewUnavailable()) observeDraftCommit(editor.state, [transaction, ...appendedTransactions]);
   };
   editor.on("transaction", pointerTransaction);
 
@@ -683,6 +730,8 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       () => unmountHeadingNumbering?.(),
       () => unmountColorShortcuts?.(),
       () => toolbarOverflow?.destroy(),
+      () => unmountWritingPanel?.(),
+      () => writingAssistant?.destroy(),
       () => translationPanel?.destroy(),
       // Tiptap will destroy all plugins; avoid reentrant reconfiguration.
       () => findReplace?.destroy(false),
@@ -730,6 +779,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
   });
   const updateIntegrations = createIntegrationUpdateCoordinator({
     unavailable,
+    attachment: () => attachmentViews.invalidate(),
     markEncryptedChanged: () => markEncryptedProviderChanged(editor),
     interactive: () => interactiveController.setHost(integrations.current.interactiveCardHost ?? null),
     runner: () => configureCodeRunner(editor, integrations.current.runCode ?? null, report),
@@ -738,8 +788,19 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       if (unavailable()) return;
       defaultToolbar?.setTranslationAvailable(Boolean(integrations.current.translate));
     },
+    writing: () => {
+      writingAssistant?.invalidate("写作服务已更换，旧目标已失效。请复制草稿，关闭后重新打开助手。");
+      refresh();
+    },
+    writingFeedback: () => writingAssistant?.feedbackProviderChanged(),
+    databaseAi: () => {
+      editor.view.dom.dispatchEvent(new (doc.defaultView?.Event ?? Event)("semlo-editor:database-ai-service"));
+    },
     embed: () => setEmbedMetadataResolver(editor, integrations.current.resolveEmbedMetadata),
-    yuque: () => closeYuqueContent(),
+    yuque: () => {
+      closeYuqueContent();
+      editor.view.dom.dispatchEvent(new (doc.defaultView?.Event ?? Event)("semlo-editor:yuque-content-provider"));
+    },
     cardMenu: () => closeCardMenu?.(),
     slash: () => closeSlashSuggestion(editor),
     imageUpload: () => refreshImageUploadAction?.(),
@@ -762,6 +823,8 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     setEditable(editable: boolean) {
       if (unavailable() || editor.isEditable === editable) return;
       if (!editable) {
+        writingAssistant?.invalidate("编辑器已只读，草稿保留。请关闭后重新打开助手。");
+        if (unavailable()) return;
         translationPanel?.close();
         if (unavailable()) return;
         cancelTableResize(editor.view);

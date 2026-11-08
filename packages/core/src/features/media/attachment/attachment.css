@@ -1,0 +1,346 @@
+.semlo-editor-attachment-view {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+  line-height: 1.5;
+  box-sizing: border-box;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: #1677ff;
+}
+
+/* 只覆盖节点视图中的旧链接胶囊；静态导出仍使用原附件链接样式。 */
+.semlo-editor-prose .semlo-editor-attachment-view > a.semlo-editor-attachment {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  text-decoration: none;
+  vertical-align: middle;
+  overflow-wrap: normal;
+}
+
+.semlo-editor-prose .semlo-editor-attachment-view > a.semlo-editor-attachment::before {
+  margin: 0;
+  content: none;
+}
+
+.semlo-editor-attachment-view > .semlo-editor-attachment {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  padding: 0;
+  border-radius: 2px;
+  color: #1677ff;
+  background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.semlo-editor-attachment-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 12px;
+  height: 16px;
+  align-items: center;
+  color: #ce6945;
+}
+
+.semlo-editor-attachment-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.semlo-editor-attachment-size {
+  flex: 0 0 auto;
+  color: #8b9098;
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"],
+.semlo-editor-attachment-view[data-display-mode="embedded"] {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 24px minmax(0, max-content) minmax(max-content, 1fr) 72px;
+  gap: 0 8px;
+  margin: 8px 0;
+  padding: 12px 16px;
+  border: 1px solid #e4e6e9;
+  border-radius: 4px;
+  background: #fff;
+  color: #30343b;
+}
+
+.semlo-editor-attachment-view[data-display-mode="embedded"] {
+  padding: 8px 12px 0;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"] > .semlo-editor-attachment,
+.semlo-editor-attachment-view[data-display-mode="embedded"] > .semlo-editor-attachment {
+  grid-column: 2;
+  color: #30343b;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"] > .semlo-editor-attachment-icon,
+.semlo-editor-attachment-view[data-display-mode="embedded"] > .semlo-editor-attachment-icon {
+  grid-column: 1;
+  width: 20px;
+  height: 26px;
+}
+
+.semlo-editor-attachment-view[data-display-mode="embedded"] > .semlo-editor-attachment-icon {
+  width: 12px;
+  height: 16px;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"] > .semlo-editor-attachment-size {
+  grid-column: 3;
+  justify-self: start;
+  margin-left: -4px;
+}
+
+.semlo-editor-attachment-inline-actions {
+  display: flex;
+  grid-column: 4;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.semlo-editor-attachment-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semlo-editor-attachment-view.ProseMirror-selectednode > .semlo-editor-attachment {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"].ProseMirror-selectednode,
+.semlo-editor-attachment-view[data-display-mode="embedded"].ProseMirror-selectednode {
+  border-color: #1677ff;
+}
+
+.semlo-editor-attachment-view[data-display-mode="card"].ProseMirror-selectednode > .semlo-editor-attachment,
+.semlo-editor-attachment-view[data-display-mode="embedded"].ProseMirror-selectednode > .semlo-editor-attachment {
+  outline: none;
+}
+
+.semlo-editor-attachment-tools {
+  position: absolute;
+  z-index: 25;
+  bottom: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 12%);
+}
+
+.semlo-editor-attachment-tools[hidden],
+.semlo-editor-attachment-message[hidden] {
+  display: none;
+}
+
+.semlo-editor-attachment-tools > button,
+.semlo-editor-attachment-tools > a,
+.semlo-editor-attachment-inline-actions > button,
+.semlo-editor-attachment-inline-actions > a {
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #374151;
+  cursor: pointer;
+}
+
+.semlo-editor-attachment-inline-actions > button,
+.semlo-editor-attachment-inline-actions > a {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 1px solid #f0f1f2;
+  border-radius: 50%;
+}
+
+.semlo-editor-attachment-tools > :hover {
+  background: #f3f4f6;
+}
+
+.semlo-editor-attachment-download-label {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-left: 1px solid #eee;
+  color: #333;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.semlo-editor-attachment-download-label input {
+  margin: 0;
+  accent-color: #4caf77;
+}
+
+.semlo-editor-attachment-tools > [aria-pressed="true"] {
+  background: #edf4ff;
+  color: #1677ff;
+}
+
+.semlo-editor-attachment-tools > :focus-visible,
+.semlo-editor-attachment-view > a:focus-visible,
+.semlo-editor-attachment-inline-actions > :focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+
+.semlo-editor-attachment-tools > :disabled,
+.semlo-editor-attachment-tools > [aria-disabled="true"] {
+  color: #9ca3af;
+  cursor: default;
+}
+
+.semlo-editor-attachment-tools svg,
+.semlo-editor-attachment-inline-actions svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.semlo-editor-attachment-warning {
+  grid-column: 1 / -1;
+  width: 100%;
+  color: #b42318;
+  font-size: 12px;
+  white-space: normal;
+}
+
+.semlo-editor-attachment-view[data-display-mode="unsupported"] {
+  flex-wrap: wrap;
+}
+
+.semlo-editor-attachment-embedded {
+  position: relative;
+  display: block;
+  box-sizing: content-box;
+  width: calc(100% + 24px);
+  grid-column: 1 / -1;
+  margin: 8px -12px 0;
+  overflow: hidden;
+  border-top: 1px solid #e4e6e9;
+  background: #f7f8fa;
+}
+
+.semlo-editor-attachment-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.semlo-editor-attachment-embedded-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  color: #646b76;
+  font-size: 14px;
+  text-align: center;
+}
+
+.semlo-editor-attachment-embedded-status > button {
+  padding: 5px 10px;
+  border: 1px solid #dce0e5;
+  border-radius: 4px;
+  background: #fff;
+  color: #1677ff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.semlo-editor-attachment-resize {
+  position: relative;
+  display: block;
+  width: calc(100% + 24px);
+  height: 12px;
+  grid-column: 1 / -1;
+  margin: 0 -12px;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.semlo-editor-attachment-resize::after {
+  position: absolute;
+  top: 5px;
+  left: calc(50% - 12px);
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: #b8bec8;
+  content: "";
+}
+
+.semlo-editor-attachment-resize:hover::after,
+.semlo-editor-attachment-resize:focus-visible::after {
+  background: #1677ff;
+}
+
+.semlo-editor-attachment-resize:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: -2px;
+}
+
+.semlo-editor-attachment-view > [hidden],
+.semlo-editor-attachment-tools > [hidden],
+.semlo-editor-attachment-inline-actions > [hidden],
+.semlo-editor-attachment-embedded [hidden] {
+  display: none !important;
+}
+
+.semlo-editor-attachment-message {
+  position: absolute;
+  z-index: 26;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max-content;
+  max-width: min(280px, 75vw);
+  padding: 6px 8px;
+  border: 1px solid #f5c5c5;
+  border-radius: 4px;
+  background: #fff;
+  color: #b42318;
+  font-size: 12px;
+  white-space: normal;
+}

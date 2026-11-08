@@ -3,11 +3,14 @@ import type { Editor, Extensions, JSONContent } from "@tiptap/core";
 import type { EncryptedTextProvider } from "./features/cards/encrypted-text";
 import type { CodeRunner } from "./features/code-block/runner";
 import type { CodeBlockPreferencesAdapter } from "./features/code-block/settings";
+import type { DatabaseAiFillService } from "./features/database/ai-fill-types";
 import type { HeadingFoldPreferencesAdapter } from "./features/heading/fold";
 import type { InteractiveCardHost } from "./features/interactive/interactive-card-host";
 import type { InteractiveInsertOptions } from "./features/interactive/interactive-card-insert";
+import type { AttachmentPreviewResolver } from "./features/media/attachment/preview";
 import type { EmbedMetadataResolver } from "./features/references/embed-bookmark";
 import type { ContentPickerProvider } from "./features/references/yuque-content-picker";
+import type { WritingFeedbackService, WritingService } from "./features/writing-assistant/types";
 import type { TranslationService } from "./ui/toolbar/translation";
 
 /** Structured ProseMirror JSON is the canonical format; HTML can also be imported. */
@@ -65,10 +68,14 @@ export type FloatingToolbarFactory = (context: FloatingToolbarContext) => void |
 export interface EditorIntegrations {
   runCode?: CodeRunner;
   translate?: TranslationService;
+  writingService?: WritingService | null;
+  writingFeedback?: WritingFeedbackService | null;
+  databaseAiFill?: DatabaseAiFillService | null;
   currentUser?: () => EditorUser | null;
   resolveEmbedMetadata?: EmbedMetadataResolver;
   uploadImage?: ImageUpload;
   uploadAttachment?: AttachmentUpload;
+  resolveAttachmentPreview?: AttachmentPreviewResolver | null;
   searchMentions?: MentionSearch;
   /** Search and resolve accessible content via the integrating application; no Yuque API is built in. */
   yuqueContentProvider?: ContentPickerProvider | null;
@@ -87,7 +94,7 @@ export interface EditorOptions extends EditorIntegrations {
   outline?: boolean;
   extensions?: Extensions;
   codeBlockPreferences?: CodeBlockPreferencesAdapter;
-  /** Optional host-owned, document-scoped heading fold view state. */
+  /** 可选的宿主标题折叠视图状态；未配置时折叠状态随可编辑文档保存。 */
   headingFoldPreferences?: HeadingFoldPreferencesAdapter;
   onChange?: (snapshot: EditorSnapshot) => void;
   onError?: (error: Error) => void;

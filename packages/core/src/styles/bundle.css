@@ -11,6 +11,7 @@
 @import "../ui/find/find-replace.css";
 @import "../ui/toolbar/overflow.css";
 @import "../features/references/embed.css";
+@import "../features/references/content-reference.css";
 @import "../features/media/gallery/gallery.css";
 @import "../features/media/gallery/dialog.css";
 @import "../features/media/shared/lightbox.css";
@@ -40,5 +41,7 @@
 @import "../ui/toolbar/alignment-menu.css";
 @import "../ui/toolbar/translation.css";
 @import "../features/list/list-fold.css";
+@import "../ui/writing-assistant/panel.css";
+@import "../features/media/attachment/attachment.css";
 @import "../features/media/audio-video/audio-player.css";
 @import "../features/media/audio-video/video-player.css";

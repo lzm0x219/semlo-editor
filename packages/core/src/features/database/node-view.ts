@@ -14,6 +14,7 @@ import { createDatabaseViewSettings } from "./interactions/view-settings";
 import {
   createDatabaseRecord,
   DatabaseContentError,
+  databaseLimits,
   databaseValueText,
   visibleDatabaseRecords,
   type DatabaseData,
@@ -92,7 +93,11 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
     dom.contentEditable = "false";
     const surface = doc.createElement("div");
     surface.className = "semlo-editor-database-surface";
-    dom.append(surface);
+    const aiStatus = doc.createElement("div");
+    aiStatus.className = "semlo-editor-database-ai-status";
+    aiStatus.setAttribute("role", "status");
+    aiStatus.hidden = true;
+    dom.append(surface, aiStatus);
     let current = initial;
     let writing = false;
     let expectedWriteNode: ProseMirrorNode | null = null;
@@ -288,6 +293,110 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       if (repaint) paint();
       return true;
     };
+    let aiSession:
+      | {
+          controller: AbortController;
+          node: ProseMirrorNode;
+          service: NonNullable<ReturnType<DatabaseOptions["getAiFill"]>>;
+        }
+      | undefined;
+    const setAiStatus = (message: string) => {
+      aiStatus.textContent = message;
+      aiStatus.hidden = !message;
+    };
+    const cancelAiFill = (message = "") => {
+      const previous = aiSession;
+      aiSession = undefined;
+      if (previous) {
+        setAiStatus(message);
+        previous.controller.abort();
+      }
+    };
+    const startAiFill = (fieldId: string) => {
+      cancelAiFill();
+      if (destroyed || editor.isDestroyed || !editor.isEditable) return;
+      const pos = getPos();
+      if (typeof pos !== "number" || view.state.doc.nodeAt(pos) !== current) return;
+      const data = getData();
+      const field = data.fields.find((item) => item.id === fieldId);
+      if (!field?.ai || field.type !== "text") return;
+      const service = getOptions().getAiFill();
+      if (!service) {
+        setAiStatus("请先配置 AI 智能填写服务。");
+        return;
+      }
+      if (!data.records.length) {
+        setAiStatus("没有需要填写的记录。");
+        return;
+      }
+      const controller = new AbortController();
+      const session = { controller, node: current, service };
+      aiSession = session;
+      setAiStatus("正在填写中…");
+      const request = {
+        databaseId: data.id,
+        field: { id: field.id, name: field.name, rule: structuredClone(field.ai) },
+        fields: data.fields.map(({ id, name, type, options }) => ({
+          id,
+          name,
+          type,
+          options: options.map(({ id, label, externalId }) => ({ id, label, ...(externalId ? { externalId } : {}) })),
+        })),
+        records: data.records.map(({ id, values }) => ({ id, values: structuredClone(values) })),
+        signal: controller.signal,
+      };
+      const isCurrent = () => {
+        const position = getPos();
+        return (
+          aiSession === session &&
+          !controller.signal.aborted &&
+          !destroyed &&
+          !editor.isDestroyed &&
+          editor.isEditable &&
+          current === session.node &&
+          typeof position === "number" &&
+          view.state.doc.nodeAt(position) === session.node &&
+          getOptions().getAiFill() === service
+        );
+      };
+      void (async () => {
+        try {
+          const results = await service(request);
+          if (!isCurrent()) return;
+          if (!Array.isArray(results) || results.length !== data.records.length)
+            throw new Error("AI 智能填写返回的记录数量无效");
+          const values = new Map<string, string>();
+          const ids = new Set(data.records.map((record) => record.id));
+          for (const result of results) {
+            if (
+              !result ||
+              typeof result.recordId !== "string" ||
+              !ids.has(result.recordId) ||
+              values.has(result.recordId) ||
+              typeof result.value !== "string" ||
+              result.value.length > databaseLimits.text
+            )
+              throw new Error("AI 智能填写返回的记录或内容无效");
+            values.set(result.recordId, result.value);
+          }
+          aiSession = undefined;
+          change((next) => {
+            for (const record of next.records) record.values[field.id] = values.get(record.id)!;
+          });
+          if (destroyed || editor.isDestroyed) return;
+          const after = getData();
+          const applied =
+            after.records.length === values.size &&
+            after.records.every((record) => record.values[field.id] === values.get(record.id));
+          setAiStatus(applied ? "填写完成。" : "填写结果未应用，请重试。");
+        } catch (error) {
+          if (!isCurrent()) return;
+          aiSession = undefined;
+          setAiStatus("填写失败，请重试。");
+          getOptions().onError(error);
+        }
+      })();
+    };
     const boardDrag = createBoardDrag({
       root: dom,
       snapshot: () => {
@@ -341,6 +450,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       getPos,
       getCurrent: () => current,
       setCurrent: (node) => {
+        if (node !== current) cancelAiFill("表格已更改，填写已取消。");
         current = node;
       },
       isDestroyed: () => destroyed,
@@ -386,6 +496,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       option,
       label,
       addFilter,
+      startAiFill,
       cancelPersonSearch: popovers.cancelPersonSearch,
       personSearch,
       filePicker,
@@ -1037,6 +1148,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
     dom.addEventListener("keydown", historyKey);
 
     const editableChanged = () => {
+      cancelAiFill("编辑状态已更改，填写已取消。");
       boardDrag.cancel();
       columnDrag.cancel();
       rowDrag.cancel();
@@ -1047,6 +1159,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       paint();
     };
     const resetTransientState = () => {
+      cancelAiFill("表格已更改，填写已取消。");
       pendingGroups.clear();
       selected.clear();
       boardDrag.cancel();
@@ -1093,6 +1206,8 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       }
     };
     view.dom.addEventListener("semlo-editor:editable", editableChanged);
+    const aiServiceChanged = () => cancelAiFill("填写服务已更改，填写已取消。");
+    view.dom.addEventListener("semlo-editor:database-ai-service", aiServiceChanged);
     editor.on("transaction", transaction);
     paint();
     return {
@@ -1100,6 +1215,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       update(node) {
         if (node.type !== current.type) return false;
         if (node === current) return true;
+        cancelAiFill("表格已更改，填写已取消。");
         // Applying a transaction may reconstruct the node, so compare its
         // content with the node produced by our transaction rather than its
         // object identity. A later edit to this database must still invalidate
@@ -1127,6 +1243,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       ignoreMutation: () => true,
       destroy() {
         destroyed = true;
+        cancelAiFill();
         setDatabaseViewProjection(dom, undefined);
         pendingGroups.clear();
         closeChartView();
@@ -1145,6 +1262,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         dom.removeEventListener("keydown", historyKey);
         doc.removeEventListener("keydown", keyDown);
         view.dom.removeEventListener("semlo-editor:editable", editableChanged);
+        view.dom.removeEventListener("semlo-editor:database-ai-service", aiServiceChanged);
       },
     };
   };

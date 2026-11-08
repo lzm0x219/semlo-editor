@@ -1,5 +1,6 @@
-import { createRsbuild } from "@rsbuild/core";
 import { test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 declare global {
   interface Window {
     translationFocusProbe(mode: string): Promise<{
@@ -13,13 +14,8 @@ declare global {
 }
 for (const mode of ["normal", "focus", "remount", "destroy"])
   test(`translation respects host ${mode}`, async ({ page }) => {
-    const r = await createRsbuild({
-      cwd: process.cwd(),
-      rsbuildConfig: {
-        source: { entry: { index: "./tests/fixtures/toolbar/toolbar-translation-focus-probe-fixture.ts" } },
-        server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-        dev: { hmr: false, liveReload: false },
-      },
+    const r = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-translation-focus-probe-fixture.ts", {
+      publicDir: false,
     });
     const { port, server } = await r.startDevServer();
     try {

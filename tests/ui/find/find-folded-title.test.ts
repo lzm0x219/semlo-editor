@@ -49,14 +49,18 @@ test("searching a folded heading title opens its section and folded ancestors wi
   await expect(first.getByRole("button", { name: "折叠标题：前父标题" })).toHaveAttribute("aria-expanded", "true");
   await expect(first.getByRole("button", { name: "展开标题：另一标题" })).toHaveAttribute("aria-expanded", "false");
   await expect(second.getByRole("button", { name: "展开标题：目标标题" })).toHaveAttribute("aria-expanded", "false");
+  const expectedEdited = structuredClone(edited);
+  expectedEdited.content![3].attrs!.semloEditorHeadingFolded = true;
   expect(await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].getSnapshot().json)).toEqual(
-    edited,
+    expectedEdited,
   );
   expect(await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].editor.commands.undo())).toBe(
     true,
   );
+  const expectedBefore = structuredClone(before);
+  expectedBefore.content![3].attrs!.semloEditorHeadingFolded = true;
   expect(await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].getSnapshot().json)).toEqual(
-    before,
+    expectedBefore,
   );
   await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors").forEach((editor) => editor.destroy()));
 });

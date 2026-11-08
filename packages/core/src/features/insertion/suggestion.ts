@@ -130,13 +130,19 @@ export function slashCommands(
                 openInteractive,
                 interactiveAvailable,
               ),
-              ...unavailableBlockCommands().filter((item) =>
+              ...unavailableBlockCommands(editor).filter((item) =>
                 item.key.toLowerCase().includes(query.trim().toLowerCase()),
               ),
             ]),
           command: ({ editor, range, props }) => {
             if (!isInsertCommandAllowed(editor.state, props.id, range.from)) return;
-            if (props.id === "vote" || props.id === "checkin" || props.id === "yuque" || props.id === "encrypted")
+            if (
+              props.id === "ai" ||
+              props.id === "vote" ||
+              props.id === "checkin" ||
+              props.id === "yuque" ||
+              props.id === "encrypted"
+            )
               exitSuggestion(editor.view, slashSuggestionKey);
             invoke(props, editor, range);
           },

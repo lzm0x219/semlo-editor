@@ -1,4 +1,5 @@
 import type { AttachmentUpload, ImageUpload, MentionSearch } from "../../types";
+import type { DatabaseAiFillService } from "./ai-fill-types";
 import { DatabaseContentError, normalizeDatabaseActor, type DatabaseActor } from "./model";
 
 export interface DatabaseOptions {
@@ -6,6 +7,7 @@ export interface DatabaseOptions {
   getUploadAttachment: () => AttachmentUpload | undefined;
   getSearchMentions: () => MentionSearch | undefined;
   getCurrentUser: () => (() => DatabaseActor | null) | undefined;
+  getAiFill: () => DatabaseAiFillService | null | undefined;
   onError: (error: unknown) => void;
 }
 

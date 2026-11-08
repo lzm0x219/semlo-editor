@@ -4,23 +4,36 @@ import { Fragment } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
 
 import type { BlockInsertTarget } from "../blocks/actions/target";
-import { isHeadingFolded, setHeadingFolded } from "../heading/fold";
+import { headingFoldAttribute, isHeadingFolded, setHeadingFolded } from "../heading/fold";
+import { siblingItemAttrs } from "./sibling-item-attrs";
 
 /** Create the insertion point only after an insertion command is chosen. */
 export function prepareBlockInsertion(editor: Editor, target: BlockInsertTarget, command: string): boolean {
   if (editor.isDestroyed || !editor.isEditable) return false;
-  const { state } = editor;
+  const initial = editor.state;
+  const original = initial.doc.nodeAt(target.pos);
+  if (original !== target.node || target.after !== target.pos + original.nodeSize) return false;
+  // 展开可能写入文档并触发宿主回写；确认只有预期变化后再从当前状态创建插入事务。
+  if (original.type.name === "heading" && isHeadingFolded(editor, target.pos)) {
+    const view = editor.view;
+    const expanded = initial.tr.setNodeMarkup(target.pos, undefined, {
+      ...original.attrs,
+      [headingFoldAttribute]: false,
+    }).doc;
+    if (!setHeadingFolded(editor, target.pos, false)) return false;
+    if (editor.isDestroyed || !editor.isEditable || editor.view !== view || isHeadingFolded(editor, target.pos))
+      return false;
+    if (!editor.state.doc.eq(initial.doc) && !editor.state.doc.eq(expanded)) return false;
+  }
+  const state = editor.state;
   const node = state.doc.nodeAt(target.pos);
-  if (node !== target.node || target.after !== target.pos + node.nodeSize) return false;
-  // The new cursor must not be relocated by a collapsed heading section.
-  if (node.type.name === "heading" && isHeadingFolded(editor, target.pos)) setHeadingFolded(editor, target.pos, false);
+  if (!node || target.after !== target.pos + node.nodeSize) return false;
   const resolved = state.doc.resolve(target.pos),
     parent = resolved.parent,
     index = resolved.index() + 1;
   const type = target.kind === "item" ? node.type : state.schema.nodes.paragraph;
   if (!type || !parent.canReplaceWith(index, index, type)) return false;
-  const attrs =
-    target.kind === "item" ? { ...node.attrs, ...(node.type.name === "taskItem" ? { checked: false } : {}) } : null;
+  const attrs = target.kind === "item" ? siblingItemAttrs(node) : null;
   let inserted = type.createAndFill(attrs);
   if (!inserted) return false;
   const needsFollowingBlock = target.kind === "item" && ["quote", "callout", "code", "details"].includes(command);

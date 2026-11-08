@@ -77,7 +77,7 @@ window.mountDynamicEditor = async (framework) => {
   document.body.prepend(host);
   type Integrations = Pick<
     EditorOptions,
-    "content" | "uploadImage" | "uploadAttachment" | "searchMentions" | "currentUser"
+    "content" | "uploadImage" | "uploadAttachment" | "searchMentions" | "currentUser" | "databaseAiFill"
   >;
   let update: (next: Integrations) => void = () => {
     throw new Error("Dynamic editor is not mounted");
@@ -126,6 +126,9 @@ window.mountDynamicEditor = async (framework) => {
         },
         get currentUser() {
           return integrations().currentUser;
+        },
+        get databaseAiFill() {
+          return integrations().databaseAiFill;
         },
         onReady,
         onError,

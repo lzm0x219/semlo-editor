@@ -1,13 +1,9 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../fixtures/browser/fixture-rsbuild";
 test("failed constructor releases document listeners and shell", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/contracts/registry-constructor-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/contracts/registry-constructor-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {

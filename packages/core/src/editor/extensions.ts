@@ -25,6 +25,7 @@ import { Database } from "../features/database/extension";
 import { CanvasBoard } from "../features/drawing/canvas/extension";
 import { Diagram } from "../features/drawing/diagram/extension";
 import { Mindmap } from "../features/drawing/mindmap/extension";
+import { HeadingAnchor } from "../features/heading/anchor";
 import { HeadingEndSelection } from "../features/heading/end-selection";
 import { HeadingFold } from "../features/heading/fold";
 import { HeadingKeyboard } from "../features/heading/keyboard";
@@ -34,20 +35,24 @@ import { CheckinCard } from "../features/interactive/checkin-card";
 import type { InteractiveCardHostController } from "../features/interactive/interactive-card-host";
 import { VoteCard } from "../features/interactive/vote-card";
 import { FlatListTab } from "../features/list/flat-list-tab";
+import { ListKeyboard } from "../features/list/keyboard";
 import { ListFold } from "../features/list/list-fold";
 import { OrderedListNumbering } from "../features/list/ordered-numbering";
 import { OrderedListStyles } from "../features/list/ordered-style";
 import { Attachment } from "../features/media/attachment/extension";
+import type { AttachmentViews } from "../features/media/attachment/runtime";
 import { attachmentUploadExtension } from "../features/media/attachment/uploads";
 import { Audio, Video } from "../features/media/audio-video/extension";
 import { Gallery } from "../features/media/gallery/extension";
 import { ImageCard } from "../features/media/image/extension";
 import { imageUploadExtension } from "../features/media/image/uploads";
+import { ContentReference } from "../features/references/content-reference";
 import { SemloEditorEmbed } from "../features/references/embed";
 import { EmbedBookmarkInline, EmbedBookmarkBlock } from "../features/references/embed-bookmark";
 import { getLinkState } from "../features/references/link-command";
 import { Mention, mentionSuggestion } from "../features/references/mention";
 import { SemloEditorTable } from "../features/table/extension";
+import { clearTextFormatting } from "../features/text/clear-format";
 import {
   SemloEditorColor,
   SemloEditorFontFamily,
@@ -58,6 +63,10 @@ import { DocumentFontExtension } from "../features/text/document-font";
 import { FontSizeShortcuts } from "../features/text/font-size-shortcuts";
 import { LocalFontName } from "../features/text/local-fonts";
 import { ParagraphLayout } from "../features/text/paragraph-layout";
+import { RootParagraphPaste } from "../features/text/paragraph-paste";
+import { PlainTextPaste } from "../features/text/plain-paste";
+import { QuoteKeyboard } from "../features/text/quote-keyboard";
+import { QuotePaste } from "../features/text/quote-paste";
 import { TransactionGuard } from "../runtime/transaction-guard";
 import type { EditorOptions } from "../types";
 import { createStarterKitWithCodeFonts } from "./starter-kit";
@@ -66,10 +75,13 @@ type Integrations = Pick<
   EditorOptions,
   | "uploadImage"
   | "uploadAttachment"
+  | "resolveAttachmentPreview"
   | "searchMentions"
+  | "databaseAiFill"
   | "currentUser"
   | "resolveEmbedMetadata"
   | "encryptedTextProvider"
+  | "yuqueContentProvider"
 >;
 
 export function createEditorExtensions({
@@ -83,6 +95,7 @@ export function createEditorExtensions({
   openLink,
   slashActions,
   report,
+  attachmentViews,
 }: {
   options: EditorOptions;
   bubbleExtension?: () => AnyExtension;
@@ -94,6 +107,7 @@ export function createEditorExtensions({
   openLink: () => void;
   slashActions: Parameters<typeof slashCommands>;
   report: (error: unknown) => void;
+  attachmentViews: AttachmentViews;
 }): Extensions {
   return [
     pointerExtension(),
@@ -120,10 +134,16 @@ export function createEditorExtensions({
       },
     }),
     HeadingNumbering,
+    HeadingAnchor,
     HeadingFold,
     HeadingKeyboard,
     HeadingEndSelection,
+    PlainTextPaste,
+    RootParagraphPaste,
+    QuoteKeyboard,
+    QuotePaste,
     FlatListTab,
+    ListKeyboard,
     ListFold,
     OrderedListStyles,
     OrderedListNumbering,
@@ -156,6 +176,7 @@ export function createEditorExtensions({
     Mindmap,
     CanvasBoard,
     SemloEditorEmbed,
+    ContentReference.configure({ getProvider: () => getIntegrations().yuqueContentProvider, onError: report }),
     EmbedBookmarkInline.configure({ resolveMetadata: getIntegrations().resolveEmbedMetadata }),
     EmbedBookmarkBlock.configure({ resolveMetadata: getIntegrations().resolveEmbedMetadata }),
     Gallery.configure({ getUploadImage: () => getIntegrations().uploadImage, onError: report }),
@@ -164,11 +185,17 @@ export function createEditorExtensions({
       getUploadImage: () => getIntegrations().uploadImage,
       getUploadAttachment: () => getIntegrations().uploadAttachment,
       getCurrentUser: () => getIntegrations().currentUser,
+      getAiFill: () => getIntegrations().databaseAiFill,
       onError: report,
     }),
     Columns,
     Column,
-    Attachment,
+    Attachment.configure({
+      getPreviewResolver: () => getIntegrations().resolveAttachmentPreview,
+      getPreviewOwner: getIntegrations,
+      onError: report,
+      views: attachmentViews,
+    }),
     Video,
     Audio,
     Status,
@@ -196,6 +223,7 @@ export function createEditorExtensions({
             return true;
           },
           "Mod-Shift-c": () => this.editor.commands.setTextAlign("center"),
+          "Mod-\\": () => clearTextFormatting(this.editor, { focus: false }),
         };
       },
     }),

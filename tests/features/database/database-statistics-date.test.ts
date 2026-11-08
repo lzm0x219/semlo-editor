@@ -4,7 +4,8 @@ import { createDatabaseData, type DatabaseData } from "../../../packages/core/sr
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
 
 for (const [name, values, earliest, latest, days] of [
-  ["empty", ["", "", ""], "—", "—", "0"],
+  ["empty", ["", "", ""], "Invalid Date", "—", "0"],
+  ["invalid only", ["2024-02-30", "", ""], "—", "—", "0"],
   ["leap and month end", ["2024-02-29", "2024-03-01", "2024-01-31"], "2024-01-31", "2024-03-01", "30"],
   ["invalid dates ignored", ["2024-02-30", "2024-03-01", "2024-02-29"], "2024-02-29", "2024-03-01", "1"],
 ] as const) {

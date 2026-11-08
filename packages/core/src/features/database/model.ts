@@ -41,6 +41,11 @@ export interface DatabaseOption {
   color: number;
   externalId?: string;
 }
+export interface DatabaseAiConfig {
+  version: 1;
+  mode: "summary" | "custom";
+  prompt: string;
+}
 export interface DatabaseField {
   id: string;
   name: string;
@@ -48,6 +53,7 @@ export interface DatabaseField {
   options: DatabaseOption[];
   defaultValue: DatabaseValue;
   timeFormat?: DatabaseTimeFormat;
+  ai?: DatabaseAiConfig;
 }
 export const databaseTimeFormats = [
   "datetimeSeconds",
@@ -561,6 +567,14 @@ export function normalizeDatabaseData(value: unknown): DatabaseData {
       const type = databaseFieldTypes.includes(field.type as DatabaseFieldType)
         ? (field.type as DatabaseFieldType)
         : "text";
+      const ai = object(field.ai);
+      const validAi =
+        type === "text" &&
+        ai.version === 1 &&
+        (ai.mode === "summary" || ai.mode === "custom") &&
+        typeof ai.prompt === "string" &&
+        ai.prompt.length <= 2000 &&
+        (ai.mode === "summary" ? ai.prompt === "" : !!ai.prompt.trim());
       const optionIds = new Set<string>();
       const options = boundedItems(
         Array.isArray(field.options) ? field.options : [],
@@ -586,6 +600,9 @@ export function normalizeDatabaseData(value: unknown): DatabaseData {
         type,
         options,
         defaultValue: valueFor(field.defaultValue, type),
+        ...(validAi
+          ? { ai: { version: 1 as const, mode: ai.mode as DatabaseAiConfig["mode"], prompt: ai.prompt as string } }
+          : {}),
         ...(type === "createdTime" || type === "modifiedTime"
           ? {
               timeFormat: databaseTimeFormats.includes(field.timeFormat as DatabaseTimeFormat)

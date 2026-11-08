@@ -1,16 +1,12 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../fixtures/browser/fixture-rsbuild";
 
 test("pointer selection remains bound after a host mount listener throws and plugin reconfiguration", async ({
   page,
 }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/lifecycle/pointer-remount-host-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/lifecycle/pointer-remount-host-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -61,13 +57,8 @@ test("pointer selection remains bound after a host mount listener throws and plu
 });
 
 test("real mouse selects and formats text after remount", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/lifecycle/pointer-remount-host-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/lifecycle/pointer-remount-host-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {

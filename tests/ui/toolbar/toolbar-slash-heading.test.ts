@@ -33,6 +33,20 @@ declare global {
 }
 
 test("root and observed containers keep H1–H6 slash input as literal text", async ({ page }) => {
+  const positionCaret = async (heading: ReturnType<typeof page.locator>, position: "start" | "middle" | "end") => {
+    await heading.click();
+    // 本例验证斜杠的正文语义，容器未验证的 Home 布局回退由标题专项覆盖。
+    await heading.evaluate((element, position) => {
+      const text = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE)!;
+      const range = document.createRange();
+      range.setStart(text, position === "start" ? 0 : position === "middle" ? 1 : 3);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+    }, position);
+  };
   const rsbuild = await createRsbuild({
     cwd: process.cwd(),
     rsbuildConfig: {
@@ -76,10 +90,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
           (level) => window.__semloRequireFixture("listSlashFixture").mountHeading(level, "甲乙丙"),
           level,
         );
-        await heading.click();
-        await page.keyboard.press("Home");
-        if (position === "middle") await page.keyboard.press("ArrowRight");
-        if (position === "end") await page.keyboard.press("End");
+        await positionCaret(heading, position);
         await page.keyboard.type("/");
         await expect(heading).toHaveText(
           position === "start" ? "/甲乙丙" : position === "middle" ? "甲/乙丙" : "甲乙丙/",
@@ -105,10 +116,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
           (level) => window.__semloRequireFixture("listSlashFixture").mountNestedHeading("blockquote", level, "甲乙丙"),
           level,
         );
-        await heading.click();
-        await page.keyboard.press("Home");
-        if (position === "middle") await page.keyboard.press("ArrowRight");
-        if (position === "end") await page.keyboard.press("End");
+        await positionCaret(heading, position);
         await page.keyboard.type("/");
         await expect(heading).toHaveText(
           position === "start" ? "/甲乙丙" : position === "middle" ? "甲/乙丙" : "甲乙丙/",
@@ -134,17 +142,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
           (level) => window.__semloRequireFixture("listSlashFixture").mountNestedHeading("details", level, "甲乙丙"),
           level,
         );
-        await heading.click();
-        await heading.evaluate((element, position) => {
-          const text = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE)!;
-          const range = document.createRange();
-          range.setStart(text, position === "start" ? 0 : position === "middle" ? 1 : 3);
-          range.collapse(true);
-          const selection = window.getSelection()!;
-          selection.removeAllRanges();
-          selection.addRange(range);
-          document.dispatchEvent(new Event("selectionchange"));
-        }, position);
+        await positionCaret(heading, position);
         await page.keyboard.type("/");
         await expect(heading).toHaveText(
           position === "start" ? "/甲乙丙" : position === "middle" ? "甲/乙丙" : "甲乙丙/",
@@ -172,10 +170,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
           (level) => window.__semloRequireFixture("listSlashFixture").mountNestedHeading("callout", level, "甲乙丙"),
           level,
         );
-        await heading.click();
-        await page.keyboard.press("Home");
-        if (position === "middle") await page.keyboard.press("ArrowRight");
-        if (position === "end") await page.keyboard.press("End");
+        await positionCaret(heading, position);
         await page.keyboard.type("/");
         await expect(heading).toHaveText(
           position === "start" ? "/甲乙丙" : position === "middle" ? "甲/乙丙" : "甲乙丙/",
@@ -204,17 +199,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
             window.__semloRequireFixture("listSlashFixture").mountNestedHeading("foldCallout", level, "甲乙丙"),
           level,
         );
-        await heading.click();
-        await heading.evaluate((element, position) => {
-          const text = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE)!;
-          const range = document.createRange();
-          range.setStart(text, position === "start" ? 0 : position === "middle" ? 1 : 3);
-          range.collapse(true);
-          const selection = window.getSelection()!;
-          selection.removeAllRanges();
-          selection.addRange(range);
-          document.dispatchEvent(new Event("selectionchange"));
-        }, position);
+        await positionCaret(heading, position);
         await page.keyboard.type("/");
         await expect(heading).toHaveText(
           position === "start" ? "/甲乙丙" : position === "middle" ? "甲/乙丙" : "甲乙丙/",

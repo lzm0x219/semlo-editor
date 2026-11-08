@@ -1,13 +1,9 @@
-import { createRsbuild } from "@rsbuild/core";
 import { test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 const setup = async () => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+    publicDir: false,
   });
   return r.startDevServer();
 };

@@ -26,6 +26,7 @@ export function createCardMenuSession({
   insertInteractive,
   interactiveAvailable,
   getEncryptedTextProvider,
+  openWriting,
 }: {
   getEditor: () => Editor | undefined;
   syncTextSelection: () => void;
@@ -50,6 +51,7 @@ export function createCardMenuSession({
   insertInteractive: (kind: "vote" | "checkin", target?: InteractiveInsertTarget) => void;
   interactiveAvailable: (kind: InteractiveKind) => boolean;
   getEncryptedTextProvider: () => EditorOptions["encryptedTextProvider"];
+  openWriting: (target?: BlockInsertTarget) => void;
 }) {
   return function showCardMenu(anchor?: HTMLElement, target?: BlockInsertTarget, focusSearch = true) {
     const editor = getEditor();
@@ -76,6 +78,7 @@ export function createCardMenuSession({
       "checkin",
       "yuque",
       "encrypted",
+      "ai",
     ]);
     const invalidate = ({
       transaction,
@@ -108,6 +111,7 @@ export function createCardMenuSession({
       anchor,
       target
         ? {
+            onWriting: () => openWriting(target),
             onInteractive: (kind) =>
               kind === "encrypted"
                 ? openEncryptedInsertion(editor, () => getEncryptedTextProvider(), {
@@ -132,6 +136,7 @@ export function createCardMenuSession({
             },
           }
         : {
+            onWriting: () => openWriting(),
             onInteractive: (kind) =>
               kind === "encrypted"
                 ? openEncryptedInsertion(editor, () => getEncryptedTextProvider(), { kind: "selection" })

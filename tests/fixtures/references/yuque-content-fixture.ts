@@ -15,6 +15,7 @@ declare global {
     yuqueEditor?: EditorController;
     yuqueMount(mode: Mode, enabled: boolean): void;
     yuqueReplace(enabled: boolean): void;
+    yuquePreview(target: string | { url: string; allowSameOrigin?: boolean } | null): void;
     yuqueSetContent(content: string): void;
     yuqueDestroy(): void;
     yuquePending: Array<{
@@ -32,11 +33,16 @@ window.yuqueMount = (mode, enabled) => {
       return [{ id: "doc", title: "测试文档", kind: "document", href: "https://example.invalid/doc" }];
     },
     resolveLink: async (link) =>
-      link === "table"
+      link === "https://example.invalid/table"
         ? { id: "table", title: "测试表格", kind: "table", href: "https://example.invalid/table" }
         : null,
+    resolveEmbed: (choice) => `https://example.invalid/embed/${choice.id}`,
   };
   const root = document.querySelector<HTMLElement>("#editor")!;
+  window.yuquePreview = (target) =>
+    window.yuqueEditor!.setIntegrations({
+      yuqueContentProvider: { ...provider, resolveEmbed: target === null ? undefined : () => target },
+    });
   const props = {
     content: "<p></p>",
     toolbar: true,

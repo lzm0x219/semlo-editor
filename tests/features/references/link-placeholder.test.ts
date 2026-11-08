@@ -33,7 +33,7 @@ test("an empty-cursor shortcut inserts an unaddressed link until the user confir
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
   await page.keyboard.press("End");
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
 
   const form = page.getByRole("dialog", { name: "插入链接" });
   const placeholder = prose.locator("a[data-semlo-editor-link-placeholder]");
@@ -62,7 +62,7 @@ test("the visible cancel action preserves the existing placeholder and returns f
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
   await page.keyboard.press("End");
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const form = page.getByRole("dialog", { name: "插入链接" });
   const placeholder = prose.locator("a[data-semlo-editor-link-placeholder]");
   await expect(placeholder).toHaveText("链接");
@@ -70,7 +70,7 @@ test("the visible cancel action preserves the existing placeholder and returns f
   await expect(form).toHaveCount(0);
   await expect(placeholder).toHaveText("链接");
   await expect(prose).toBeFocused();
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect(prose).toHaveText("正文");
 });
 
@@ -78,7 +78,7 @@ test("link validation explains examples without excluding mail and relative URLs
   await mount(page, "<p></p>");
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const form = page.getByRole("dialog", { name: "插入链接" });
   const address = form.getByLabel("链接", { exact: true });
   await address.fill("javascript:alert(1)");
@@ -96,7 +96,7 @@ test("link cancellation remains reachable on a narrow viewport with the keyboard
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
   await page.keyboard.press("End");
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const form = page.getByRole("dialog", { name: "插入链接" });
   const bounds = await form.boundingBox();
   expect(bounds).not.toBeNull();
@@ -117,7 +117,7 @@ test("an open link form remains visible when the viewport becomes narrower", asy
   });
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const form = page.getByRole("dialog", { name: "插入链接" });
   await expect(form).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
@@ -141,7 +141,7 @@ test("a selection becomes a link immediately, retaining its text and formatting 
     window.__semloRequireFixture("linkPlaceholderTest").editor.commands.setTextSelection({ from: 1, to: 5 }),
   );
   await page.waitForFunction(() => document.getSelection()?.toString() === "选中文字");
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
 
   const form = page.getByRole("dialog", { name: "插入链接" });
   const placeholder = prose.locator("a[data-semlo-editor-link-placeholder]");
@@ -172,7 +172,7 @@ test("slash insertion and its cancellation undo back to the original slash", asy
   await page.keyboard.press("Escape");
   await expect(form).toHaveCount(0);
   await expect(placeholder).toHaveText("链接");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   await expect(prose).toHaveText("/");
 });
 
@@ -180,7 +180,7 @@ test("placeholder links survive HTML and JSON round trips and can later receive 
   await mount(page, "<p></p>");
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
   await prose.locator("p").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await page.keyboard.press("Escape");
   const snapshot = await page.evaluate(() => window.__semloRequireFixture("linkPlaceholderTest").getSnapshot());
   for (const content of [snapshot.html, snapshot.json]) {
@@ -196,7 +196,7 @@ test("placeholder links survive HTML and JSON round trips and can later receive 
     );
   }
   await prose.locator("a").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   const form = page.getByRole("dialog", { name: "插入链接" });
   await expect(form.getByLabel("文本")).toHaveValue("链接");
   await form.getByLabel("链接", { exact: true }).fill("#heading");
@@ -212,7 +212,7 @@ test("document replacement, direct edits, read-only mode and destruction close s
   const form = page.getByRole("dialog", { name: "插入链接" });
   const open = async () => {
     await prose.locator("p").first().click();
-    await page.keyboard.press("Meta+k");
+    await page.keyboard.press("ControlOrMeta+k");
     await expect(form).toBeVisible();
   };
 
@@ -229,7 +229,7 @@ test("document replacement, direct edits, read-only mode and destruction close s
   await page.evaluate(() => window.__semloRequireFixture("linkPlaceholderTest").setEditable(false));
   await expect(form).toHaveCount(0);
   await prose.locator("p").click();
-  await page.keyboard.press("Meta+k");
+  await page.keyboard.press("ControlOrMeta+k");
   await expect(form).toHaveCount(0);
   await page.evaluate(() => window.__semloRequireFixture("linkPlaceholderTest").setEditable(true));
   await open();

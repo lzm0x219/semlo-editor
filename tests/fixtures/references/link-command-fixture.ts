@@ -9,6 +9,7 @@ import {
   startLinkEdit,
   type EditorContent,
   type EditorController,
+  type FloatingToolbarFactory,
   type LinkEditResult,
   type LinkEditSession,
   type LinkState,
@@ -36,7 +37,12 @@ const get = (id: string) => {
 declare global {
   interface Window {
     linkCommandFixture: {
-      mount(id: string, content: EditorContent, mode?: "default" | "custom" | "hidden", controlled?: boolean): void;
+      mount(
+        id: string,
+        content: EditorContent,
+        mode?: "default" | "custom" | "hidden" | "custom-floating",
+        controlled?: boolean,
+      ): void;
       select(id: string, text: string, from: number, to: number, reverse?: boolean): void;
       state(id: string): LinkState;
       start(id: string, throwOnInvalidate?: boolean): boolean;
@@ -68,6 +74,35 @@ declare global {
   }
 }
 
+/** 明确配置格式浮层，单独验证工厂的选区同步和内置链接弹层。 */
+const floatingLink: FloatingToolbarFactory = ({ element, controller, syncSelection, subscribe, openLink }) => {
+  const button = element.ownerDocument.createElement("button");
+  button.type = "button";
+  button.textContent = "链接";
+  button.className = "semlo-editor-button";
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-expanded", "false");
+  const preserve = (event: MouseEvent) => event.preventDefault();
+  const open = () => {
+    syncSelection();
+    openLink(button);
+  };
+  button.addEventListener("mousedown", preserve);
+  button.addEventListener("click", open);
+  element.append(button);
+  const update = () => {
+    button.disabled = !getLinkState(controller.editor).enabled;
+  };
+  const unsubscribe = subscribe(update);
+  update();
+  return () => {
+    unsubscribe();
+    button.disabled = true;
+    button.removeEventListener("mousedown", preserve);
+    button.removeEventListener("click", open);
+  };
+};
+
 window.linkCommandFixture = {
   mount(id, content, mode = "hidden", controlled = false) {
     const host = document.createElement("div");
@@ -92,7 +127,8 @@ window.linkCommandFixture = {
       element: host,
       outline: false,
       content,
-      toolbar: mode === "custom" ? createDemoToolbar : mode === "default",
+      toolbar: mode === "custom" ? createDemoToolbar : mode !== "hidden",
+      floatingToolbar: mode === "custom-floating" ? floatingLink : undefined,
       extensions: [gate],
       onChange: controlled
         ? (snapshot) =>

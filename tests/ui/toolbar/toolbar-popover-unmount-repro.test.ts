@@ -1,5 +1,6 @@
-import { createRsbuild } from "@rsbuild/core";
 import { test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 declare global {
   interface Window {
     iframeInsert: { editor: { unmount(): void; mount(element: HTMLElement): void; view: { dom: HTMLElement } } };
@@ -10,13 +11,8 @@ for (const item of [
   { trigger: "文字颜色", popup: '[role="dialog"][aria-label="选择颜色"]' },
 ])
   test(`${item.trigger} popup closes on editor unmount`, async ({ page }) => {
-    const r = await createRsbuild({
-      cwd: process.cwd(),
-      rsbuildConfig: {
-        source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-        server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-        dev: { hmr: false, liveReload: false },
-      },
+    const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+      publicDir: false,
     });
     const { port, server } = await r.startDevServer();
     try {
@@ -34,13 +30,8 @@ for (const item of [
     }
   });
 test("dropdown works after remount and closes on the next unmount", async ({ page }) => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await r.startDevServer();
   try {

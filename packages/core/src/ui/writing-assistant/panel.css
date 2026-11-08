@@ -1,0 +1,256 @@
+.semlo-editor-prose .semlo-editor-writing-assistant {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 14px 0;
+  color: #262626;
+  font:
+    14px/1.7 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  text-align: left;
+  white-space: normal;
+  cursor: auto;
+}
+.semlo-editor-writing-preview {
+  margin: 0 0 14px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.semlo-editor-writing-result {
+  max-height: 360px;
+  padding: 16px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.semlo-editor-writing-result :is(p, pre, table) {
+  margin: 0 0 10px;
+}
+.semlo-editor-writing-result > :last-child {
+  margin-bottom: 0;
+}
+.semlo-editor-writing-result pre {
+  padding: 12px;
+  border-radius: 4px;
+  background: #f6f7f8;
+  color: #262626;
+  white-space: pre-wrap;
+}
+.semlo-editor-writing-result table {
+  width: 100%;
+  border-collapse: collapse;
+  font: inherit;
+}
+.semlo-editor-writing-result :is(td, th) {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  min-width: 32px;
+}
+.semlo-editor-writing-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #fafafa;
+  color: #747474;
+  font-size: 12px;
+}
+.semlo-editor-writing-feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-feedback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 4px;
+}
+.semlo-editor-writing-feedback[aria-pressed="true"] {
+  color: var(--semlo-editor-accent, #3a9a6b);
+}
+.semlo-editor-writing-feedback-negative svg {
+  transform: rotate(180deg);
+}
+.semlo-editor-writing-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 6px 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+}
+.semlo-editor-writing-icon {
+  display: flex;
+  flex: none;
+  color: var(--semlo-editor-accent, #3a9a6b);
+}
+.semlo-editor-writing-form textarea {
+  display: block;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  min-height: 30px;
+  max-height: 120px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.6;
+  resize: none;
+}
+.semlo-editor-writing-form textarea::placeholder {
+  color: #767676;
+  opacity: 1;
+}
+.semlo-editor-writing-progress {
+  flex: 1;
+  color: #646464;
+}
+.semlo-editor-writing-assistant button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.semlo-editor-writing-assistant button:hover {
+  background: #f3f4f4;
+}
+.semlo-editor-writing-assistant button:disabled {
+  color: #858585;
+  cursor: default;
+}
+.semlo-editor-writing-assistant :is(button, textarea, .semlo-editor-writing-result):focus-visible {
+  outline: 2px solid #168856;
+  outline-offset: 2px;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-result:focus-visible {
+  outline-offset: -2px;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-send {
+  flex: none;
+  color: #fff;
+  background: #147b50;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-send:not(:disabled):hover {
+  background: #09633f;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-send:disabled {
+  color: #6a746e;
+  background: #e7ede9;
+}
+.semlo-editor-writing-assistant .semlo-editor-writing-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  padding: 0;
+}
+.semlo-editor-writing-form kbd {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #767676;
+}
+.semlo-editor-writing-status {
+  margin: 8px 0;
+  color: #626262;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.semlo-editor-writing-assistant[data-status="error"] .semlo-editor-writing-status,
+.semlo-editor-writing-assistant[data-status="stale"] .semlo-editor-writing-status {
+  color: #9a3b22;
+}
+.semlo-editor-writing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 216px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+}
+.semlo-editor-writing-actions > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.semlo-editor-writing-action-icon {
+  display: flex;
+  flex: none;
+}
+.semlo-editor-writing-actions > .semlo-editor-writing-regenerate {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+  border-radius: 0;
+}
+.semlo-editor-writing-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  width: 510px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+}
+.semlo-editor-writing-presets section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.semlo-editor-writing-preset-heading {
+  padding: 3px 10px 6px;
+  color: #747474;
+  font-size: 12px;
+}
+.semlo-editor-writing-assistant [hidden] {
+  display: none;
+}
+@media (max-width: 600px) {
+  .semlo-editor-writing-form textarea {
+    font-size: 16px;
+  }
+  .semlo-editor-writing-assistant button {
+    min-height: 40px;
+  }
+  .semlo-editor-writing-result {
+    padding: 12px;
+  }
+  .semlo-editor-writing-presets {
+    gap: 8px;
+    padding: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .semlo-editor-writing-presets {
+    grid-template-columns: 1fr;
+  }
+}

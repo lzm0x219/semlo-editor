@@ -3,6 +3,7 @@ import type { Editor } from "@tiptap/core";
 import type { BlockInsertTarget } from "../../features/blocks/actions/target";
 import { getHeadingStyleState, setHeadingStyle } from "../../features/heading/style-command";
 import { getBoldState, toggleBold } from "../../features/text/bold-command";
+import { clearTextFormatting } from "../../features/text/clear-format";
 import { setFontSizeOutsideHeadings } from "../../features/text/font-size-shortcuts";
 import { openLocalFonts } from "../../features/text/local-fonts";
 import { openDropdown } from "../../platform/dom/dropdown";
@@ -84,7 +85,16 @@ export function mountPrimaryToolbar({
   const painterButton = createFormatPainterButton(doc);
   toolbar.append(painterButton);
   buttons.push({ element: painterButton });
-  button(toolbar, "清除文字格式", "clear", () => context.editor.chain().focus().unsetAllMarks().run());
+  const clear = button(
+    toolbar,
+    "清除文字格式",
+    "clear",
+    () => clearTextFormatting(context.editor),
+    undefined,
+    () => !context.editor.isDestroyed && context.editor.isEditable,
+  );
+  clear.setAttribute("aria-keyshortcuts", "Meta+\\ Control+\\");
+  clear.title = `清除文字格式 ${/Mac|iPhone|iPad|iPod/i.test(doc.defaultView?.navigator.platform ?? "") ? "⌘" : "Ctrl"}+\\`;
   separator();
   toolbar.append(heading);
   const fontFamily = menuButton("字体", "semlo-editor-font-family");

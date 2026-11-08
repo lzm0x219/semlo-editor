@@ -2,6 +2,8 @@ import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
+import { openFontToolbar } from "../../fixtures/browser/font-toolbar";
 
 test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
@@ -112,13 +114,8 @@ test("pending slash menus respect read-only and document replacement across edit
 });
 
 test("replaced documents ignore stale slash quick actions and child menus", async ({ page }) => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/toolbar-isolation-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/toolbar/toolbar-isolation-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   try {
@@ -626,7 +623,7 @@ test("font and emoji pickers close after appended replacement", async ({ page })
       await page.evaluate(() => window.__semloRequireFixture("toolbarIsolation").setContent(0, "<p>旧文档</p>"));
       await page.locator("#editor-a .semlo-editor-prose p").click();
       if (mode === "font") {
-        await page.locator("#editor-a").getByRole("button", { name: "字体", exact: true }).click();
+        await openFontToolbar(page.locator("#editor-a"));
       } else {
         await page.locator("#editor-a").getByRole("button", { name: "插入内容", exact: true }).click();
         await page.getByRole("dialog", { name: "插入内容" }).locator('[role="option"][data-command="emoji"]').click();

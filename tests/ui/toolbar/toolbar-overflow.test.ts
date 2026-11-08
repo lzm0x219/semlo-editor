@@ -28,7 +28,7 @@ declare global {
   }
 }
 
-async function mount(page: Page) {
+async function mount(page: Page, keepInMore = false) {
   await page.setContent(`
     <div class="semlo-editor" id="overflow-host" style="width: 900px">
       <div class="semlo-editor-toolbar" role="toolbar" aria-label="文本格式">
@@ -64,12 +64,42 @@ async function mount(page: Page) {
       more.className = 'semlo-editor-button'
       more.textContent = 'more'
       toolbar.append(more)
-      const controller = mountToolbarOverflow(toolbar, shell, more)
+      const controller = mountToolbarOverflow(toolbar, shell, more, ${keepInMore ? "[items[3]]" : "[]"})
       window.overflowTest = { controller, items, clicks, mount: mountToolbarOverflow }
     `,
   });
   await page.waitForFunction(() => Boolean(window.overflowTest));
 }
+
+test("controls kept in more remain reachable and restore to their original position on destroy", async ({ page }) => {
+  await mount(page, true);
+  const host = page.locator("#overflow-host");
+  const toolbar = host.getByRole("toolbar", { name: "文本格式" });
+  const more = toolbar.getByRole("button", { name: "更多" });
+  await expect(more).toBeVisible();
+  await expect(toolbar.getByRole("button", { name: "段落样式" })).toHaveCount(0);
+  await more.focus();
+  await page.keyboard.press("Enter");
+  const panel = page.getByRole("toolbar", { name: "更多工具" });
+  const pinned = panel.getByRole("button", { name: "段落样式" });
+  await expect(pinned).toBeVisible();
+  await expect(pinned).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => window.__semloRequireFixture("overflowTest").clicks)).toContain("heading");
+  await resize(page, 240);
+  await expect(panel.getByRole("button", { name: "十" })).toBeVisible();
+  await resize(page, 900);
+  await expect(pinned).toBeVisible();
+  await page.evaluate(() => window.__semloRequireFixture("overflowTest").controller.destroy());
+  await expect(toolbar.getByRole("button", { name: "段落样式" })).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const { items } = window.__semloRequireFixture("overflowTest");
+      const actual = [...document.querySelector("#overflow-host .semlo-editor-toolbar")!.children];
+      return actual.length === items.length && actual.every((item, index) => item === items[index]);
+    }),
+  ).toBe(true);
+});
 
 async function resize(page: Page, width: number) {
   await page.locator("#overflow-host").evaluate((element, value) => {

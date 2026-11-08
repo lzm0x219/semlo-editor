@@ -2,8 +2,8 @@ import type { Editor } from "@tiptap/core";
 import BubbleMenu from "@tiptap/extension-bubble-menu";
 import { TextSelection } from "@tiptap/pm/state";
 
-import { getLinkState } from "../../features/references/link-command";
-import { getBoldState, toggleBold } from "../../features/text/bold-command";
+import { getWritingAssistant } from "../../features/writing-assistant/session";
+import { toolbarWritingIcon } from "./icons";
 import { createToolbarBindings, refreshToolbarButtons } from "./toolbar";
 import type { ToolbarButton, ToolbarButtonFactory } from "./toolbar";
 
@@ -20,7 +20,6 @@ export function createBubbleToolbar(doc: Document, primaryToolbar?: HTMLElement)
     mount({
       syncTextSelection,
       getEditor,
-      openLink,
     }: {
       syncTextSelection: () => void;
       getEditor: () => Editor;
@@ -48,7 +47,7 @@ export function createBubbleToolbar(doc: Document, primaryToolbar?: HTMLElement)
           enabled,
           state,
         );
-      mountBubbleButtons({ bubble: element, button, getEditor, openLink });
+      mountWritingButton({ bubble: element, button, getEditor });
     },
     refresh(editor: Editor) {
       if (!disposed) refreshToolbarButtons(editor, buttons);
@@ -65,7 +64,7 @@ function createBubbleRoot(doc: Document) {
   const bubble = doc.createElement("div");
   bubble.className = "semlo-editor-bubble";
   bubble.setAttribute("role", "toolbar");
-  bubble.setAttribute("aria-label", "选中文字格式");
+  bubble.setAttribute("aria-label", "选中文字工具");
   bubble.style.visibility = "hidden";
   // 显示前设定测量宽度，避免首次定位时按父容器整行宽度计算。
   bubble.style.width = "max-content";
@@ -171,56 +170,23 @@ function bubbleBoundary(
   return "viewport" as const;
 }
 
-function mountBubbleButtons({
+function mountWritingButton({
   bubble,
   button,
   getEditor,
-  openLink,
 }: {
   bubble: HTMLElement;
   button: ToolbarButtonFactory;
   getEditor: () => Editor;
-  openLink: (anchor: HTMLButtonElement) => void;
 }) {
-  button(
+  const writing = button(
     bubble,
-    "加粗",
-    "bold",
-    () => toggleBold(getEditor()),
+    "AI 写作",
+    "",
+    () => getWritingAssistant(getEditor())?.open(),
     undefined,
-    undefined,
-    () => getBoldState(getEditor()),
+    () => Boolean(getWritingAssistant(getEditor())?.getSnapshot().available),
   );
-  button(
-    bubble,
-    "斜体",
-    "italic",
-    () => getEditor().chain().focus().toggleItalic().run(),
-    () => getEditor().isActive("italic"),
-  );
-  button(
-    bubble,
-    "下划线",
-    "underline",
-    () => getEditor().chain().focus().toggleUnderline().run(),
-    () => getEditor().isActive("underline"),
-  );
-  button(
-    bubble,
-    "删除线",
-    "strike",
-    () => getEditor().chain().focus().toggleStrike().run(),
-    () => getEditor().isActive("strike"),
-  );
-  const bubbleLink = button(
-    bubble,
-    "链接",
-    "link",
-    () => openLink(bubbleLink),
-    undefined,
-    undefined,
-    () => getLinkState(getEditor()),
-  );
-  bubbleLink.setAttribute("aria-haspopup", "dialog");
-  bubbleLink.setAttribute("aria-expanded", "false");
+  writing.innerHTML = toolbarWritingIcon;
+  writing.style.color = "var(--semlo-editor-accent)";
 }

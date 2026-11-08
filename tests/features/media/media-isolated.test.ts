@@ -145,7 +145,8 @@ test("valid relative, HTTP, HTTPS and blob attachment and media URLs remain avai
   });
   await page.waitForFunction(() => Boolean(window.mediaIsolationEditor));
   const links = await page
-    .locator("#media-isolated a, #media-isolated video, #media-isolated audio")
+    // 这里只检查正文资源；附件工具中的预览/下载链接由各自交互回归覆盖。
+    .locator("#media-isolated a[data-semlo-editor-attachment], #media-isolated video, #media-isolated audio")
     .evaluateAll((elements) =>
       elements.map((element) => element.getAttribute(element.tagName === "A" ? "href" : "src")),
     );
@@ -280,7 +281,9 @@ test("audio and video survive JSON and HTML and support delete, undo and read-on
   await expect(host.locator("video")).toHaveCount(1);
   await page.evaluate(() => window.__semloRequireFixture("mediaIsolationEditor").setEditable(false));
   await expect(host.getByRole("button", { name: "删除视频", includeHidden: true })).toBeHidden();
-  await expect(host.locator("video")).toHaveAttribute("controls", "");
+  await expect(host.locator("video")).not.toHaveAttribute("controls", "");
+  await expect(host.getByRole("button", { name: "播放视频" })).toBeVisible();
+  expect(snapshot.html).toContain('controls=""');
   await page.evaluate(() => window.__semloRequireFixture("mediaIsolationEditor").destroy());
 });
 

@@ -40,7 +40,8 @@ export const statisticText = (
           })
         : values.filter((value) => dateFromISO(value) !== null)
     ).sort();
-    if (statistic === "earliestDate") return `最早时间 ${dates[0] ?? "—"}`;
+    if (statistic === "earliestDate")
+      return `最早时间 ${dates[0] ?? (field.type === "date" && values.length === 0 ? "Invalid Date" : "—")}`;
     if (statistic === "latestDate") return `最晚时间 ${dates.at(-1) ?? "—"}`;
     if (statistic === "dateRangeMonths") {
       if (!dates.length) return "时间范围 0 月";
@@ -79,7 +80,8 @@ export const statisticText = (
     const numericValues = values.filter((value) => value.trim() !== "" && Number.isFinite(Number(value)));
     numericValues.sort((left, right) => Number(left) - Number(right));
     const name = statistic === "median" ? "中位数" : statistic === "maximum" ? "最大值" : "最小值";
-    if (!numericValues.length) return `${name} —`;
+    if (!numericValues.length)
+      return `${name} ${statistic === "median" && field.type === "number" && values.length === 0 ? "NaN" : "—"}`;
     const middle = Math.floor(numericValues.length / 2);
     const pairSum =
       numericValues.length % 2 ? undefined : safeDecimalSum([numericValues[middle - 1], numericValues[middle]]);

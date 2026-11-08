@@ -9,7 +9,7 @@ import {
 
 import "../../../packages/core/dist/style.css";
 
-type Mode = "default" | "custom-main" | "custom-floating";
+type Mode = "default" | "custom-main" | "custom-floating" | "custom-format";
 let controller: EditorControllerWithResults;
 let host: HTMLElement;
 let mount: HTMLElement | null = null;
@@ -39,11 +39,13 @@ declare global {
 }
 
 const custom =
-  (label: string): ToolbarFactory =>
+  (label: string, compact = false): ToolbarFactory =>
   ({ element, controller: current, syncSelection, subscribe }) => {
     const button = element.ownerDocument.createElement("button");
     button.type = "button";
-    button.textContent = label;
+    button.textContent = compact ? "B" : label;
+    button.setAttribute("aria-label", label);
+    if (compact) button.className = "semlo-editor-button";
     button.addEventListener("mousedown", (event) => {
       event.preventDefault();
       syncSelection();
@@ -70,7 +72,8 @@ window.boldCommandFixture = {
       content,
       outline: false,
       toolbar: mode === "custom-main" ? custom("自定义主加粗") : true,
-      floatingToolbar: mode === "custom-floating" ? custom("自定义浮动加粗") : true,
+      floatingToolbar:
+        mode === "custom-floating" ? custom("自定义浮动加粗") : mode === "custom-format" ? custom("加粗", true) : true,
     });
   },
   select(from, to) {

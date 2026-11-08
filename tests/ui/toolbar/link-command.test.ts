@@ -1,22 +1,14 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/references/link-command-fixture";
 
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const build = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/references/link-command-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await build.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/references/link-command-fixture.ts", {
+    publicDir: false,
+  }));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => {
@@ -25,14 +17,14 @@ test.beforeEach(async ({ page }) => {
   await page.waitForFunction(() => Boolean(window.linkCommandFixture));
 });
 
-type Entry = "main" | "bubble" | "shortcut" | "custom" | "api";
+type Entry = "main" | "custom-floating" | "shortcut" | "custom" | "api";
 async function openLink(page: Page, entry: Entry) {
   const host = page.locator("#link-command-A");
   if (entry === "main") {
     await host.getByRole("toolbar", { name: "文本格式" }).getByRole("button", { name: "链接", exact: true }).click();
-  } else if (entry === "bubble") {
+  } else if (entry === "custom-floating") {
     await host
-      .getByRole("toolbar", { name: "选中文字格式" })
+      .getByRole("toolbar", { name: "选中文字工具" })
       .getByRole("button", { name: "链接", exact: true })
       .click();
   } else if (entry === "shortcut") {
@@ -62,10 +54,16 @@ async function applyLink(page: Page, entry: Entry, href: string, text: string) {
   }
 }
 
-for (const entry of ["main", "bubble", "shortcut", "custom", "api"] as const) {
+for (const entry of ["main", "custom-floating", "shortcut", "custom", "api"] as const) {
   test(`${entry} 新建链接保留格式、选区与两步撤销重做`, async ({ page }) => {
-    const mode: "custom" | "hidden" | "default" =
-      entry === "custom" ? "custom" : entry === "api" ? "hidden" : "default";
+    const mode: "custom" | "hidden" | "default" | "custom-floating" =
+      entry === "custom"
+        ? "custom"
+        : entry === "custom-floating"
+          ? "custom-floating"
+          : entry === "api"
+            ? "hidden"
+            : "default";
     await page.evaluate(
       (mode) => window.linkCommandFixture.mount("A", "<p><strong><em>alpha</em></strong> beta</p>", mode),
       mode,

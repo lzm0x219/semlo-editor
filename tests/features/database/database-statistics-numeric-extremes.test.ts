@@ -9,7 +9,8 @@ import {
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
 
 for (const [name, values, median, maximum, minimum] of [
-  ["empty", [], "—", "—", "—"],
+  ["empty", [], "NaN", "—", "—"],
+  ["nonnumeric only", ["not a number"], "—", "—", "—"],
   ["single", ["-2"], "-2", "-2", "-2"],
   ["even negative", ["-2", "1"], "-0.5", "1", "-2"],
   ["odd", ["-2", "1", "10"], "1", "10", "-2"],

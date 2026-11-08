@@ -11,6 +11,7 @@ import {
   toggleBold,
   type EditorController,
   type EditorControllerWithResults,
+  type FloatingToolbarFactory,
   type ToolbarFactory,
 } from "../../../packages/core/dist/index.js";
 import { SemloEditor as ReactEditor } from "../../../packages/react/dist/index.js";
@@ -27,7 +28,7 @@ const unsubscribers = new Map<string, () => void>();
 declare global {
   interface Window {
     customToolbarFixture: {
-      mount(kind: string, id: string, mode?: "default" | "hidden"): void;
+      mount(kind: string, id: string, mode?: "default" | "hidden" | "format-floating"): void;
       ready(id: string): boolean;
       probeDefaultControls(custom: boolean): string[];
       probeHiddenToolbar(floating: "inherit" | "default" | "hidden" | "custom"): {
@@ -57,6 +58,55 @@ declare global {
     };
   }
 }
+
+/** 格式交互用例显式选择此工厂，避免把宿主控件当作默认 AI 浮层。 */
+const formatFloating: FloatingToolbarFactory = ({ element, controller, syncSelection, subscribe, openLink }) => {
+  const editor = controller.editor;
+  let live = true;
+  const button = (label: string, action: () => void) => {
+    const button = element.ownerDocument.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.className = "semlo-editor-button";
+    const preserve = (event: MouseEvent) => event.preventDefault();
+    const invoke = () => {
+      if (live) {
+        syncSelection();
+        action();
+      }
+    };
+    button.addEventListener("mousedown", preserve);
+    button.addEventListener("click", invoke);
+    element.append(button);
+    return {
+      button,
+      cleanup: () => {
+        button.disabled = true;
+        button.removeEventListener("mousedown", preserve);
+        button.removeEventListener("click", invoke);
+      },
+    };
+  };
+  const bold = button("加粗", () => toggleBold(editor));
+  const italic = button("斜体", () => editor.chain().focus().toggleItalic().run());
+  const link = button("链接", () => openLink(link.button));
+  link.button.setAttribute("aria-haspopup", "dialog");
+  link.button.setAttribute("aria-expanded", "false");
+  const update = () => {
+    const state = getBoldState(editor);
+    bold.button.disabled = !state.enabled;
+    bold.button.setAttribute("aria-pressed", String(state.active));
+    italic.button.disabled = link.button.disabled = !editor.isEditable || editor.isDestroyed;
+    italic.button.setAttribute("aria-pressed", String(editor.isActive("italic")));
+  };
+  const unsubscribe = subscribe(update);
+  update();
+  return () => {
+    live = false;
+    unsubscribe();
+    for (const entry of [bold, italic, link]) entry.cleanup();
+  };
+};
 
 window.customToolbarFixture = {
   probeDefaultControls(custom) {
@@ -154,6 +204,7 @@ window.customToolbarFixture = {
     const props = {
       content: "<p>hello world</p>",
       toolbar: mode === "default" ? true : mode === "hidden" ? false : toolbar,
+      floatingToolbar: mode === "format-floating" ? formatFloating : undefined,
       onReady(current: EditorController) {
         if (!isEditorControllerWithResults(current)) throw new Error("控制器未提供内容替换结果");
         controller = current;

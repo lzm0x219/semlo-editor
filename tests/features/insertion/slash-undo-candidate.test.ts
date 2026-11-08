@@ -1,5 +1,6 @@
-import { createRsbuild } from "@rsbuild/core";
-import { test, expect } from "@rstest/playwright";
+import { afterAll, beforeAll, test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 declare global {
   interface Window {
     slashCandidate: {
@@ -35,28 +36,22 @@ declare global {
   }
 }
 const setup = async () => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: {
-        entry: { index: "./tests/fixtures/insertion/slash-undo-candidate-fixture.ts" },
-        define: {
-          "process.env.NODE_ENV": JSON.stringify("development"),
-          __VUE_OPTIONS_API__: true,
-          __VUE_PROD_DEVTOOLS__: false,
-          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-        },
-      },
-      resolve: { alias: { "@semlo-editor/core$": "./packages/core/src/index.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const r = await createFixtureRsbuild("./tests/fixtures/insertion/slash-undo-candidate-fixture.ts", {
+    framework: true,
+    publicDir: false,
   });
   return r.startDevServer();
 };
+let port: number;
+let stop: (() => Promise<void>) | undefined;
+beforeAll(async () => {
+  const server = await setup();
+  port = server.port;
+  stop = () => server.server.close();
+});
+afterAll(async () => stop?.());
 for (const framework of ["core", "react", "vue", "solid"])
-  test(`${framework}: actual menu reopens after undo without snapshot divergence`, async ({ page }) => {
-    const { port, server } = await setup();
+  test(`${framework}: actual menu reopens after undo while snapshots omit the active query`, async ({ page }) => {
     try {
       await page.goto(`http://127.0.0.1:${port}`);
       await page.evaluate((f) => window.slashCandidate.mount(f), framework);
@@ -64,19 +59,15 @@ for (const framework of ["core", "react", "vue", "solid"])
       await page.keyboard.type("/p");
       await page.keyboard.press("Enter");
       await page.keyboard.type("abc");
-      await page.keyboard.press("Meta+z");
+      await page.keyboard.press("ControlOrMeta+z");
       await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
       await expect(page.locator(".semlo-editor-slash-menu:visible")).toHaveCount(1);
-      expect(await page.evaluate(() => window.slashCandidate.snapshot())).toBe(
-        await page.evaluate(() => window.slashCandidate.html()),
-      );
+      expect(await page.evaluate(() => window.slashCandidate.snapshot())).toBe("<p></p><p>乙</p>");
     } finally {
       await page.evaluate(() => window.slashCandidate?.destroy());
-      await server.close();
     }
   });
 test("late host hook transforms ordinary input and readable APIs agree", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -90,11 +81,9 @@ test("late host hook transforms ordinary input and readable APIs agree", async (
     );
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("controlled echo and host insertion preserve ordinary text", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -111,11 +100,9 @@ test("controlled echo and host insertion preserve ordinary text", async ({ page 
     );
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("host-inserted text in query survives command undo", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -126,34 +113,30 @@ test("host-inserted text in query survives command undo", async ({ page }) => {
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/p</p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("ordinary undo keeps surrounding document text", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
     await page.locator("#candidate-host .semlo-editor-prose p").first().click();
     await page.keyboard.type("正文");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     expect(await page.evaluate(() => window.slashCandidate.html())).toContain("乙");
     expect(await page.evaluate(() => window.slashCandidate.snapshot())).toBe(
       await page.evaluate(() => window.slashCandidate.html()),
     );
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("host mutation to default text transaction remains after undo", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -171,17 +154,15 @@ test("host mutation to default text transaction remains after undo", async ({ pa
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toContain("abc");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect
       .poll(() => page.evaluate(() => window.slashCandidate.html()))
       .toBe("<p>/<strong>p</strong></p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("redo after restoring empty slash recovers committed text", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -190,18 +171,16 @@ test("redo after restoring empty slash recovers committed text", async ({ page }
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
     await page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("host appended mark on query remains after command undo", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -219,17 +198,15 @@ test("host appended mark on query remains after command undo", async ({ page }) 
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toContain("abc");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect
       .poll(() => page.evaluate(() => window.slashCandidate.html()))
       .toBe("<p>/<strong>p</strong></p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("second undo and toolbar redo match observed reference", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -238,19 +215,17 @@ test("second undo and toolbar redo match observed reference", async ({ page }) =
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
     await page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("programmatic slash is preserved when subsequent typed query is undone", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -262,16 +237,14 @@ test("programmatic slash is preserved when subsequent typed query is undone", as
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("undo in first editor does not affect second editor", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(async () => {
@@ -283,7 +256,7 @@ test("undo in first editor does not affect second editor", async ({ page }) => {
     await page.keyboard.press("Enter");
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
     expect(await page.evaluate(() => window.slashCandidate.otherHtml())).toBe("<p>宿主</p>");
   } finally {
@@ -291,12 +264,10 @@ test("undo in first editor does not affect second editor", async ({ page }) => {
       window.slashCandidate?.destroySecond();
       window.slashCandidate?.destroy();
     });
-    await server.close();
   }
 });
 
 test("late host history append is preserved relative to baseline", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     for (const baseline of [true, false]) {
       await page.goto(`http://127.0.0.1:${port}${baseline ? "/?baseline=1" : ""}`);
@@ -310,7 +281,7 @@ test("late host history append is preserved relative to baseline", async ({ page
       await page.keyboard.press("Enter");
       await page.keyboard.type("abc");
       await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-      await page.keyboard.press("Meta+z");
+      await page.keyboard.press("ControlOrMeta+z");
       await page.waitForTimeout(150);
       expect(await page.evaluate(() => window.slashCandidate.html()), baseline ? "baseline" : "candidate").toBe(
         "<p>/p甲</p><p>乙</p>",
@@ -318,12 +289,10 @@ test("late host history append is preserved relative to baseline", async ({ page
       await page.evaluate(() => window.slashCandidate.destroy());
     }
   } finally {
-    await server.close();
   }
 });
 
 test("host rejects undo without deleting content or history", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -333,19 +302,17 @@ test("host rejects undo without deleting content or history", async ({ page }) =
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
     await page.evaluate(() => window.slashCandidate.installUndoVeto());
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await page.waitForTimeout(100);
     expect(await page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
     await page.evaluate(() => window.slashCandidate.removeUndoVeto());
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 test("beforeTransaction reentrant replacement follows baseline guard contract", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     for (const baseline of [true, false]) {
       await page.goto(`http://127.0.0.1:${port}${baseline ? "/?baseline=1" : ""}`);
@@ -368,12 +335,10 @@ test("beforeTransaction reentrant replacement follows baseline guard contract", 
       await page.evaluate(() => window.slashCandidate.destroy());
     }
   } finally {
-    await server.close();
   }
 });
 
 test("beforeTransaction synchronous destroy aborts safely", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -390,12 +355,10 @@ test("beforeTransaction synchronous destroy aborts safely", async ({ page }) => 
     expect(await page.evaluate(() => window.slashCandidate.isDestroyed())).toBe(true);
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("empty command undo sequence and toolbar redo match observed reference", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -404,22 +367,20 @@ test("empty command undo sequence and toolbar redo match observed reference", as
     await page.keyboard.press("Enter");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
     for (let i = 0; i < 3; i++) {
-      await page.keyboard.press("Meta+z");
+      await page.keyboard.press("ControlOrMeta+z");
       await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>/</p><p>乙</p>");
     }
     await page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
     await expect(page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true })).toBeDisabled();
-    await page.keyboard.press("Meta+Shift+z");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("history capacity changes do not erase unrelated host content", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
@@ -431,18 +392,16 @@ test("history capacity changes do not erase unrelated host content", async ({ pa
     await page.evaluate(() => window.slashCandidate.historyBurst(130));
     expect(await page.evaluate(() => window.slashCandidate.historyDepth())).toBeLessThan(130);
     expect(await page.evaluate(() => window.slashCandidate.html())).toBe(`<p>abc</p><p>${"x".repeat(130)}乙</p>`);
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect
       .poll(() => page.evaluate(() => window.slashCandidate.html()))
       .toBe(`<p>abc</p><p>${"x".repeat(129)}乙</p>`);
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });
 
 test("host plugin reordering retains ordinary typing and undo", async ({ page }) => {
-  const { port, server } = await setup();
   try {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -452,11 +411,10 @@ test("host plugin reordering retains ordinary typing and undo", async ({ page })
     await page.locator("#candidate-host .semlo-editor-prose p").first().click();
     await page.keyboard.type("abc");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p>abc</p><p>乙</p>");
-    await page.keyboard.press("Meta+z");
+    await page.keyboard.press("ControlOrMeta+z");
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
     expect(errors).toEqual([]);
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
-    await server.close();
   }
 });

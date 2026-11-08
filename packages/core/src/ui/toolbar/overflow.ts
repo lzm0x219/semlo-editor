@@ -17,10 +17,15 @@ export function mountToolbarOverflow(
   toolbar: HTMLElement,
   shell: HTMLElement,
   moreButton: HTMLButtonElement,
+  overflowOnly: readonly HTMLElement[] = [],
+  isComposing: () => boolean = () => false,
 ): ToolbarOverflowController {
   const doc = toolbar.ownerDocument;
   const win = doc.defaultView;
   const items = [...toolbar.children].filter((item): item is HTMLElement => item.nodeType === 1 && item !== moreButton);
+  const fixed = new Set(overflowOnly.filter((item) => items.includes(item)));
+  const primary = items.filter((item) => !fixed.has(item));
+  const secondary = items.filter((item) => fixed.has(item));
   const panel = doc.createElement("div");
   panel.className = "semlo-editor-toolbar-overflow-panel";
   // Separate copies of this module can be loaded into the same document.
@@ -45,7 +50,7 @@ export function mountToolbarOverflow(
 
   let destroyed = false;
   let scheduled: number | undefined;
-  let cut = items.length;
+  let cut = -1;
   let lastWidth = -1;
   let lastContent = "";
 
@@ -99,18 +104,20 @@ export function mountToolbarOverflow(
       panel.dispatchEvent(new win.Event("scroll"));
   };
 
-  const moveItems = (visible: number) => {
+  const moveItems = (visible: number, restore = false) => {
     const focused = doc.activeElement?.nodeType === 1 ? (doc.activeElement as HTMLElement) : null;
     const focusWasItem = focused !== null && items.some((item) => item.contains(focused));
+    const shown = restore ? items : primary.slice(0, visible);
+    const overflowed = restore ? [] : [...primary.slice(visible), ...secondary];
     let before: ChildNode = moreButton;
-    for (let index = visible - 1; index >= 0; index--) {
-      const item = items[index];
+    for (let index = shown.length - 1; index >= 0; index--) {
+      const item = shown[index];
       if (item.parentNode !== toolbar || item.nextSibling !== before) toolbar.insertBefore(item, before);
       before = item;
     }
     let next: ChildNode | null = null;
-    for (let index = items.length - 1; index >= visible; index--) {
-      const item = items[index];
+    for (let index = overflowed.length - 1; index >= 0; index--) {
+      const item = overflowed[index];
       if (item.parentNode !== panel || item.nextSibling !== next) panel.insertBefore(item, next);
       next = item;
     }
@@ -148,7 +155,7 @@ export function mountToolbarOverflow(
     measure.inert = true;
     measure.style.cssText =
       "position:fixed;left:-100000px;top:0;width:max-content;max-width:none;min-width:0;overflow:visible;visibility:hidden;pointer-events:none;display:flex;flex-wrap:nowrap;";
-    const copies = items.map((item) => item.cloneNode(true) as HTMLElement);
+    const copies = primary.map((item) => item.cloneNode(true) as HTMLElement);
     const moreCopy = moreButton.cloneNode(true) as HTMLButtonElement;
     moreCopy.hidden = false;
     measure.append(...copies, moreCopy);
@@ -164,9 +171,9 @@ export function mountToolbarOverflow(
     const moreWidth = widthOf(moreCopy);
     measure.remove();
 
-    const total = widths.reduce((sum, width) => sum + width, 0) + Math.max(0, items.length - 1) * gap;
-    let visible = items.length;
-    if (total > available + 0.5) {
+    const total = widths.reduce((sum, width) => sum + width, 0) + Math.max(0, primary.length - 1) * gap;
+    let visible = primary.length;
+    if (secondary.length || total > available + 0.5) {
       let used = 0;
       visible = 0;
       for (const width of widths) {
@@ -175,11 +182,11 @@ export function mountToolbarOverflow(
         used = candidate;
         visible++;
       }
-      while (visible > 0 && isSeparator(items[visible - 1])) visible--;
+      while (visible > 0 && isSeparator(primary[visible - 1])) visible--;
     }
 
     const hadFocus = doc.activeElement === moreButton;
-    moreButton.hidden = visible === items.length;
+    moreButton.hidden = visible === primary.length && !secondary.length;
     let movedExpandedControl = false;
     if (visible !== cut) {
       movedExpandedControl = items.some(
@@ -263,12 +270,19 @@ export function mountToolbarOverflow(
   };
   let ownedEscape: KeyboardEvent | undefined;
   const captureKeyboard = (event: KeyboardEvent) => {
-    if (event.isComposing || event.keyCode === 229 || event.key !== "Escape" || panel.hidden) return;
+    if (event.isComposing || event.keyCode === 229 || isComposing() || event.key !== "Escape" || panel.hidden) return;
     const target = event.target as globalThis.Node | null;
     if (target && (shell.contains(target) || panel.contains(target) || isOwnedPopup(target))) ownedEscape = event;
   };
   const keyboard = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && !event.defaultPrevented && !panel.hidden) {
+    if (
+      event.key === "Escape" &&
+      !event.isComposing &&
+      event.keyCode !== 229 &&
+      !isComposing() &&
+      !event.defaultPrevented &&
+      !panel.hidden
+    ) {
       if (ownedEscape !== event) return;
       event.preventDefault();
       event.stopPropagation();
@@ -321,7 +335,7 @@ export function mountToolbarOverflow(
       moreButton.removeEventListener("click", onMore);
       doc.removeEventListener("keydown", captureKeyboard, true);
       doc.removeEventListener("keydown", keyboard);
-      moveItems(items.length);
+      moveItems(primary.length, true);
       panel.remove();
       toolbar.classList.remove("semlo-editor-toolbar-overflow-managed");
       moreButton.classList.remove("semlo-editor-toolbar-overflow-more");

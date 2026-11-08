@@ -70,13 +70,13 @@ for (const kind of ["core", "react", "vue", "solid"]) {
     expect(await page.evaluate(() => window.customToolbarFixture.cleanupCount("A"))).toBe(2);
   });
 
-  test(`${kind} 的浮动工具栏保持选区、格式、链接及只读状态`, async ({ page }) => {
-    await page.evaluate((kind) => window.customToolbarFixture.mount(kind, "A"), kind);
+  test(`${kind} 的自定义格式浮层保持选区、格式、链接及只读状态`, async ({ page }) => {
+    await page.evaluate((kind) => window.customToolbarFixture.mount(kind, "A", "format-floating"), kind);
     const host = page.locator("#custom-host-A");
     const editor = host.locator(".semlo-editor-prose");
     await expect(editor).toBeVisible();
     await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-    const bubble = host.getByRole("toolbar", { name: "选中文字格式" });
+    const bubble = host.getByRole("toolbar", { name: "选中文字工具" });
     const italic = bubble.getByRole("button", { name: "斜体" });
     await expect(bubble).toBeVisible();
     await italic.click();
@@ -128,15 +128,18 @@ test("默认及关闭主工具栏时保留浮动工具栏开关", async ({ page 
   const first = page.locator("#custom-host-A");
   const second = page.locator("#custom-host-B");
   await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-  const bubble = first.getByRole("toolbar", { name: "选中文字格式" });
+  const bubble = first.getByRole("toolbar", { name: "选中文字工具" });
   await expect(bubble).toBeVisible();
-  await bubble.getByRole("button", { name: "加粗" }).click();
+  await expect(bubble.getByRole("button")).toHaveCount(1);
+  await expect(bubble.getByRole("button", { name: "AI 写作" })).toBeDisabled();
+  await expect(first.locator(".semlo-editor-prose")).toHaveText("hello world");
+  await first.getByRole("toolbar", { name: "文本格式" }).getByRole("button", { name: "加粗", exact: true }).click();
   await expect(first.locator(".semlo-editor-prose strong")).toHaveText("hello world");
   await second.locator(".semlo-editor-prose").focus();
   await page.evaluate(() => window.customToolbarFixture.selectText("B"));
   await expect(second.locator(".semlo-editor-prose")).toBeFocused();
   await expect(second.locator(".semlo-editor-bubble")).toHaveCount(0);
-  await page.keyboard.press("Meta+b");
+  await page.keyboard.press("ControlOrMeta+b");
   await expect(second.locator(".semlo-editor-prose strong")).toHaveText("hello world");
   await page.evaluate(() => {
     window.customToolbarFixture.destroy("A");
@@ -144,13 +147,13 @@ test("默认及关闭主工具栏时保留浮动工具栏开关", async ({ page 
   });
 });
 
-test("窄屏下可用键盘操作浮动工具栏", async ({ page }) => {
+test("窄屏下可用键盘操作自定义格式浮层", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.evaluate(() => window.customToolbarFixture.mount("core", "A"));
+  await page.evaluate(() => window.customToolbarFixture.mount("core", "A", "format-floating"));
   const editor = page.locator("#custom-host-A .semlo-editor-prose");
   await editor.focus();
   await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-  const italic = page.getByRole("toolbar", { name: "选中文字格式" }).getByRole("button", { name: "斜体" });
+  const italic = page.getByRole("toolbar", { name: "选中文字工具" }).getByRole("button", { name: "斜体" });
   await expect(italic).toBeVisible();
   await italic.focus();
   await page.keyboard.press("Enter");
@@ -158,17 +161,17 @@ test("窄屏下可用键盘操作浮动工具栏", async ({ page }) => {
   await page.evaluate(() => window.customToolbarFixture.destroy("A"));
 });
 
-test("触屏下可操作已选中文本的浮动工具栏", async ({ browser }) => {
+test("触屏下可操作已选中文本的自定义格式浮层", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
   try {
     const page = await context.newPage();
     await page.goto(origin);
     await page.waitForFunction(() => Boolean(window.customToolbarFixture));
-    await page.evaluate(() => window.customToolbarFixture.mount("core", "A"));
+    await page.evaluate(() => window.customToolbarFixture.mount("core", "A", "format-floating"));
     const editor = page.locator("#custom-host-A .semlo-editor-prose");
     await editor.tap();
     await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-    const bold = page.getByRole("toolbar", { name: "选中文字格式" }).getByRole("button", { name: "加粗" });
+    const bold = page.getByRole("toolbar", { name: "选中文字工具" }).getByRole("button", { name: "加粗" });
     await expect(bold).toBeVisible();
     await bold.tap();
     await expect(editor.locator("strong")).toHaveText("hello world");
@@ -178,17 +181,17 @@ test("触屏下可操作已选中文本的浮动工具栏", async ({ browser }) 
   }
 });
 
-test("浮动工具栏在实例销毁和编辑器重挂载后保持隔离", async ({ page }) => {
+test("自定义格式浮层在实例销毁和编辑器重挂载后保持隔离", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.evaluate(() => {
-    window.customToolbarFixture.mount("core", "A");
-    window.customToolbarFixture.mount("core", "B");
+    window.customToolbarFixture.mount("core", "A", "format-floating");
+    window.customToolbarFixture.mount("core", "B", "format-floating");
     window.customToolbarFixture.selectText("A");
   });
   const first = page.locator("#custom-host-A");
   const second = page.locator("#custom-host-B");
-  const bubble = first.getByRole("toolbar", { name: "选中文字格式" });
+  const bubble = first.getByRole("toolbar", { name: "选中文字工具" });
   await expect(bubble).toBeVisible();
   await bubble.getByRole("button", { name: "斜体" }).evaluate((button) => {
     window.savedBubbleButton = button as HTMLButtonElement;
@@ -204,7 +207,7 @@ test("浮动工具栏在实例销毁和编辑器重挂载后保持隔离", async
   await expect(second.locator(".semlo-editor-prose")).toHaveText("hello world");
   await page.evaluate(() => window.customToolbarFixture.remount("B"));
   await page.evaluate(() => window.customToolbarFixture.selectText("B"));
-  const otherBubble = second.getByRole("toolbar", { name: "选中文字格式" });
+  const otherBubble = second.getByRole("toolbar", { name: "选中文字工具" });
   await expect(otherBubble).toBeVisible();
   await otherBubble.getByRole("button", { name: "斜体" }).click();
   await expect(second.locator(".semlo-editor-prose em")).toHaveText("hello world");
@@ -267,7 +270,7 @@ test("窄屏下可用键盘操作自定义工具栏", async ({ page }) => {
   const button = page.getByRole("button", { name: "加粗 A" });
   await expect(button).toBeVisible();
   await page.locator("#custom-host-A .semlo-editor-prose").focus();
-  await page.keyboard.press("Meta+a");
+  await page.keyboard.press("ControlOrMeta+a");
   await button.focus();
   await expect(button).toBeFocused();
   await page.keyboard.press("Enter");
@@ -466,14 +469,14 @@ test("关闭主工具栏时高亮快捷键保持实例隔离并随编辑器重�
   await page.evaluate(() => window.customToolbarFixture.destroy("B"));
 });
 
-test("自定义工具栏保留查找、高亮、格式刷快捷键及浮动工具栏", async ({ page }) => {
-  await page.evaluate(() => window.customToolbarFixture.mount("core", "A"));
+test("自定义工具栏保留查找、高亮、格式刷快捷键及自定义格式浮层", async ({ page }) => {
+  await page.evaluate(() => window.customToolbarFixture.mount("core", "A", "format-floating"));
   const host = page.locator("#custom-host-A");
   const editor = host.locator(".semlo-editor-prose");
   await expect(editor).toBeVisible();
   await editor.focus();
   await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-  const bubble = host.getByRole("toolbar", { name: "选中文字格式" });
+  const bubble = host.getByRole("toolbar", { name: "选中文字工具" });
   await expect(bubble).toBeVisible();
   const italic = bubble.getByRole("button", { name: "斜体" });
   await italic.click();
@@ -481,14 +484,14 @@ test("自定义工具栏保留查找、高亮、格式刷快捷键及浮动工�
   await expect(italic).toHaveAttribute("aria-pressed", "true");
   await editor.focus();
   await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-  await page.keyboard.press("Alt+Meta+h");
+  await page.keyboard.press("Alt+ControlOrMeta+h");
   await expect(editor.locator("mark")).toHaveCSS("background-color", "rgb(251, 222, 40)");
-  await page.keyboard.press("Meta+f");
+  await page.keyboard.press("ControlOrMeta+f");
   await expect(page.getByRole("dialog", { name: "查找替换" })).toBeVisible();
   await page.keyboard.press("Escape");
   await editor.focus();
   await page.evaluate(() => window.customToolbarFixture.selectText("A"));
-  await page.keyboard.press("Meta+Shift+s");
+  await page.keyboard.press("ControlOrMeta+Shift+s");
   await expect(editor).toHaveClass(/semlo-editor-format-painter-active/);
   await page.keyboard.press("Escape");
   await expect(editor).not.toHaveClass(/semlo-editor-format-painter-active/);
@@ -503,7 +506,7 @@ test("自定义工具栏的查找替换按编辑器实例隔离", async ({ page 
   const first = page.locator("#custom-host-A .semlo-editor-prose");
   const second = page.locator("#custom-host-B .semlo-editor-prose");
   await first.focus();
-  await page.keyboard.press("Meta+f");
+  await page.keyboard.press("ControlOrMeta+f");
   const panel = page.getByRole("dialog", { name: "查找替换" });
   await expect(panel).toBeVisible();
   const panelId = await panel.getAttribute("id");
@@ -532,7 +535,7 @@ test("自定义工具栏可用格式刷快捷键复制格式并撤销", async ({
   const editor = page.locator("#custom-host-A .semlo-editor-prose");
   await editor.focus();
   await page.evaluate(() => window.customToolbarFixture.selectRange("A", 1, 5));
-  await page.keyboard.press("Meta+Shift+s");
+  await page.keyboard.press("ControlOrMeta+Shift+s");
   await expect(editor).toHaveClass(/semlo-editor-format-painter-active/);
   await page.evaluate(() => window.customToolbarFixture.selectRange("A", 6, 11));
   await page.keyboard.press("Enter");

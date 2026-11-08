@@ -6,14 +6,27 @@ import {
   needsStoredAttachmentURL,
   safeAttachmentURL,
 } from "../shared/attachment-url";
+import { presentationHTML, readPresentationHTML, validatePresentationValue } from "./presentation";
+import type { AttachmentOptions } from "./preview";
+import { createAttachmentView } from "./view";
 
-export const Attachment = Node.create({
+function validateDownloadPreference(value: unknown): void {
+  if (value !== null && typeof value !== "boolean") throw new Error("附件下载设置无效");
+}
+
+export const Attachment = Node.create<AttachmentOptions>({
   name: "semloEditorAttachment",
   priority: 1100,
   group: "inline",
   inline: true,
   atom: true,
   draggable: true,
+  addOptions() {
+    return { getPreviewResolver: () => undefined, getPreviewOwner: () => undefined, onError: () => {} };
+  },
+  addNodeView() {
+    return (props) => createAttachmentView(props, this.options);
+  },
   addAttributes() {
     return {
       href: {
@@ -27,6 +40,30 @@ export const Attachment = Node.create({
       name: { default: "", rendered: false, parseHTML: (el) => el.getAttribute("data-name") ?? el.textContent ?? "" },
       size: { default: 0, rendered: false, parseHTML: (el) => Number(el.getAttribute("data-size")) || 0 },
       mimeType: { default: "", rendered: false, parseHTML: (el) => el.getAttribute("data-mime") ?? "" },
+      displayMode: {
+        default: null,
+        rendered: false,
+        parseHTML: (el) => readPresentationHTML(el, "mode"),
+        validate: validatePresentationValue,
+      },
+      previewHeight: {
+        default: null,
+        rendered: false,
+        parseHTML: (el) => readPresentationHTML(el, "height"),
+        validate: validatePresentationValue,
+      },
+      allowDownload: {
+        default: null,
+        rendered: false,
+        parseHTML: (el) => {
+          const value = el.getAttribute("data-semlo-editor-attachment-allow-download");
+          if (value === null) return null;
+          if (value === "true") return true;
+          if (value === "false") return false;
+          throw new Error("附件下载设置无效");
+        },
+        validate: validateDownloadPreference,
+      },
     };
   },
   parseHTML() {
@@ -53,6 +90,10 @@ export const Attachment = Node.create({
         "data-name": node.attrs.name,
         "data-size": node.attrs.size,
         "data-mime": node.attrs.mimeType,
+        ...presentationHTML(node.attrs),
+        ...(node.attrs.allowDownload !== null
+          ? { "data-semlo-editor-attachment-allow-download": String(node.attrs.allowDownload) }
+          : {}),
         ...(needsStoredAttachmentURL(node.attrs.href, href)
           ? { "data-semlo-editor-original-href": encodeStoredAttachmentURL(node.attrs.href) }
           : {}),

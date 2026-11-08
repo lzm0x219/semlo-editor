@@ -7,7 +7,9 @@ import type {
   EditorOptions,
   EditorSnapshot,
 } from "@semlo-editor/core";
-import { createElement, useEffect, useInsertionEffect, useRef, type HTMLAttributes } from "react";
+import { createElement, useEffect, useInsertionEffect, useLayoutEffect, useRef, type HTMLAttributes } from "react";
+
+const useContentEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type CompleteIntegrations = EditorIntegrations & Record<keyof EditorIntegrations, unknown>;
 type AssertNever<T extends never> = T;
@@ -37,7 +39,6 @@ export interface SemloEditorProps
 export function SemloEditor(props: SemloEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const instance = useRef<EditorControllerWithResults | null>(null);
-  const initialContentEffect = useRef(true);
   // 仅发布已提交的 props，避免并发渲染暂停时旧实例调用未提交的回调。
   const latest = useRef(props);
   useInsertionEffect(() => {
@@ -55,11 +56,15 @@ export function SemloEditor(props: SemloEditorProps) {
     headingFoldPreferences,
     uploadImage,
     uploadAttachment,
+    resolveAttachmentPreview,
     searchMentions,
     encryptedTextProvider,
     yuqueContentProvider,
     runCode,
     translate,
+    writingService,
+    writingFeedback,
+    databaseAiFill,
     currentUser,
     resolveEmbedMetadata,
     interactiveCardHost,
@@ -102,11 +107,15 @@ export function SemloEditor(props: SemloEditorProps) {
       ...({
         uploadImage: latest.current.uploadImage,
         uploadAttachment: latest.current.uploadAttachment,
+        resolveAttachmentPreview: latest.current.resolveAttachmentPreview,
         searchMentions: latest.current.searchMentions,
         encryptedTextProvider: latest.current.encryptedTextProvider,
         yuqueContentProvider: latest.current.yuqueContentProvider,
         runCode: latest.current.runCode,
         translate: latest.current.translate,
+        writingService: latest.current.writingService,
+        writingFeedback: latest.current.writingFeedback,
+        databaseAiFill: latest.current.databaseAiFill,
         currentUser: latest.current.currentUser,
         resolveEmbedMetadata: latest.current.resolveEmbedMetadata,
         interactiveCardHost: latest.current.interactiveCardHost,
@@ -118,7 +127,6 @@ export function SemloEditor(props: SemloEditorProps) {
       },
       onError: (error) => latest.current.onError?.(error),
     });
-    initialContentEffect.current = true;
     instance.current = current;
     try {
       latest.current.onReady?.(current);
@@ -136,12 +144,8 @@ export function SemloEditor(props: SemloEditorProps) {
       current.destroy();
     };
   }, []);
-  useEffect(() => {
-    if (initialContentEffect.current) {
-      // 初始内容已交给 createEditor，避免挂载后再次替换文档。
-      initialContentEffect.current = false;
-      return;
-    }
+  useContentEffect(() => {
+    // 首次布局时实例尚未创建，初始内容由挂载处理；后续同步先于宿主布局回调，避免旧被动回写覆盖撤销。
     if (content !== undefined) instance.current?.setContent(content);
   }, [content]);
   useEffect(() => {
@@ -151,11 +155,15 @@ export function SemloEditor(props: SemloEditorProps) {
     const integrations = {
       uploadImage,
       uploadAttachment,
+      resolveAttachmentPreview,
       searchMentions,
       encryptedTextProvider,
       yuqueContentProvider,
       runCode,
       translate,
+      writingService,
+      writingFeedback,
+      databaseAiFill,
       currentUser,
       resolveEmbedMetadata,
       interactiveCardHost,
@@ -165,11 +173,15 @@ export function SemloEditor(props: SemloEditorProps) {
   }, [
     uploadImage,
     uploadAttachment,
+    resolveAttachmentPreview,
     searchMentions,
     encryptedTextProvider,
     yuqueContentProvider,
     runCode,
     translate,
+    writingService,
+    writingFeedback,
+    databaseAiFill,
     currentUser,
     resolveEmbedMetadata,
     interactiveCardHost,

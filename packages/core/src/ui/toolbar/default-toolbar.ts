@@ -94,7 +94,7 @@ export function createDefaultToolbar(options: {
       moreButton.setAttribute("aria-expanded", "false");
       moreButton.title = "更多";
       moreButton.innerHTML = moreHorizontalIcon;
-      return { findButton, moreButton };
+      return { findButton, moreButton, overflowOnly: [primary.fontFamily] };
     },
     setTranslationAvailable(available: boolean) {
       if (!translationButton) return;

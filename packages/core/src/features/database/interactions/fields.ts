@@ -41,6 +41,7 @@ interface DatabaseFieldInteractionsContext {
   option(value: string, label: string): HTMLOptionElement;
   label(text: string, control: HTMLElement): HTMLLabelElement;
   addFilter(fieldId: string): void;
+  startAiFill(fieldId: string): void;
   cancelPersonSearch(): void;
   personSearch(container: HTMLElement, onPick: (item: { id: string; label: string }) => void): void;
   filePicker(
@@ -83,6 +84,7 @@ export function createDatabaseFieldInteractions({
   option,
   label,
   addFilter,
+  startAiFill,
   cancelPersonSearch,
   personSearch,
   filePicker,
@@ -351,7 +353,39 @@ export function createDatabaseFieldInteractions({
       );
     };
     renderOptions();
+    const aiSettings = doc.createElement("div");
+    aiSettings.className = "semlo-editor-database-ai-settings";
+    const aiEnabled = doc.createElement("input");
+    aiEnabled.type = "checkbox";
+    aiEnabled.checked = !!draft.ai;
+    aiEnabled.setAttribute("aria-label", "AI 智能填写");
+    const aiToggle = label("AI 智能填写", aiEnabled);
+    aiToggle.classList.add("semlo-editor-database-ai-toggle");
+    const aiMode = doc.createElement("select");
+    aiMode.setAttribute("aria-label", "内容规则");
+    aiMode.append(option("summary", "内容总结"), option("custom", "自定义"));
+    aiMode.value = draft.ai?.mode ?? "summary";
+    const aiModeLabel = label("内容规则", aiMode);
+    const aiPrompt = doc.createElement("textarea");
+    aiPrompt.setAttribute("aria-label", "填写规则");
+    aiPrompt.maxLength = 2000;
+    aiPrompt.value = draft.ai?.prompt ?? "";
+    const aiPromptLabel = label("填写规则", aiPrompt);
+    const aiNotice = doc.createElement("p");
+    aiNotice.textContent = "将整表内容发送给服务并覆盖本列。";
+    aiSettings.append(aiToggle, aiModeLabel, aiPromptLabel, aiNotice);
+    let startButton: HTMLButtonElement | undefined;
+    const updateAiVisibility = () => {
+      aiSettings.hidden = type.value !== "text";
+      aiModeLabel.hidden = !aiEnabled.checked;
+      aiPromptLabel.hidden = !aiEnabled.checked || aiMode.value !== "custom";
+      aiNotice.hidden = !aiEnabled.checked;
+      if (startButton) startButton.hidden = type.value !== "text" || !aiEnabled.checked;
+    };
+    aiEnabled.addEventListener("change", updateAiVisibility);
+    aiMode.addEventListener("change", updateAiVisibility);
     const updateOptionVisibility = () => {
+      updateAiVisibility();
       optionsLabel.hidden = type.value !== "singleSelect" && type.value !== "multiSelect";
       defaultTextLabel.hidden =
         type.value === "checkbox" ||
@@ -426,6 +460,7 @@ export function createDatabaseFieldInteractions({
       defaultPersonSearch,
       defaultFilePicker,
       timeFormatLabel,
+      aiSettings,
     );
     updateOptionVisibility();
     const actions = doc.createElement("div");
@@ -435,139 +470,171 @@ export function createDatabaseFieldInteractions({
     warning.className = "semlo-editor-database-warning";
     warning.setAttribute("role", "status");
     warning.hidden = true;
-    const confirm = button(
-      "确定",
-      "确定",
-      () => {
-        const nextType = type.value as DatabaseFieldType;
-        if (!databaseFieldTypes.includes(nextType)) return;
-        const nextOptions = optionDraft
-          .map((item) => ({ ...item, label: item.label.trim() }))
-          .filter((item) => item.label);
-        if (nextType !== "person" && new Set(nextOptions.map((item) => item.label)).size !== nextOptions.length) {
-          warning.textContent = "选项名称不能重复。";
-          warning.hidden = false;
-          return;
-        }
-        const defaultValue: DatabaseValue =
-          nextType === "checkbox"
-            ? defaultCheckbox.checked
-            : nextType === "image" || nextType === "attachment"
-              ? defaultFiles
-              : nextType === "multiSelect" || nextType === "person"
-                ? nextOptions.filter((item) => defaultIds.has(item.id)).map((item) => item.id)
-                : nextType === "singleSelect"
-                  ? (nextOptions.find((item) => item.id === singleDefaultId)?.id ?? "")
-                  : defaultInput.value;
-        const field: DatabaseField = {
-          ...draft,
-          name: name.value.trim() || "未命名列",
-          type: nextType,
-          options: nextOptions,
-          defaultValue,
-          ...(nextType === "createdTime" || nextType === "modifiedTime"
-            ? { timeFormat: timeFormat.value as DatabaseTimeFormat }
-            : { timeFormat: undefined }),
-        };
-        const currentData = getData();
-        const existing = currentData.fields.find((item) => item.id === draft.id);
-        const converted = existing
-          ? currentData.records.map((record) => ({
-              id: record.id,
-              ...(field.type === "createdBy" || field.type === "modifiedBy"
+    const commit = (startFill: boolean) => {
+      const nextType = type.value as DatabaseFieldType;
+      if (!databaseFieldTypes.includes(nextType)) return;
+      if (nextType !== "text" && aiEnabled.checked) {
+        warning.textContent = "请先关闭 AI 智能填写再更改列类型。";
+        warning.hidden = false;
+        return;
+      }
+      if (aiEnabled.checked && aiMode.value === "custom" && !aiPrompt.value.trim()) {
+        warning.textContent = "请输入填写规则。";
+        warning.hidden = false;
+        return;
+      }
+      const nextOptions = optionDraft
+        .map((item) => ({ ...item, label: item.label.trim() }))
+        .filter((item) => item.label);
+      if (nextType !== "person" && new Set(nextOptions.map((item) => item.label)).size !== nextOptions.length) {
+        warning.textContent = "选项名称不能重复。";
+        warning.hidden = false;
+        return;
+      }
+      const defaultValue: DatabaseValue =
+        nextType === "checkbox"
+          ? defaultCheckbox.checked
+          : nextType === "image" || nextType === "attachment"
+            ? defaultFiles
+            : nextType === "multiSelect" || nextType === "person"
+              ? nextOptions.filter((item) => defaultIds.has(item.id)).map((item) => item.id)
+              : nextType === "singleSelect"
+                ? (nextOptions.find((item) => item.id === singleDefaultId)?.id ?? "")
+                : defaultInput.value;
+      const field: DatabaseField = {
+        ...draft,
+        name: name.value.trim() || "未命名列",
+        type: nextType,
+        options: nextOptions,
+        defaultValue,
+        ai:
+          aiEnabled.checked && nextType === "text"
+            ? {
+                version: 1,
+                mode: aiMode.value === "custom" ? "custom" : "summary",
+                prompt: aiMode.value === "custom" ? aiPrompt.value : "",
+              }
+            : undefined,
+        ...(nextType === "createdTime" || nextType === "modifiedTime"
+          ? { timeFormat: timeFormat.value as DatabaseTimeFormat }
+          : { timeFormat: undefined }),
+      };
+      const currentData = getData();
+      const existing = currentData.fields.find((item) => item.id === draft.id);
+      const converted = existing
+        ? currentData.records.map((record) => ({
+            id: record.id,
+            ...(field.type === "createdBy" || field.type === "modifiedBy"
+              ? {
+                  value:
+                    (field.type === "createdBy" ? record.createdBy : record.modifiedBy) ??
+                    (existing.type === field.type ? record.values[field.id] : "") ??
+                    "",
+                  lost: false,
+                }
+              : field.type === "createdTime" || field.type === "modifiedTime"
                 ? {
                     value:
-                      (field.type === "createdBy" ? record.createdBy : record.modifiedBy) ??
+                      (field.type === "createdTime" ? record.createdAt : record.modifiedAt) ??
                       (existing.type === field.type ? record.values[field.id] : "") ??
                       "",
                     lost: false,
                   }
-                : field.type === "createdTime" || field.type === "modifiedTime"
-                  ? {
-                      value:
-                        (field.type === "createdTime" ? record.createdAt : record.modifiedAt) ??
-                        (existing.type === field.type ? record.values[field.id] : "") ??
-                        "",
-                      lost: false,
-                    }
-                  : convertDatabaseValue(existing, field, record.values[field.id])),
-            }))
-          : [];
-        const lossCount = converted.filter((item) => item.lost).length;
-        const fingerprint = JSON.stringify({ field, converted });
-        if (lossCount && pendingLoss !== fingerprint) {
-          pendingLoss = fingerprint;
-          warning.textContent = `${lossCount} 条记录中无法转换的值将被清除，请再次点击确定。操作可以撤销。`;
-          warning.hidden = false;
-          return;
-        }
-        let rejectedContent = false;
-        change(
-          (next) => {
-            const existing = next.fields.find((item) => item.id === draft.id);
-            if (existing) {
-              const index = next.fields.indexOf(existing);
-              next.fields[index] = field;
-              for (const view of next.views) {
-                for (const filter of [...view.filters, ...view.charts.flatMap((chart) => chart.filters)]) {
-                  if (filter.fieldId !== field.id || !filter.optionId) continue;
-                  const options = existing.type === field.type ? field.options : existing.options;
-                  const selected = options.find((item) => item.id === filter.optionId);
-                  if (selected) filter.value = selected.label;
-                  if (existing.type !== field.type) delete filter.optionId;
-                }
+                : convertDatabaseValue(existing, field, record.values[field.id])),
+          }))
+        : [];
+      const lossCount = converted.filter((item) => item.lost).length;
+      const fingerprint = JSON.stringify({ field, converted });
+      if (lossCount && pendingLoss !== fingerprint) {
+        pendingLoss = fingerprint;
+        warning.textContent = `${lossCount} 条记录中无法转换的值将被清除，请再次点击确定。操作可以撤销。`;
+        warning.hidden = false;
+        return;
+      }
+      let rejectedContent = false;
+      change(
+        (next) => {
+          const existing = next.fields.find((item) => item.id === draft.id);
+          if (existing) {
+            const index = next.fields.indexOf(existing);
+            next.fields[index] = field;
+            for (const view of next.views) {
+              for (const filter of [...view.filters, ...view.charts.flatMap((chart) => chart.filters)]) {
+                if (filter.fieldId !== field.id || !filter.optionId) continue;
+                const options = existing.type === field.type ? field.options : existing.options;
+                const selected = options.find((item) => item.id === filter.optionId);
+                if (selected) filter.value = selected.label;
+                if (existing.type !== field.type) delete filter.optionId;
               }
-              for (const result of converted) {
-                const record = next.records.find((item) => item.id === result.id);
-                if (record) record.values[field.id] = result.value;
-              }
-            } else {
-              const position = insertIndex ?? next.fields.length;
-              const nextFieldId = next.fields[position]?.id;
-              for (const view of next.views) {
-                if (!view.fieldOrder.length) continue;
-                const order = orderedDatabaseFields(next, view).map((entry) => entry.id);
-                const target = insertBeside
-                  ? order.indexOf(insertBeside.id)
-                  : nextFieldId
-                    ? order.indexOf(nextFieldId)
-                    : -1;
-                order.splice(target < 0 ? order.length : target + (insertBeside?.after ? 1 : 0), 0, field.id);
-                view.fieldOrder = order;
-              }
-              next.fields.splice(position, 0, field);
-              for (const record of next.records)
-                record.values[field.id] =
-                  field.type === "createdBy"
-                    ? (record.createdBy ?? "")
-                    : field.type === "modifiedBy"
-                      ? (record.modifiedBy ?? "")
-                      : field.type === "createdTime"
-                        ? (record.createdAt ?? "")
-                        : field.type === "modifiedTime"
-                          ? (record.modifiedAt ?? "")
-                          : field.type === "checkbox"
-                            ? false
-                            : field.type === "multiSelect" ||
-                                field.type === "person" ||
-                                field.type === "image" ||
-                                field.type === "attachment"
-                              ? []
-                              : structuredClone(field.defaultValue);
             }
-          },
-          true,
-          undefined,
-          (error) => {
-            rejectedContent = true;
-            warning.textContent = error.message;
-            warning.hidden = false;
-          },
-        );
-        if (!rejectedContent) closePopup();
-      },
-      "semlo-editor-database-primary",
-    );
+            for (const result of converted) {
+              const record = next.records.find((item) => item.id === result.id);
+              if (record) record.values[field.id] = result.value;
+            }
+          } else {
+            const position = insertIndex ?? next.fields.length;
+            const nextFieldId = next.fields[position]?.id;
+            for (const view of next.views) {
+              if (!view.fieldOrder.length) continue;
+              const order = orderedDatabaseFields(next, view).map((entry) => entry.id);
+              const target = insertBeside
+                ? order.indexOf(insertBeside.id)
+                : nextFieldId
+                  ? order.indexOf(nextFieldId)
+                  : -1;
+              order.splice(target < 0 ? order.length : target + (insertBeside?.after ? 1 : 0), 0, field.id);
+              view.fieldOrder = order;
+            }
+            next.fields.splice(position, 0, field);
+            for (const record of next.records)
+              record.values[field.id] =
+                field.type === "createdBy"
+                  ? (record.createdBy ?? "")
+                  : field.type === "modifiedBy"
+                    ? (record.modifiedBy ?? "")
+                    : field.type === "createdTime"
+                      ? (record.createdAt ?? "")
+                      : field.type === "modifiedTime"
+                        ? (record.modifiedAt ?? "")
+                        : field.type === "checkbox"
+                          ? false
+                          : field.type === "multiSelect" ||
+                              field.type === "person" ||
+                              field.type === "image" ||
+                              field.type === "attachment"
+                            ? []
+                            : structuredClone(field.defaultValue);
+          }
+        },
+        true,
+        undefined,
+        (error) => {
+          rejectedContent = true;
+          warning.textContent = error.message;
+          warning.hidden = false;
+        },
+      );
+      if (rejectedContent) return;
+      const stored = getData().fields.find((entry) => entry.id === field.id);
+      if (
+        !stored ||
+        stored.name !== field.name ||
+        stored.type !== field.type ||
+        JSON.stringify(stored.ai) !== JSON.stringify(field.ai) ||
+        JSON.stringify(stored.options) !== JSON.stringify(field.options) ||
+        JSON.stringify(stored.defaultValue) !== JSON.stringify(field.defaultValue) ||
+        stored.timeFormat !== field.timeFormat
+      ) {
+        warning.textContent = "列设置未保存，请重试。";
+        warning.hidden = false;
+        return;
+      }
+      closePopup();
+      if (startFill) startAiFill(field.id);
+    };
+    const confirm = button("确定", "确定", () => commit(false), "semlo-editor-database-primary");
+    startButton = button("开始自动填写", "开始自动填写", () => commit(true), "semlo-editor-database-primary");
+    updateAiVisibility();
     dialog.addEventListener("input", () => {
       pendingLoss = "";
       warning.hidden = true;
@@ -576,7 +643,7 @@ export function createDatabaseFieldInteractions({
       pendingLoss = "";
       warning.hidden = true;
     });
-    actions.append(cancel, confirm);
+    actions.append(cancel, confirm, startButton);
     dialog.append(warning, actions);
     name.focus();
     name.select();
@@ -592,6 +659,11 @@ export function createDatabaseFieldInteractions({
     };
     dialog.setAttribute("role", "menu");
     item("编辑列", () => editField(anchor, field.id));
+    if (field.ai)
+      item("重新填写本列内容", () => {
+        closePopup();
+        startAiFill(field.id);
+      });
     item("复制列", () => {
       change((data) => {
         const source = data.fields.find((entry) => entry.id === field.id);

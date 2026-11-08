@@ -16,3 +16,7 @@ export const toolbarLineHeightIcon = svg(
 );
 
 export const toolbarTranslationIcon = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><text x="0" y="11" font-size="10">文</text><text x="8" y="14" font-size="9">A</text></svg>`;
+
+export const toolbarWritingIcon = svg(
+  '<path d="m6 2 1.3 3.7L11 7l-3.7 1.3L6 12 4.7 8.3 1 7l3.7-1.3zM12.5 1v4M10.5 3h4M11 10h3M9 13h5"/>',
+);

@@ -1,5 +1,6 @@
-import { createRsbuild } from "@rsbuild/core";
 import { test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 declare global {
   interface Window {
     iframeInsert: { editor: { unmount(): void; mount(element: HTMLElement): void; view: { dom: HTMLElement } } };
@@ -7,13 +8,8 @@ declare global {
 }
 for (const kind of ["font", "emoji"])
   test(`${kind} panel closes after editor unmount`, async ({ page }) => {
-    const r = await createRsbuild({
-      cwd: process.cwd(),
-      rsbuildConfig: {
-        source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-        server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-        dev: { hmr: false, liveReload: false },
-      },
+    const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+      publicDir: false,
     });
     const { port, server } = await r.startDevServer();
     try {
@@ -22,7 +18,8 @@ for (const kind of ["font", "emoji"])
       const f = page.frameLocator("iframe");
       await f.locator(".semlo-editor-prose p").click();
       if (kind === "font") {
-        await f.getByRole("button", { name: "字体", exact: true }).click();
+        await f.getByRole("button", { name: "更多", exact: true }).click();
+        await f.getByRole("toolbar", { name: "更多工具" }).getByRole("button", { name: "字体", exact: true }).click();
       } else {
         await f.getByRole("button", { name: "插入内容", exact: true }).click();
         const panel = f.getByRole("dialog", { name: "插入内容" });

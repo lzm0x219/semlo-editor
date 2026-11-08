@@ -1,3 +1,18 @@
+export { getWritingAssistant } from "./features/writing-assistant/session";
+export type {
+  WritingRequest,
+  WritingResult,
+  WritingService,
+  WritingFeedbackRating,
+  WritingFeedbackRequest,
+  WritingFeedbackService,
+  WritingStatus,
+  WritingSnapshot,
+  WritingOpenOptions,
+  WritingAcceptResult,
+  WritingAcceptMode,
+  WritingAssistantController,
+} from "./features/writing-assistant/types";
 export { createEditor } from "./editor/create-editor";
 export { isEditorControllerWithResults } from "./types";
 export { ReentrantTransactionError, TransactionAbortedError } from "./runtime/transaction-guard";
@@ -30,14 +45,25 @@ export type {
 } from "./types";
 export type { JSONContent, Extensions } from "@tiptap/core";
 export type { CodeBlockPreferences, CodeBlockPreferencesAdapter } from "./features/code-block/settings";
-export type { HeadingFoldPreferences, HeadingFoldPreferencesAdapter } from "./features/heading/fold";
+export { captureHeadingFoldRevision } from "./features/heading/fold";
+export type {
+  HeadingFoldPreferences,
+  HeadingFoldPreferencesAdapter,
+  HeadingFoldRevisionCapture,
+} from "./features/heading/fold";
 export type { CodeRunRequest, CodeRunner } from "./features/code-block/runner";
+export type {
+  DatabaseAiFillRequest,
+  DatabaseAiFillResult,
+  DatabaseAiFillService,
+} from "./features/database/ai-fill-types";
 export type {
   TranslationService,
   TranslationSourceLanguage,
   TranslationTargetLanguage,
 } from "./ui/toolbar/translation";
 export type { EmbedMetadata, EmbedMetadataResolver } from "./features/references/embed-bookmark";
+export type { AttachmentInfo, AttachmentPreviewResolver } from "./features/media/attachment/preview";
 export { InteractiveCardHostController } from "./features/interactive/interactive-card-host";
 export type { InteractiveCardHost, InteractiveCardConfig } from "./features/interactive/interactive-card-host";
 export type {
@@ -56,6 +82,10 @@ export {
 export { CheckinCard } from "./features/interactive/checkin-card";
 export { VoteCard } from "./features/interactive/vote-card";
 
-export type { ContentChoice, ContentPickerProvider } from "./features/references/yuque-content-picker";
+export type {
+  ContentChoice,
+  ContentEmbedTarget,
+  ContentPickerProvider,
+} from "./features/references/yuque-content-picker";
 
 export type { EncryptedTextProvider } from "./features/cards/encrypted-text";

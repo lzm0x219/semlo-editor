@@ -1,18 +1,14 @@
-import { createRsbuild } from "@rsbuild/core";
 import { test, expect } from "@rstest/playwright";
+
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 declare global {
   interface Window {
     iframeInsert: { editor: { unmount(): void; mount(element: HTMLElement): void; view: { dom: HTMLElement } } };
   }
 }
 test("open insert menu cleans up when the host unmounts its editor", async ({ page }) => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await r.startDevServer();
   try {
@@ -30,13 +26,8 @@ test("open insert menu cleans up when the host unmounts its editor", async ({ pa
   }
 });
 test("remount does not revive the old insert panel", async ({ page }) => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const r = await createFixtureRsbuild("./tests/fixtures/insertion/insert-iframe-candidate-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await r.startDevServer();
   try {

@@ -67,6 +67,7 @@ export const Database = Node.create<DatabaseOptions>({
       getUploadAttachment: () => undefined,
       getSearchMentions: () => undefined,
       getCurrentUser: () => undefined,
+      getAiFill: () => undefined,
       onError: () => {},
     };
   },

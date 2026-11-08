@@ -602,6 +602,7 @@ export function openCardMenu(
     focusSearch?: boolean;
     blockBelow?: boolean;
     getInsertPosition?: () => number | null;
+    onWriting?: (range?: Range) => void;
     onInteractive?: (kind: InteractiveKind) => void;
     interactiveAvailable?: (kind: InteractiveKind) => boolean;
   },
@@ -629,7 +630,7 @@ export function openCardMenu(
   const insertPosition = () => (options?.getInsertPosition ? options.getInsertPosition() : editor.state.selection.from);
   const panelItems = (query = "") => {
     const normalized = query.trim().toLowerCase();
-    const unavailable = unavailableBlockCommands().filter(
+    const unavailable = unavailableBlockCommands(editor, options?.onWriting).filter(
       (item) => !normalized || item.key.toLowerCase().includes(normalized),
     );
     const available = matchingCommands(

@@ -314,14 +314,18 @@ test("search reveals nested folded headings without changing content or undo his
   await expect(first.getByText("另一段正文")).toBeHidden();
   await expect(second.getByText("隐藏命中甲")).toBeHidden();
   await expect(input).toBeFocused();
+  const expectedBefore = structuredClone(before.json);
+  expectedBefore.content![5].attrs!.semloEditorHeadingFolded = true;
   expect((await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].getSnapshot())).json).toEqual(
-    before.json,
+    expectedBefore,
   );
   expect(await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].editor.commands.undo())).toBe(
     true,
   );
+  const expectedOriginal = structuredClone(original.json);
+  expectedOriginal.content![5].attrs!.semloEditorHeadingFolded = true;
   expect((await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].getSnapshot())).json).toEqual(
-    original.json,
+    expectedOriginal,
   );
 });
 

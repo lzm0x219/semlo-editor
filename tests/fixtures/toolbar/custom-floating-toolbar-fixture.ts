@@ -37,7 +37,14 @@ const markOrder = (id: string, event: string) => order.set(id, [...(order.get(id
 declare global {
   interface Window {
     floatingToolbarFixture: {
-      mount(kind: string, id: string, main?: MainMode, floating?: FloatingMode, controlled?: boolean): void;
+      mount(
+        kind: string,
+        id: string,
+        main?: MainMode,
+        floating?: FloatingMode,
+        controlled?: boolean,
+        writing?: boolean,
+      ): void;
       select(id: string): void;
       selectRange(id: string, from: number, to: number): void;
       setContent(id: string, value: string): void;
@@ -118,7 +125,7 @@ function createFloatingToolbar(id: string): FloatingToolbarFactory {
 }
 
 window.floatingToolbarFixture = {
-  mount(kind, id, main = "default", floating = "custom", controlled = false) {
+  mount(kind, id, main = "default", floating = "custom", controlled = false, writing = false) {
     const host = document.createElement("div");
     host.id = `floating-host-${id}`;
     document.body.append(host);
@@ -134,6 +141,7 @@ window.floatingToolbarFixture = {
       content: "<p>hello world</p>",
       toolbar,
       floatingToolbar,
+      writingService: writing ? async () => ({ format: "text" as const, text: "确定性测试草稿" }) : undefined,
       onReady: (current: EditorController) => {
         controller = current;
         markOrder(id, "ready");
@@ -146,6 +154,7 @@ window.floatingToolbarFixture = {
         content: props.content,
         toolbar,
         floatingToolbar,
+        writingService: props.writingService,
         onChange: controlled
           ? (snapshot) =>
               queueMicrotask(() => {
