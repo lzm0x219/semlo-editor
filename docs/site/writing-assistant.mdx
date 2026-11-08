@@ -1,0 +1,238 @@
+---
+title: 智能写作助手
+description: 注入宿主写作服务，预览、停止和重试生成内容，并在确认后插入或替换正文。
+---
+
+# 智能写作助手
+
+写作助手通过应用提供的 `writingService` 生成草稿。草稿显示在正文之外，下面是空白追问输入和操作菜单。生成期间不修改正文，点击“完成”“替换选中内容”或“插入选区下方”后才提交一次可撤销的编辑；“关闭”保留原文。
+
+组件不会选择模型、请求外部模型服务或保存 API 密钥。模型、认证、配额、用户协议和服务端授权由接入应用负责。未配置服务或处于只读状态时，默认 AI 入口禁用。
+
+## 接入服务
+
+下面的示例假设应用自行实现 `/api/writing`，成功时返回纯文本。该接口需要由应用完成模型调用和访问控制。
+
+```ts
+import { createEditor, type WritingService } from "@semlo-editor/core";
+import "@semlo-editor/core/style.css";
+
+const writingService: WritingService = async ({ prompt, context, previousDraft, signal }) => {
+  const response = await fetch("/api/writing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, context, previousDraft }),
+    signal,
+  });
+  if (!response.ok) throw new Error("生成失败，请稍后重试");
+  return { format: "text", text: await response.text() };
+};
+
+const element = document.querySelector<HTMLElement>("#editor");
+if (!element) throw new Error("缺少编辑器容器");
+const controller = createEditor({ element, writingService });
+```
+
+服务收到 `WritingRequest`：
+
+| 字段                               | 内容                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `prompt`                           | 用户本次提交的提问，保留换行。                                                              |
+| `context.selection`                | 打开助手时的 `from`、`to`、选中文字 `text` 和选区内容片段 `content`。非空选区在接纳前保留。 |
+| `context.before` / `context.after` | 目标前后各最多 1000 个文档位置的纯文本，不自动发送整篇文档。                                |
+| `signal`                           | 停止、关闭、目标失效、服务变化或实例释放时中止。服务应将它传给自己的网络请求。              |
+| `previousDraft`                    | 可选字段。仅显式追问时提供上一份合法草稿的独立副本，供宿主继续修改；普通发送不包含此字段。  |
+
+块下方入口的目标是原块之后的空范围。斜杠入口保留 `/ai` 等原查询，只有接纳结果时才替换；关闭助手后查询仍是正文。上下文只供宿主理解任务，不是另一份编辑器文档状态。
+
+在列表项下方接纳时，新同级项继承缩进等格式并继续当前编号，不复制源项的逐项重启标记；原项的重启设置保留。待办的新同级项从未完成状态开始。
+
+默认面板的 Enter 发送提问，Shift+Enter 换行；等待时 Esc 停止，其他状态下 Esc 关闭。停止立即结束组件侧的等待；即使服务忽略信号并继续返回，旧结果也不会进入新会话。服务端操作能否真正停止仍由宿主实现决定。
+
+## 生成反馈
+
+生成结果下方提供“有帮助”和“没有帮助”按钮，应用可选配 `writingFeedback` 接收反馈；未配置时按钮禁用。写作服务可在结果中附带字符串 `feedbackId`，供应用关联服务端结果；该标识不会写入正文。
+
+```ts
+import type { WritingFeedbackService } from "@semlo-editor/core";
+
+const writingFeedback: WritingFeedbackService = async ({ rating, result, signal }) => {
+  const response = await fetch("/api/writing-feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating, feedbackId: result.feedbackId }),
+    signal,
+  });
+  if (!response.ok) throw new Error("反馈提交失败");
+};
+
+const controller = createEditor({ element, writingService, writingFeedback });
+```
+
+只有用户主动点击后才调用回调。回调还收到本次 `prompt` 和结果的独立副本，可能包含用户文字；应用应自行决定是否传输、存储及如何处理权限。成功后显示选中状态，失败可重试并通过 `onError` 报告；用户可以改选另一项。重新生成、目标失效、关闭、卸载、销毁或替换反馈回调时，中止信号并忽略旧返回；中止不能保证宿主或远端撤销已经发生的操作。三个框架均可动态更新 `writingFeedback`。
+
+## 选区操作与接纳位置
+
+非空选区打开后，默认面板提供以下可执行预设：
+
+| 分组             | 操作                                           |
+| ---------------- | ---------------------------------------------- |
+| 编辑调整选中内容 | 丰富内容、精简内容、修改标点符号、翻译、继续写 |
+| 改写口吻         | 更专业的、更直白的、更友好的、非正式的         |
+| 整理选区内容     | 提炼「摘要」、归纳成「表格」、转写成「代码块」 |
+| 根据选区内容写   | 代码块、待办、会议纪要、PRD                    |
+
+预设提交本组件内可审查的中文指令模板及原选区上下文，由宿主服务执行；它们不是语雀的私有系统提示。翻译模板直接请求英语；表格和代码模板明确说明使用当前编辑器的 JSON 节点，仍须通过相同内容校验。输入自定义提问时收起预设。
+
+选区结果菜单为“替换选中内容 / 插入选区下方 / 重新生成 / 关闭”。没有选中文字时以“完成”接纳，仍可重新生成或关闭。“重新生成”重放上次请求的提问及上下文，不把最新草稿自动当成追问上下文。结果出现后的输入框为空，在此发送新提问才会携带 `previousDraft`。失败时直接重试沿用该请求；修改提问后重试则作为针对原目标的新请求。
+
+“插入选区下方”使用实际观察到的选区末尾语义。例如原段落为 `前缀选中文字后缀`，选中 `选中文字` 后，单段结果 `生成` 的替换结果为 `前缀生成后缀`，追加结果为 `前缀选中文字生成后缀`。原段落属性与未选文字的标记保留；替换后光标在生成文字末尾，追加后只选中生成文字，删除该选区不会吞掉原后文。
+
+空光标位于普通段落中间时，“完成”将普通单段结果接在该位置，同段保留前后文，并只选中生成文字；删除该选区保留原文。此路径及非空选区的替换/追加均有真实语雀行为样本。
+
+只有默认段落格式或与目标段落同格式的单段结果按行内内容接纳。表格、代码、标题、独立格式段落和多块结果保留完整节点结构，并校验目标适配及生成块是否完整保留；不对所有结构统一展开 Slice。复杂结果保持单个文本光标，不猜测其自动扩选范围。目标无法完整容纳结果时保留草稿并报告拒绝。每次成功接纳均可一次撤销、一次重做。
+
+## 文本和结构化结果
+
+服务返回 `WritingResult` 的一种格式：
+
+```ts
+import type { WritingResult } from "@semlo-editor/core";
+
+const textResult: WritingResult = {
+  format: "text",
+  text: "这是生成的正文。\n这是下一段。",
+};
+
+const structuredResult: WritingResult = {
+  format: "json",
+  content: {
+    type: "doc",
+    content: [
+      {
+        type: "codeBlock",
+        attrs: { language: "javascript" },
+        content: [{ type: "text", text: "const answer = 42;" }],
+      },
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              {
+                type: "tableCell",
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: "生成表格" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+```
+
+`text` 始终按文字处理，尖括号不会被解释成 HTML，每个换行生成一个段落。`json` 使用当前编辑器的 schema 和现有严格内容校验，支持其中已经注册的表格、代码、列表及其他内容节点；未知节点、属性、字段、损坏结构和不可保存的值会报错。结构化结果的根必须是 `doc`，根只作为内容容器，不接受根级 `attrs`、`marks` 或 `text`，避免一次局部写作改变整篇文档的设置。
+
+默认草稿区用安全 DOM 展示文字、段落、常见文字标记、表格和代码；其他节点展示可读文字或类型占位。预览不调用自定义 NodeView、`renderHTML`，不创建链接、图片或其他外部资源，也不执行服务返回的 HTML。可直接选择草稿文字或点击“复制草稿”。组件不接纳 `format: "html"`，也不解码语雀私有格式。明确接纳后的自定义节点渲染与外部资源权限仍由对应扩展和应用负责。
+
+## 目标有效期与失败恢复
+
+一个会话固定在打开时的实例、文档、目标、视图和服务上。正文发生实际变更、文档替换、进入只读、卸载、销毁或更换服务后，旧目标失效。失效的草稿仍可查看和复制，接纳按钮禁用；关闭后重新选择位置才能生成或接纳新的草稿。受控组件回写相同内容不会重新替换文档。
+
+组件采用保守有效期，不尝试把生成目标映射到任意后续编辑位置。输入光标可以移动，接纳仍针对打开时保存的目标；正文只要改变，旧会话就不再回写。接纳前以及宿主 `beforeTransaction` 监听器执行后都会核对归属。
+
+服务失败或结构校验失败保留提问，可修改后重试。重新生成或追问期间，上一份合法草稿仍可查看和复制，失败、停止或失效也不会把它丢弃。宿主过滤掉接纳事务时，面板保留可再次接纳的草稿；宿主改写事务、切换文档或使会话失效时，保留草稿并提示核对正文。替换和追加使用同一目标有效期及宿主事务守卫。接纳成功关闭面板，一次撤销恢复接纳前内容；随后的输入单独记录历史。
+
+草稿和提问只保存在当前组件的内存中，不进入 `getSnapshot()`。关闭、成功接纳或销毁会清除组件持有的草稿。宿主如果需要跨页面保留草稿，应使用公开状态接口另行管理。
+
+## 动态服务和框架组件
+
+`setIntegrations()` 整体替换全部集成选项。更换 `writingService` 时，必须同时传入要保留的上传、搜索等其他选项。传入 `null` 或省略该项会清除写作服务。
+
+```ts
+import type { EditorIntegrations, WritingService } from "@semlo-editor/core";
+
+function replaceWritingService(current: EditorIntegrations, nextService: WritingService | null) {
+  const next = { ...current, writingService: nextService };
+  controller.setIntegrations(next);
+  return next;
+}
+```
+
+服务按函数引用识别变化。宿主的身份、授权或协议状态发生变化，需要同时废止当前请求时，应提供新的函数引用或清除服务；组件无法识别同一闭包内部的隐式变化。
+
+React、Vue 和 Solid 组件都支持同名 `writingService` 属性，创建和后续属性更新均通过核心集成生效。React / Solid 的 `onReady` 与 Vue 的 `ready` 仍提供现有控制器；卸载组件会取消当前写作并清理会话。
+
+```tsx
+// React；writingService 为上文定义的宿主函数。
+<SemloEditor writingService={writingService} onChange={saveSnapshot} />
+```
+
+```vue
+<SemloEditor :writing-service="writingService" @change="saveSnapshot" />
+```
+
+```tsx
+// Solid；service 是保存宿主写作函数的响应式访问器。
+const [service, setService] = createSignal<WritingService | null>(writingService);
+<SemloEditor writingService={service()} onChange={saveSnapshot} />;
+```
+
+## 自定义工具栏与公开会话
+
+`getWritingAssistant(controller.editor)` 返回该实例的 `WritingAssistantController`；非 Semlo 实例或已经销毁的实例返回 `null`。默认插入菜单、斜杠、块下方入口、选区浮动工具栏和自定义工具栏使用同一会话。生成服务返回的 `feedbackId` 也会随显式追问的 `previousDraft` 传回宿主。
+
+```ts
+import { getWritingAssistant, type ToolbarFactory } from "@semlo-editor/core";
+
+const toolbar: ToolbarFactory = ({ element, controller, syncSelection, subscribe }) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "AI 写作";
+  const refresh = () => {
+    button.disabled = !getWritingAssistant(controller.editor)?.getSnapshot().available;
+  };
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", () => {
+    syncSelection();
+    getWritingAssistant(controller.editor)?.open();
+  });
+  element.append(button);
+  const assistant = getWritingAssistant(controller.editor);
+  const stopState = assistant?.subscribe(refresh);
+  const stopEditor = subscribe(refresh);
+  refresh();
+  return () => {
+    stopState?.();
+    stopEditor();
+    button.remove();
+  };
+};
+```
+
+| 方法                        | 行为                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getSnapshot()`             | 返回状态、服务可用性、提问、草稿文字、结果、提示、替换标志和 `canAccept`。返回结果是独立副本。                                                                                                                |
+| `subscribe(listener)`       | 订阅会话变化，返回退订函数；首次状态需自行读取。销毁时解除全部订阅。                                                                                                                                          |
+| `open({ prompt?, range? })` | 保存当前选区或显式范围并打开默认面板。返回是否打开成功；重新打开会取代旧会话。                                                                                                                                |
+| `send(prompt)`              | 开始生成，后发请求取代前一请求；Promise 在请求结束或被取消后完成。服务或校验失败通过状态和 `onError` 报告。                                                                                                   |
+| `followUp(prompt)`          | 在合法草稿 ready 时，以原目标上下文和上一份草稿的深复制生成新结果；不会先写入正文。                                                                                                                           |
+| `retry()`                   | 原样重放上次请求的提问、选区上下文及可选 `previousDraft`，可在 ready 状态重新生成。                                                                                                                           |
+| `stop()`                    | 停止当前生成，保留提问。                                                                                                                                                                                      |
+| `accept(mode?)`             | `default`（默认）替换原范围或在空范围插入；`after` 在非空原选区末尾追加。返回 `applied`、`rejected`、`unavailable` 或重入时的 `busy`。未知 mode、空范围或块下方目标的 `after` 返回 `unavailable` 且保留草稿。 |
+| `cancel()`                  | 取消请求并关闭、清除草稿；目标仍有效时恢复打开前的选区。                                                                                                                                                      |
+
+`WritingSnapshot.status` 为 `closed`、`prompt`、`pending`、`ready`、`error`、`stopped` 或 `stale`。自定义控件应使用 `available` / `canAccept` 决定可用状态，并根据 `stale` 提供重新选择位置的提示。
+
+`WritingAcceptMode`、`WritingRequest`、`WritingResult` 和 `WritingAssistantController` 均从 `@semlo-editor/core` 包入口导入。已有无参 `accept()` 调用继续适用；`previousDraft` 为可选字段，旧服务可继续忽略它。
+
+## 验证边界
+
+本地专项用确定性的假服务验证组件请求、结果边界、接纳事务和三个框架的生命周期，不证明真实模型的输出质量、网络稳定性、认证、配额或协议流程已经可用。语雀的正常生成、选区分组、结果菜单以及单段部分文字替换与追加已有真实观察；本组件按这些样本实现，不宣称完整复刻语雀助手、私有提示、模型能力或数据协议。复杂结构的自动选区行为没有对应语雀实测，本组件采用上文的保守光标策略。评论、多人协作、Lake 数据兼容和流式生成不在本次范围。

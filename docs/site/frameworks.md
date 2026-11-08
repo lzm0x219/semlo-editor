@@ -69,7 +69,7 @@ export function DocumentEditor() {
 
 ## 更新配置与切换文档
 
-`content`、`editable`、`uploadImage`、`uploadAttachment` 和 `searchMentions` 可以在组件挂载后更新。`placeholder`、`toolbar`、`floatingToolbar`、`outline` 和 `extensions` 在创建时确定；如需更改，重新挂载组件。
+`content`、`editable`、`uploadImage`、`uploadAttachment`、`resolveAttachmentPreview`、`searchMentions`、`writingService` 和 `writingFeedback` 可以在组件挂载后更新。附件阅读页接入见[上传与提及](/uploads-and-mentions#附件预览)，写作服务及请求生命周期见[智能写作助手](/writing-assistant)。`placeholder`、`toolbar`、`floatingToolbar`、`outline` 和 `extensions` 在创建时确定；如需更改，重新挂载组件。
 
 切换到另一篇文档时也建议重新挂载，避免沿用上一份文档的撤销历史。例如，在 React 中可使用文档 ID 作为 `key`：
 
@@ -79,4 +79,4 @@ export function DocumentEditor() {
 
 这里的 `documentId`、`content` 和 `handleChange` 由应用提供。Vue 可使用 `:key="documentId"`；SolidJS 可根据文档身份重新创建组件。重挂载前请由应用保存需要保留的内容。
 
-Vue 可通过 `@ready` 获取控制器，React 和 SolidJS 使用 `onReady`。所有选项与控制器方法见 [API 参考](/api)。
+Vue 可通过 `@ready` 获取控制器，React 和 SolidJS 使用 `onReady`。需要在保存后迁移标题折叠状态时，可将该控制器传给核心包的 `captureHeadingFoldRevision()`，流程见[保存与恢复内容](/persistence#标题折叠视图状态)。所有选项与控制器方法见 [API 参考](/api)。

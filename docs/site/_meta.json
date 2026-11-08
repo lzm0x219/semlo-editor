@@ -44,6 +44,10 @@
       {
         "label": "语雀功能对照",
         "link": "/yuque-feature-matrix"
+      },
+      {
+        "label": "语雀复刻进度",
+        "link": "/replication-progress"
       }
     ]
   },
@@ -68,6 +72,10 @@
       {
         "label": "公式、绘图与内容卡片",
         "link": "/rich-content"
+      },
+      {
+        "label": "智能写作助手",
+        "link": "/writing-assistant"
       }
     ]
   },

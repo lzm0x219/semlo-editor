@@ -42,12 +42,16 @@ declare function createEditor(options: EditorOptions): EditorControllerWithResul
 | `headingFoldPreferences`     | `HeadingFoldPreferencesAdapter`           | 无                                | 由宿主按文档 ID 和版本保存标题折叠视图状态。                   |
 | `runCode`                    | `CodeRunner`                              | 无                                | 由宿主执行代码；编辑器不自行运行源码。                         |
 | `translate`                  | `TranslationService`                      | 无                                | 由宿主提供文本翻译服务。                                       |
+| `writingService`             | `WritingService \| null`                  | 无                                | 由宿主生成写作草稿；预览后明确接纳，支持停止和重试。           |
+| `writingFeedback`            | `WritingFeedbackService \| null`          | 无                                | 用户主动评价草稿时由宿主接收反馈。                             |
+| `databaseAiFill`             | `DatabaseAiFillService \| null`           | 无                                | 由宿主为数据表文本列生成内容。                                 |
 | `currentUser`                | `() => EditorUser \| null`                | 无                                | 提供当前用户，供数据表记录创建人和修改人。                     |
 | `resolveEmbedMetadata`       | `EmbedMetadataResolver`                   | 无                                | 由宿主解析嵌入链接的书签元数据。                               |
 | `uploadImage`                | `ImageUpload`                             | 无                                | 图片上传回调，接收 `File` 与可选上下文并异步返回地址。         |
 | `uploadAttachment`           | `AttachmentUpload`                        | 无                                | 附件、本地音频和本地视频的上传回调，接收 `File` 与可选上下文。 |
+| `resolveAttachmentPreview`   | `AttachmentPreviewResolver \| null`       | 无                                | 同步提供附件阅读页地址；未配置时打开安全原文件地址。           |
 | `searchMentions`             | `MentionSearch`                           | 无                                | 搜索可提及的人物和文档。                                       |
-| `yuqueContentProvider`       | `ContentPickerProvider \| null`           | 无                                | 应用提供的内容搜索与链接解析，选择后插入普通链接。             |
+| `yuqueContentProvider`       | `ContentPickerProvider \| null`           | 无                                | 应用提供内容搜索、链接解析及嵌入阅读页。                       |
 | `encryptedTextProvider`      | `EncryptedTextProvider \| null`           | 无                                | 候选加密文本能力的宿主服务，尚未完成安全验证。                 |
 | `interactiveCardHost`        | `InteractiveCardHost \| null`             | 无                                | 提供投票和打卡活动的创建、配置同步与状态服务。                 |
 | `onInteractiveCardAbandoned` | `InteractiveInsertOptions["onAbandoned"]` | 无                                | 处理已创建但未插入文档的活动；宿主须先确认归属和引用。         |
@@ -58,7 +62,13 @@ declare function createEditor(options: EditorOptions): EditorControllerWithResul
 
 `onChange` 收到的是内容变更时的快照，应用仍需自行保存；`onError` 接收编辑器报告的错误，例如 `setContent` 的无效内容或集成错误。初始内容不受支持时，`createEditor` 会清理资源并抛出异常，调用方应捕获异常并保留原始数据；这类初始化错误不通过 `onError` 报告。普通 HTML 的初始化导入仍按现有规则宽松解析。错误如何展示、重试和记录由应用决定。
 
+快照排除从已支持的空正文容器键入后仍活跃的斜杠查询；`Esc` 将其转为正文时也会触发 `onChange`。底层 `editor` 仍持有编辑中的查询文字；保存请使用控制器快照。容器范围及受控回写规则见[保存与恢复内容](/persistence#选择保存格式)。
+
 当前翻译请求失败会显示重试，并通过 `onError` 报告；已取消或失效的旧请求不会报告。上传回调是否实际取消网络请求取决于应用是否使用编辑器提供的中止信号。
+
+`writingService` 可动态替换。核心包的 `getWritingAssistant(editor)` 返回该实例的写作会话，提供打开、发送、停止、重试、追问、接纳和关闭。`accept()` 接纳或替换原范围，`accept("after")` 接在保存的非空选区末尾；普通单段结果保留同段前后文。`followUp(prompt)` 会把上一合法草稿的副本放入可选的 `previousDraft` 请求字段，`retry()` 重放上次请求。生成期间不改正文，正文变化后旧目标失效。请求与结果类型、框架用法及失败恢复见[智能写作助手](/writing-assistant)。
+
+`DatabaseAiFillRequest`、`DatabaseAiFillResult` 和 `DatabaseAiFillService` 从核心入口导出，数据表智能填写的数据范围、结果约束和生命周期见[内容与集成](/content-and-integrations#数据表智能填写)。
 
 ### FloatingToolbarFactory
 
@@ -82,9 +92,20 @@ const state: BoldState = getBoldState(controller.editor);
 const handled = toggleBold(controller.editor);
 ```
 
-`getBoldState` 返回当前选区的 `active` 和 `enabled`。只读、仅标题选区以及视图卸载或实例销毁时不可用；卸载或销毁后两项均为 `false`。`active` 使用当前选区的加粗状态，即使只读也可读取。`toggleBold` 使用相同规则：跨标题和正文时保留标题格式，只切换其他选中内容；不可用时返回 `false`。返回 `true` 表示命令已处理，不保证事务一定被宿主接受或内容发生变化。
+`getBoldState` 返回当前选区的 `active` 和 `enabled`。只读、仅标题选区以及视图卸载或实例销毁时不可用；卸载或销毁后两项均为 `false`。`active` 即使只读也可读取；跨标题和正文时，只根据可加粗的非标题内容判断，与命令的作用范围一致。`toggleBold` 在这种混合选区中保留标题格式，只切换其他选中内容；不可用时返回 `false`。返回 `true` 表示命令已处理，不保证事务一定被宿主接受或内容发生变化。
 
 命令默认将焦点交回正文；`toggleBold(editor, { focus: false })` 可保留当前焦点。它使用编辑器已有选区，不主动读取浏览器选区；自定义工具栏在适当时机调用 `syncSelection()`。使用 `subscribe()` 在事务及控制器只读状态变化后更新控件。底层 `editor.commands.toggleBold()` 仍是 Tiptap 命令，不包含这套标题选区规则；需要与默认界面一致时使用核心包导出的命令。
+
+### 标题折叠状态与版本
+
+```ts
+import { captureHeadingFoldRevision } from "@semlo-editor/core";
+import type { HeadingFoldRevisionCapture } from "@semlo-editor/core";
+
+const capture: HeadingFoldRevisionCapture | null = captureHeadingFoldRevision(controller);
+```
+
+配置标题折叠适配器后，可在保存文档前捕获内容和折叠状态；保存成功后调用 `capture.commit(revision)`，将状态关联到该内容版本。保存期间的后续编辑、过期提交、存储失败及框架接入示例见[标题折叠视图状态](/persistence#标题折叠视图状态)。
 
 ### 标题与正文样式命令
 
@@ -196,8 +217,15 @@ interface MentionItem {
   href?: string;
 }
 
-type ImageUpload = (file: File) => Promise<string>;
-type AttachmentUpload = (file: File) => Promise<string>;
+type ImageUpload = (file: File, context?: { signal: AbortSignal }) => Promise<string>;
+type AttachmentUpload = (file: File, context?: { signal: AbortSignal }) => Promise<string>;
+interface AttachmentInfo {
+  href: string;
+  name: string;
+  size: number;
+  mimeType: string;
+}
+type AttachmentPreviewResolver = (attachment: AttachmentInfo) => string | null | undefined;
 type MentionSearch = (query: string, signal: AbortSignal) => MentionItem[] | Promise<MentionItem[]>;
 
 interface ContentChoice {
@@ -205,11 +233,18 @@ interface ContentChoice {
   title: string;
   href: string;
   kind: "document" | "table";
+  description?: string;
+}
+
+interface ContentEmbedTarget {
+  url: string;
+  allowSameOrigin?: boolean;
 }
 
 interface ContentPickerProvider {
   search(query: string, signal: AbortSignal): Promise<readonly ContentChoice[]>;
   resolveLink(link: string, signal: AbortSignal): Promise<ContentChoice | null>;
+  resolveEmbed?(choice: ContentChoice): string | ContentEmbedTarget | null | undefined;
 }
 ```
 

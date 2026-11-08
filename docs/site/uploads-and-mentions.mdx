@@ -45,6 +45,30 @@ const editor = createEditor({
 
 上传时编辑器使用占位来跟踪插入位置。替换文档、销毁编辑器、切换只读或相关上传会话失效后，旧结果不会写入新文档，进行中请求的 `signal` 会中止；应用需要将该信号传给 `fetch` 等操作才能取消网络请求。切换上传提供方不取消已开始的上传。应用仍需自行处理文件大小、类型、认证、服务端校验和失败提示。
 
+## 附件预览
+
+应用可同步返回附件的阅读页地址，供独立预览和正文嵌入使用。下面假设应用已经实现 `/files/preview`；它仍需自行处理文件访问、转换和阅读权限。
+
+```ts
+import type { AttachmentPreviewResolver } from "@semlo-editor/core";
+
+const resolveAttachmentPreview: AttachmentPreviewResolver = ({ href, mimeType }) => {
+  if (mimeType !== "application/pdf") return null;
+  return `/files/preview?source=${encodeURIComponent(href)}`;
+};
+
+// 保留已有上传等集成；setIntegrations 会整体替换选项。
+editor.setIntegrations({ uploadImage, uploadAttachment, resolveAttachmentPreview });
+```
+
+回调收到 `AttachmentInfo` 的原文件地址、名称、字节数和 MIME 类型副本。独立预览在激活时调用；嵌入模式在挂载、文件或解析器变化时调用。它必须同步返回安全的 HTTP、HTTPS、Blob 或站内绝对路径；需要异步签名或转换时，应提前准备地址，或由返回的应用阅读页自行加载服务。Promise 不属于此接口。
+
+未配置或清除 `resolveAttachmentPreview` 时，独立预览直接打开安全的原文件地址。已配置的回调返回 `null`、`undefined`、不安全地址或抛出异常时，组件显示提示并通过 `onError` 报告，不会静默回退到原文件。原地址无效时不会调用回调。
+
+正文嵌入使用不透明源 `iframe` 沙箱，不授予 `allow-same-origin`；即使跨域阅读页重定向回应用，也不能获得宿主页面的同源访问权。阅读页需适应该限制及服务器的嵌入策略。返回与 PDF 或 Office 原文件相同的地址时，组件显示独立预览入口，不将浏览器内置文件插件当作正文阅读服务。其他阅读页加载失败时显示提示和重试入口。
+
+三个框架均支持同名属性的动态更新。回调执行中若文档、视图、集成或实例变化，旧结果不会继续导航或挂载；更新解析器、退出嵌入、卸载和销毁会移除旧阅读页。阅读地址只属于当前视图，不保存进文档；显示模式和高度保存，下载工具始终指向原文件。跨域下载行为、响应文件名、Office 转换和访问权限需由应用及服务器提供。
+
 ## 接入提及搜索
 
 `searchMentions(query, signal)` 可同步或异步返回人物、文档候选项：
@@ -70,9 +94,11 @@ const searchMentions: MentionSearch = async (query, signal) => {
 
 查询变化或菜单关闭时，旧请求的 `signal` 会被中止。将它传给 `fetch` 才能中止示例中的网络请求。服务端应根据当前用户的权限筛选结果；未配置搜索时不会显示真实人物或文档。
 
-## 接入语雀内容链接选择
+## 接入语雀内容选择与预览
 
-配置 `yuqueContentProvider` 后，插入面板中的“语雀内容”入口可搜索应用提供的文档或表格，也可解析输入的链接。未配置提供方时入口不可用。提供方包含两个异步方法：`search(query, signal)` 返回候选数组；`resolveLink(link, signal)` 返回一个候选，或在没有可用内容时返回 `null`。
+配置 `yuqueContentProvider` 后，插入面板中的“语雀内容”入口可搜索应用提供的文档或表格，也可解析输入的链接。未配置提供方时入口不可用。`search(query, signal)` 返回候选数组，空查询用于提供最近内容；`resolveLink(link, signal)` 返回一个候选，或在没有可用内容时返回 `null`，有效链接解析成功后直接插入引用。可选的 `resolveEmbed(choice)` 同步返回阅读页地址或预览配置；返回值不会保存到文档。
+
+在搜索框按方向键可进入候选列表，再用 Enter 选择；表格引用使用表格图标。
 
 下面是可在本地运行的最小示例，数据仅保存在内存中，不会请求网络。`example.invalid` 是占位地址，不能用于访问实际文档。
 
@@ -102,9 +128,27 @@ if (!host) throw new Error("缺少编辑器挂载元素");
 const editor = createEditor({ element: host, yuqueContentProvider });
 ```
 
-每个候选需要非空 `id` 和 `title`、`kind: 'document' | 'table'`，以及绝对 HTTP(S) `href`。格式无效的候选不会显示；解析结果为 `null` 时显示“未找到可用内容”。点击结果后，编辑器保存的是以标题为文字、`href` 为目标的**普通链接**，不是语雀原生内容卡片；`id` 和 `kind` 不会作为卡片数据保存。
+每个候选需要非空 `id` 和 `title`、`kind: 'document' | 'table'`，以及不带凭据的绝对 HTTP(S) `href`；可选 `description` 用作卡片副标题。格式无效的候选不会显示；解析结果为 `null` 时显示“未找到可用内容”。选择后插入内容引用，默认嵌入，可切换为标题或卡片、转换为普通链接，嵌入高度可调整；这些修改可以撤销。在根级正文中间插入时，前后文字分为两段，引用单独占一段。引用标识、标题、链接、类型、描述和展示设置随 JSON / HTML 保存，静态 HTML 显示链接。旧文档中的普通链接保持原样；旧版严格 JSON 读取器可能拒绝新引用节点，旧版 HTML 读取器或清洗器可能只保留普通链接。
 
-提供方负责搜索、解析、认证和权限校验。这个接口是 semlo-editor 的宿主接入约定，并非已验证的语雀服务协议。提交新的搜索或链接解析会中止前一次请求；关闭面板、替换提供方、替换文档、切换只读或销毁编辑器也会使待处理结果失效。网络实现应使用传入的 `signal`，并在服务端再次校验权限。
+嵌入由宿主的 `resolveEmbed` 提供阅读页。返回字符串时，预览使用不授予同源权限的沙箱；未配置时保留原文入口。实测语雀阅读页需要访问自身存储，在该默认沙箱中可能显示空白，因此语雀链接会提示宿主配置预览。
+
+对确实信任的跨域阅读页，宿主可返回 `{ url, allowSameOrigin: true }`，允许它使用自身源的存储和登录状态。此选项会减弱沙箱隔离，只能由接入应用配置，不从文档内容读取；宿主必须信任阅读页及其所有跳转目标，并在服务端处理权限。编辑器拒绝直接将此选项用于与宿主页同源的地址，但无法保证跨域页面不会跳回宿主页。目标站仍可能禁止嵌入，浏览器也可能阻止跨站登录；iframe 的加载事件不代表内容可访问。替换提供方会移除旧预览并重新解析。
+
+例如，对已由应用验证并确认可嵌入的语雀文档，可在提供方中构造阅读地址：
+
+```ts
+resolveEmbed(choice) {
+  if (!isTrustedDocument(choice)) return null; // 由应用校验来源与访问权限
+  const url = new URL(choice.href);
+  if (url.protocol !== "https:" || !["yuque.com", "www.yuque.com"].includes(url.hostname)) return null;
+  url.searchParams.set("view", "doc_embed");
+  url.searchParams.set("theme", "default");
+  url.hash = "default";
+  return { url: url.href, allowSameOrigin: true };
+}
+```
+
+提供方负责搜索、解析、认证和权限校验。这个接口是 semlo-editor 的宿主接入约定，并非语雀服务协议。提交新的搜索或链接解析会中止前一次请求；关闭面板、替换提供方、替换文档、切换只读或销毁编辑器也会使待处理结果失效。网络实现应使用传入的 `signal`，并在服务端再次校验权限。
 
 三个框架组件均可通过 `yuqueContentProvider` 属性接入同一接口。运行时调用 `setIntegrations()` 时，它与其他集成选项一样会整体替换，需保留的选项应一并传入。
 
@@ -116,4 +160,4 @@ const editor = createEditor({ element: host, yuqueContentProvider });
 editor.setIntegrations({ uploadImage, uploadAttachment, searchMentions });
 ```
 
-已有上传继续使用启动时的回调；更换提及搜索提供方会中止旧搜索并刷新，更换语雀内容提供方会关闭其选择面板并使旧结果失效。框架组件可直接更新相应属性。完整类型见 [API 参考](/api#数据类型)。
+已有上传继续使用启动时的回调；更换提及搜索提供方会中止旧搜索并刷新，更换语雀内容提供方会关闭其选择面板、使旧结果失效并重新解析嵌入预览。框架组件可直接更新相应属性。完整类型见 [API 参考](/api#数据类型)。

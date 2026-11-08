@@ -89,7 +89,11 @@ const editor = createEditor({ element: host, toolbar });
 
 ## 自定义浮动工具栏
 
-`floatingToolbar` 省略时沿用 `toolbar` 的显示规则，保持既有默认行为。设为 `false` 可单独关闭浮动工具栏；设为 `true` 可启用默认浮动工具栏，包括 `toolbar: false` 时。传入 `FloatingToolbarFactory` 可替换浮动控件，主工具栏的配置不受影响。
+`floatingToolbar` 省略时沿用 `toolbar` 的显示开关。默认文字选区浮层只显示 AI 写作图标；未配置 `writingService` 时禁用，配置后保存当前选区并打开[写作助手](/writing-assistant)，打开时不修改正文。主工具栏继续提供格式操作。
+
+设为 `false` 可单独关闭浮动工具栏；设为 `true` 可启用默认 AI 浮层，包括 `toolbar: false` 时。传入 `FloatingToolbarFactory` 可替换浮动控件，主工具栏的配置不受影响。
+
+此前依赖默认浮层中加粗、斜体、下划线、删除线或链接按钮的接入，应改用主工具栏，或显式配置如下的格式工厂。默认和自定义容器的无障碍名称统一为“选中文字工具”；使用旧“选中文字格式”名称查询容器的测试或接入需同步更新。公开格式命令和工厂生命周期契约保持不变。
 
 ```ts
 import { createEditor, getBoldState, toggleBold } from "@semlo-editor/core";
@@ -137,7 +141,7 @@ if (!host) throw new Error("缺少挂载元素");
 const editor = createEditor({ element: host, floatingToolbar });
 ```
 
-容器由编辑器定位，默认具有 `role="toolbar"` 和“选中文字格式”的无障碍名称。编辑器在可编辑、有非空文字选区且焦点位于正文或浮动容器中时显示它；控件内容、样式、键盘行为和只读时的禁用状态由工厂负责。显示中的浮层切到只读时可能暂时保留，但自定义按钮应立即禁用。
+容器由编辑器定位，默认具有 `role="toolbar"` 和“选中文字工具”的无障碍名称。编辑器在可编辑、有非空文字选区且焦点位于正文或浮动容器中时显示它；控件内容、样式、键盘行为和只读时的禁用状态由工厂负责。显示中的浮层切到只读时可能暂时保留，但自定义按钮应立即禁用。
 
 `syncSelection` 和 `subscribe` 的行为、工厂时序及清理规则与[自定义主工具栏](#自定义主工具栏)一致。两个工厂同时提供时，先调用主工具栏工厂，再调用浮动工具栏工厂，均早于框架的 `onReady` / `ready`；后一个工厂失败时，编辑器会清理前一个已返回的资源。`openLink(anchor)` 同步当前选区并打开编辑器内置的链接弹层；省略锚点时使用浮动容器。编辑器不可编辑、卸载或销毁后，调用不会打开弹层。自定义工厂不创建默认浮动按钮，需自行提供需要的格式操作。示例中的加粗状态与命令可复用主工具栏和快捷键的规则，详见[加粗命令](/api#加粗命令)。React 和 SolidJS 使用 `floatingToolbar={floatingToolbar}`，Vue 使用 `:floating-toolbar="floatingToolbar"`；更改工厂时需重新挂载。
 

@@ -46,7 +46,7 @@ const { json, html, text } = controller.getSnapshot();
 console.log(json, html, text);
 ```
 
-整篇字体的 HTML 包装及有序列表导出处理由 semlo-editor 的快照方法完成。使用底层 Tiptap 实例直接取 HTML 时，不应假定具有相同处理。内容持久化见[保存与恢复内容](/persistence)。
+整篇字体的 HTML 包装、有序列表导出及已支持正文容器内的活动斜杠查询投影由 semlo-editor 的快照方法完成。查询仍可在编辑区显示，按 `Esc` 转为正文后会进入快照。使用底层 Tiptap 实例直接读取内容时，不应假定具有相同处理。容器范围及持久化规则见[保存与恢复内容](/persistence)。
 
 ## setContent(content)
 
@@ -55,6 +55,8 @@ setContent(content: EditorContent): void
 ```
 
 以 ProseMirror JSON 或 HTML 替换当前内容。方法会先解析并比较规范化后的文档；内容相同时不重复替换。调用不会触发 `onChange`；无效内容通过 `onError` 报告，而不是通过返回值表示失败。
+
+活动查询期间回写相同的保存快照也视为内容未变化，保留编辑中的查询和选区；传入不同正文仍执行替换。
 
 使用 JSON 初始化或替换内容时，编辑器会复制其中的普通对象和数组，包括嵌套属性。此后修改传入的 JSON 不会直接改变编辑器；如需应用修改，应再次调用 `setContent()`。`getSnapshot().json` 也是独立快照，修改它不会直接修改编辑器文档。
 
@@ -77,14 +79,14 @@ trySetContent(content: EditorContent): ContentReplacementResult
 
 与 `setContent()` 使用相同的替换路径，但返回本次调用的结果：
 
-| 状态 | 含义 |
-| --- | --- |
-| `applied` | 同步调用结束时，当前文档与规范化后的目标内容一致。 |
-| `unchanged` | 目标内容与现有文档相同，没有进行替换。 |
-| `unavailable` | 调用开始时实例不可用。 |
-| `interrupted` | 操作中断；`reason` 区分事务重入、销毁、卸载、被更新的文档取代或未应用等情况。相关错误会附在 `error` 中。 |
-| `parse-failed` | 解析或校验阶段失败；不单独推断是原内容还是宿主扩展造成。 |
-| `failed` | 替换过程的其他步骤失败。 |
+| 状态           | 含义                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------- |
+| `applied`      | 同步调用结束时，当前文档与规范化后的目标内容一致。                                                       |
+| `unchanged`    | 目标内容与现有文档相同，没有进行替换。                                                                   |
+| `unavailable`  | 调用开始时实例不可用。                                                                                   |
+| `interrupted`  | 操作中断；`reason` 区分事务重入、销毁、卸载、被更新的文档取代或未应用等情况。相关错误会附在 `error` 中。 |
+| `parse-failed` | 解析或校验阶段失败；不单独推断是原内容还是宿主扩展造成。                                                 |
+| `failed`       | 替换过程的其他步骤失败。                                                                                 |
 
 `parse-failed` 和 `failed` 携带 `error`，并按原有约定通知 `onError`；`onError` 本身抛出的异常仍向调用方传播。结果只描述同步调用结束时的状态，不代表内容已经持久化，也不保证之后不会被修改。和 `setContent()` 一样，程序替换不触发 `onChange`。
 
@@ -104,7 +106,7 @@ setEditable(editable: boolean): void
 setIntegrations(integrations: EditorIntegrations): void
 ```
 
-`EditorIntegrations` 可从核心包导入，包含上传、搜索、代码运行、翻译、当前用户及各内容提供方等动态集成选项，不包含创建时确定的界面配置。
+`EditorIntegrations` 可从核心包导入，包含上传、附件阅读页、搜索、代码运行、翻译、写作服务、当前用户及各内容提供方等动态集成选项，不包含创建时确定的界面配置。写作会话通过核心包的 `getWritingAssistant(controller.editor)` 取得；请求、停止、接纳及动态服务规则见[智能写作助手](/writing-assistant)。
 
 **整体替换**集成选项。需要保留的选项必须一并传入；省略某项即清除它。
 
@@ -114,7 +116,7 @@ controller.setIntegrations({ uploadImage, uploadAttachment, searchMentions });
 controller.setIntegrations({ searchMentions });
 ```
 
-已有上传继续使用启动时的回调；变更提及搜索提供方会中止旧搜索并刷新。变更语雀内容提供方会关闭其选择面板并使旧结果失效。参数与示例见[上传与提及](/uploads-and-mentions)。
+已有上传继续使用启动时的回调；变更提及搜索提供方会中止旧搜索并刷新。变更语雀内容提供方会关闭其选择面板、使旧结果失效并移除旧预览，再按当前提供方解析嵌入地址。参数与示例见[上传与提及](/uploads-and-mentions)。
 
 配置变更时，各项相关通知分别执行；某项通知抛错不会阻止其余通知。单个错误会原样抛出，多个错误以 `AggregateError` 抛出。失败的通知可通过再次传入完整配置重试；若通知同步触发另一次配置更新，以最近一次完整配置为准。
 

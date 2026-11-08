@@ -3,7 +3,7 @@
     "text": "指南",
     "link": "/introduction",
     "position": "left",
-    "activeMatch": "^/(documentation|introduction|getting-started|concepts|editing|text-and-blocks|tables-and-databases|media-and-embeds|rich-content|persistence|uploads-and-mentions|configuration|content-and-integrations|features|yuque-feature-matrix|troubleshooting|development)(/|$)"
+    "activeMatch": "^/(documentation|introduction|getting-started|concepts|editing|text-and-blocks|tables-and-databases|media-and-embeds|rich-content|writing-assistant|persistence|uploads-and-mentions|configuration|content-and-integrations|features|yuque-feature-matrix|replication-progress|troubleshooting|development)(/|$)"
   },
   {
     "text": "框架接入",

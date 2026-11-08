@@ -15,12 +15,16 @@ description: 对照 React、Vue 和 SolidJS 组件属性、事件与生命周期
 | `editable`                   | `boolean`                                 | 支持       | 默认 `true`；控制编辑或只读。              |
 | `uploadImage`                | `ImageUpload`                             | 支持       | 图片和图册上传。                           |
 | `uploadAttachment`           | `AttachmentUpload`                        | 支持       | 附件及本地音视频上传。                     |
+| `resolveAttachmentPreview`   | `AttachmentPreviewResolver \| null`       | 支持       | 同步提供附件阅读页；清除后使用原文件地址。 |
 | `searchMentions`             | `MentionSearch`                           | 支持       | 搜索人物与文档。                           |
 | `runCode`                    | `CodeRunner`                              | 支持       | 由宿主执行代码。                           |
 | `translate`                  | `TranslationService`                      | 支持       | 由宿主提供翻译服务。                       |
+| `writingService`             | `WritingService \| null`                  | 支持       | 宿主写作服务，支持停止、重试和明确接纳。   |
+| `writingFeedback`            | `WritingFeedbackService \| null`          | 支持       | 宿主接收用户对生成结果的反馈。             |
+| `databaseAiFill`             | `DatabaseAiFillService \| null`           | 支持       | 数据表文本列的宿主智能填写服务。           |
 | `currentUser`                | `() => EditorUser \| null`                | 支持       | 提供数据表记录的用户身份。                 |
 | `resolveEmbedMetadata`       | `EmbedMetadataResolver`                   | 支持       | 解析嵌入链接的书签元数据。                 |
-| `yuqueContentProvider`       | `ContentPickerProvider \| null`           | 支持       | 由应用搜索或解析内容，选择后插入普通链接。 |
+| `yuqueContentProvider`       | `ContentPickerProvider \| null`           | 支持       | 由应用搜索、解析内容及提供嵌入阅读页。     |
 | `encryptedTextProvider`      | `EncryptedTextProvider \| null`           | 支持       | 由宿主处理加密和解密；安全验证尚未完成。   |
 | `interactiveCardHost`        | `InteractiveCardHost \| null`             | 支持       | 应用提供的互动活动宿主。                   |
 | `onInteractiveCardAbandoned` | `InteractiveInsertOptions["onAbandoned"]` | 支持       | 接收已创建但未插入的活动，供宿主安全处理。 |
@@ -83,5 +87,7 @@ export function DocumentEditor() {
 ## 内容更新与文档切换
 
 组件收到新的 `content` 时调用控制器的 `setContent()`；规范化后相同的内容不会重复替换，也不会触发 `onChange` / `change`。不要依赖这个回调获知应用自己写入的内容。
+
+从已支持的空正文容器键入后仍活跃的斜杠查询会留在编辑区，保存快照中不包含它；回写这个快照会保留当前查询。按 `Esc` 转为正文时会通知 `onChange` / `change`。容器范围见[保存与恢复内容](/persistence#选择保存格式)。
 
 切换不同文档时建议重新挂载，避免复用撤销历史。React 可用 `<SemloEditor key={documentId} />`，Vue 可用 `:key="documentId"`，SolidJS 可依据文档身份重新创建组件。先保存旧文档，再切换实例。各框架的基本示例见[框架适配](/frameworks)。
