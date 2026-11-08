@@ -1,0 +1,313 @@
+.semlo-editor-prose .semlo-editor-video-player {
+  overflow: visible;
+  isolation: isolate;
+  container-type: inline-size;
+}
+
+.semlo-editor-prose .semlo-editor-video-player > video {
+  border-radius: 3px;
+}
+
+.semlo-editor-video-controls {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 14px 12px 6px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 82%));
+  color: #fff;
+}
+
+.semlo-editor-video-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.semlo-editor-video-row button,
+.semlo-editor-video-rate {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.semlo-editor-video-row button:hover:not(:disabled),
+.semlo-editor-video-rate:hover {
+  background: rgb(255 255 255 / 15%);
+}
+
+.semlo-editor-video-row button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.semlo-editor-video-row button svg,
+.semlo-editor-video-player .semlo-editor-media-remove svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.semlo-editor-video-time {
+  margin-left: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.semlo-editor-video-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.semlo-editor-video-progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(
+      to right,
+      #fff var(--semlo-video-progress, 0%),
+      rgb(255 255 255 / 40%) var(--semlo-video-progress, 0%)
+    )
+    center / 100% 3px no-repeat;
+  cursor: pointer;
+}
+
+.semlo-editor-video-progress::-webkit-slider-runnable-track {
+  height: 3px;
+  background: transparent;
+}
+
+.semlo-editor-video-progress::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.semlo-editor-video-progress::-moz-range-track {
+  height: 3px;
+  background: transparent;
+}
+
+.semlo-editor-video-progress::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+}
+
+@media (forced-colors: active) {
+  .semlo-editor-video-progress {
+    appearance: auto;
+    background: transparent;
+  }
+}
+
+.semlo-editor-video-progress-wrap {
+  position: relative;
+}
+
+.semlo-editor-video-progress-preview {
+  position: absolute;
+  bottom: 100%;
+  left: clamp(20px, var(--semlo-video-preview-position, 0%), calc(100% - 20px));
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 80%);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.semlo-editor-prose .semlo-editor-video-download {
+  position: absolute;
+  z-index: 2;
+  top: -40px;
+  left: 50%;
+  display: grid;
+  width: 36px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #e7e7e7;
+  border-radius: 4px;
+  background: #fff;
+  color: #535353;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.semlo-editor-video-player:hover .semlo-editor-video-download,
+.semlo-editor-video-player:focus-within .semlo-editor-video-download,
+.semlo-editor-video-player.ProseMirror-selectednode .semlo-editor-video-download {
+  opacity: 1;
+}
+
+.semlo-editor-video-download svg {
+  width: 17px;
+  height: 17px;
+}
+
+.semlo-editor-video-rate {
+  position: relative;
+  width: 48px;
+  padding: 0;
+  font-size: 12px;
+}
+
+.semlo-editor-video-rate select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.semlo-editor-video-volume {
+  position: relative;
+  display: inline-flex;
+}
+
+.semlo-editor-video-volume-slider {
+  position: absolute;
+  bottom: 44px;
+  left: 6px;
+  width: 32px;
+  height: 88px;
+  margin: 0;
+  padding: 10px 8px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 85%);
+  accent-color: #fff;
+  direction: rtl;
+  visibility: hidden;
+  writing-mode: vertical-lr;
+}
+
+.semlo-editor-video-volume:hover .semlo-editor-video-volume-slider,
+.semlo-editor-video-volume:focus-within .semlo-editor-video-volume-slider {
+  visibility: visible;
+}
+
+.semlo-editor-video-player :is(a, button, input):focus-visible,
+.semlo-editor-video-rate:focus-within {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+}
+
+.semlo-editor-video-player .semlo-editor-media-remove {
+  z-index: 2;
+  padding: 5px;
+}
+
+.semlo-editor-video-player:focus-within .semlo-editor-media-remove {
+  opacity: 1;
+}
+
+.semlo-editor-video-status {
+  display: block;
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: rgb(0 0 0 / 80%);
+  color: #fff;
+  font-size: 12px;
+}
+
+.semlo-editor-video-player [hidden] {
+  display: none;
+}
+
+.semlo-editor-prose .semlo-editor-video-player:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.semlo-editor-prose .semlo-editor-video-player:fullscreen > video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+.semlo-editor-video-player:fullscreen :is(.semlo-editor-video-download, .semlo-editor-media-remove) {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .semlo-editor-video-controls {
+    padding: 10px 4px 2px;
+  }
+
+  .semlo-editor-video-row button {
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+  }
+
+  .semlo-editor-video-rate {
+    width: 44px;
+    height: 44px;
+  }
+
+  .semlo-editor-video-volume-slider {
+    left: 6px;
+  }
+}
+
+@container (max-width: 300px) {
+  .semlo-editor-video-controls {
+    position: static;
+    padding: 0 4px 2px;
+    background: #111;
+  }
+
+  .semlo-editor-video-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+  }
+
+  .semlo-editor-video-time {
+    grid-column: span 3;
+    margin-left: 0;
+  }
+
+  .semlo-editor-video-spacer {
+    display: none;
+  }
+
+  .semlo-editor-video-rate,
+  .semlo-editor-video-row button {
+    width: 44px;
+    height: 44px;
+    justify-self: center;
+  }
+}

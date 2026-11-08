@@ -39,3 +39,5 @@
 @import "../ui/toolbar/alignment-menu.css";
 @import "../ui/toolbar/translation.css";
 @import "../features/list/list-fold.css";
+@import "../features/media/audio-video/audio-player.css";
+@import "../features/media/audio-video/video-player.css";

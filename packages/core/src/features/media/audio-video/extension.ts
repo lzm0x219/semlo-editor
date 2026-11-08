@@ -6,8 +6,14 @@ import {
   needsStoredAttachmentURL,
   safeAttachmentURL,
 } from "../shared/attachment-url";
+import { createAudioNodeView } from "./audio-view";
+import { createVideoNodeView } from "./video-view";
 
-/** Native media controls remain usable in both editing and read-only modes. */
+function validateDownloadPreference(value: unknown): void {
+  if (value !== null && typeof value !== "boolean") throw new Error("音频下载设置无效");
+}
+
+/** 导出保留原生媒体标记；定制控件只属于节点视图。 */
 function mediaNode(kind: "video" | "audio") {
   const type = kind === "video" ? "semloEditorVideo" : "semloEditorAudio";
   const label = kind === "video" ? "视频" : "音频";
@@ -30,6 +36,22 @@ function mediaNode(kind: "video" | "audio") {
         name: { default: "", rendered: false, parseHTML: (el) => el.getAttribute("data-name") ?? "" },
         size: { default: 0, rendered: false, parseHTML: (el) => Number(el.getAttribute("data-size")) || 0 },
         mimeType: { default: "", rendered: false, parseHTML: (el) => el.getAttribute("data-mime") ?? "" },
+        ...(kind === "audio"
+          ? {
+              allowDownload: {
+                default: null,
+                rendered: false,
+                parseHTML: (el: HTMLElement) => {
+                  const value = el.getAttribute("data-semlo-editor-allow-download");
+                  if (value === null) return null;
+                  if (value === "true") return true;
+                  if (value === "false") return false;
+                  throw new Error("音频下载设置无效");
+                },
+                validate: validateDownloadPreference,
+              },
+            }
+          : {}),
       };
     },
     parseHTML() {
@@ -59,6 +81,9 @@ function mediaNode(kind: "video" | "audio") {
           "data-name": node.attrs.name,
           "data-size": node.attrs.size,
           "data-mime": node.attrs.mimeType,
+          ...(kind === "audio" && node.attrs.allowDownload !== null
+            ? { "data-semlo-editor-allow-download": String(node.attrs.allowDownload) }
+            : {}),
           class: `semlo-editor-media semlo-editor-media-${kind}`,
         },
         [
@@ -66,6 +91,7 @@ function mediaNode(kind: "video" | "audio") {
           {
             ...(src ? { src } : {}),
             controls: "",
+            ...(kind === "audio" && node.attrs.allowDownload === false ? { controlslist: "nodownload" } : {}),
             preload: "metadata",
             ...(kind === "video" ? { playsinline: "" } : {}),
             "aria-label": node.attrs.name || label,
@@ -74,62 +100,7 @@ function mediaNode(kind: "video" | "audio") {
       ];
     },
     addNodeView() {
-      return ({ editor, view, node: initial, getPos }) => {
-        const doc = view.dom.ownerDocument;
-        const dom = doc.createElement("div");
-        dom.className = `semlo-editor-media-node semlo-editor-media-${kind}`;
-        dom.contentEditable = "false";
-        const player = doc.createElement(kind);
-        player.controls = true;
-        player.preload = "metadata";
-        if (kind === "video") (player as HTMLVideoElement).playsInline = true;
-        const remove = doc.createElement("button");
-        remove.type = "button";
-        remove.className = "semlo-editor-media-remove";
-        remove.setAttribute("aria-label", `删除${label}`);
-        remove.textContent = "×";
-        dom.append(player, remove);
-        let current = initial;
-        const paint = () => {
-          const src = safeAttachmentURL(current.attrs.src);
-          if (src !== player.getAttribute("src")) {
-            if (src) player.setAttribute("src", src);
-            else player.removeAttribute("src");
-          }
-          player.setAttribute("aria-label", current.attrs.name || label);
-          remove.hidden = !editor.isEditable;
-        };
-        remove.addEventListener("mousedown", (event) => event.preventDefault());
-        remove.addEventListener("click", () => {
-          if (!editor.isEditable) return;
-          const pos = getPos();
-          if (typeof pos !== "number") return;
-          const node = view.state.doc.nodeAt(pos);
-          if (!node || node.type !== current.type) return;
-          view.dispatch(view.state.tr.delete(pos, pos + node.nodeSize));
-          view.focus();
-        });
-        const editableChanged = () => paint();
-        view.dom.addEventListener("semlo-editor:editable", editableChanged);
-        paint();
-        return {
-          dom,
-          update(node) {
-            if (node.type !== current.type) return false;
-            current = node;
-            paint();
-            return true;
-          },
-          stopEvent(event) {
-            return player.contains(event.target as globalThis.Node) || remove.contains(event.target as globalThis.Node);
-          },
-          ignoreMutation: () => true,
-          destroy() {
-            player.pause();
-            view.dom.removeEventListener("semlo-editor:editable", editableChanged);
-          },
-        };
-      };
+      return kind === "audio" ? createAudioNodeView : createVideoNodeView;
     },
   });
 }

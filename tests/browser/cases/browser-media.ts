@@ -39,7 +39,7 @@ async function _browserTest(page: import("playwright").Page) {
   );
   await upload("本地音频", "sample-audio.wav", "audio/wav");
   const audio = page.locator(".semlo-editor-media-node audio");
-  await audio.waitFor();
+  await audio.waitFor({ state: "attached" });
   await audio.evaluate((el) => {
     (el as HTMLMediaElement).muted = true;
     return (el as HTMLMediaElement).play();
@@ -97,7 +97,7 @@ async function _browserTest(page: import("playwright").Page) {
   await video.hover();
   await page.getByRole("button", { name: "删除视频" }).click();
   if (await video.count()) throw new Error("Video deletion failed");
-  await page.keyboard.press("Meta+z");
+  await page.keyboard.press("ControlOrMeta+z");
   if (!(await video.count())) throw new Error("Video undo failed");
   if (errors.length) throw new Error(errors.join("; "));
   return {
