@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-async function mount(page: Page) {
+async function mount(page: Page, controlled = false) {
   await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "CodePen fixture" }));
   await page.route("https://player.bilibili.com/**", (route) =>
     route.fulfill({ status: 200, body: "Bilibili fixture" }),
@@ -23,7 +23,9 @@ async function mount(page: Page) {
       "const host = document.createElement('div')",
       "host.id = 'embed-fidelity-test'",
       "document.body.prepend(host)",
-      "window.embedFidelityEditor = createEditor({ element: host, outline: false, content: '<p>第一段</p><p>第二段</p>' })",
+      "let instance",
+      `instance = createEditor({ element: host, outline: false, content: '<p>第一段</p><p>第二段</p>', onChange: ${controlled ? "snapshot => instance.setContent(snapshot.json)" : "undefined"} })`,
+      "window.embedFidelityEditor = instance",
     ].join("\n"),
   });
   await page.waitForFunction(() => Boolean(window.embedFidelityEditor));
@@ -42,6 +44,112 @@ async function insertFromToolbar(page: Page, name: "哔哩哔哩" | "CodePen") {
 
 test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
+});
+
+test("bilibili direct conversion uses the validated player URL with controlled echo and one undo/redo", async ({
+  page,
+}) => {
+  const host = await mount(page, true);
+  const card = await insertFromToolbar(page, "哔哩哔哩");
+  await card.getByRole("button", { name: "查看示例" }).click();
+  const playerURL = "https://player.bilibili.com/player.html?aid=55895675&autoplay=0";
+  await expect(card.locator("iframe")).toHaveAttribute("src", playerURL);
+  const original = await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json);
+  const embedIndex = original.content!.findIndex((node) => node.type === "semloEditorEmbed");
+  expect(original.content![embedIndex].attrs?.url).toBe("https://www.bilibili.com/video/av55895675");
+  await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").editor.commands.setTextSelection(1));
+  await card.getByRole("button", { name: "选择嵌入内容" }).click();
+  await card.getByRole("button", { name: "转换为链接" }).click();
+  const link = host.locator(".semlo-editor-prose a");
+  await expect(link).toHaveText(playerURL);
+  await expect(link).toHaveAttribute("href", playerURL);
+  const converted = await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json);
+  expect(converted.content!.filter((_node, index) => index !== embedIndex)).toEqual(
+    original.content!.filter((_node, index) => index !== embedIndex),
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json)).toEqual(
+    original,
+  );
+  await expect(card.locator("iframe")).toHaveAttribute("src", playerURL);
+  await host.getByRole("button", { name: "重做", exact: true }).click();
+  await expect(link).toHaveText(playerURL);
+  await expect(link).toHaveAttribute("href", playerURL);
+  expect(await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json)).toEqual(
+    converted,
+  );
+  await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").destroy());
+});
+
+test("bilibili legacy video and player URLs preserve the selected page and rebuild the direct target", async ({
+  page,
+}) => {
+  const host = await mount(page, true);
+  const playerURL = "https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&page=2&autoplay=0";
+  for (const url of [
+    "https://www.bilibili.com/video/BV1xx411c7mD?p=2&autoplay=1&tracking=ignored",
+    "https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&page=2&autoplay=1&tracking=ignored",
+  ]) {
+    await page.evaluate(
+      (value) =>
+        window.__semloRequireFixture("embedFidelityEditor").setContent({
+          type: "doc",
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "原有前文" }] },
+            { type: "semloEditorEmbed", attrs: { provider: "bilibili", url: value } },
+            { type: "paragraph", content: [{ type: "text", text: "原有后文" }] },
+          ],
+        }),
+      url,
+    );
+    const original = await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json);
+    expect(original.content?.[1].attrs?.url).toBe(url);
+    const card = host.locator(".semlo-editor-embed");
+    await expect(card.locator("iframe")).toHaveAttribute("src", playerURL);
+    await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").editor.commands.setTextSelection(1));
+    await card.getByRole("button", { name: "选择嵌入内容" }).click();
+    await card.getByRole("button", { name: "转换为链接" }).click();
+    await expect(host.locator(".semlo-editor-prose a")).toHaveText(playerURL);
+    await expect(host.locator(".semlo-editor-prose a")).toHaveAttribute("href", playerURL);
+    expect(await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").editor.commands.undo())).toBe(
+      true,
+    );
+    expect(await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot().json)).toEqual(
+      original,
+    );
+  }
+  await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").destroy());
+});
+
+test("bilibili unsafe loaded URLs cannot be directly converted or loaded as players", async ({ page }) => {
+  const host = await mount(page);
+  for (const url of [
+    "javascript:alert(1)",
+    "https://player.bilibili.com.evil.test/player.html?aid=55895675",
+    "https://player.bilibili.com/player.html?aid=invalid&autoplay=1",
+  ]) {
+    await page.evaluate(
+      (value) =>
+        window.__semloRequireFixture("embedFidelityEditor").setContent({
+          type: "doc",
+          content: [{ type: "semloEditorEmbed", attrs: { provider: "bilibili", url: value } }],
+        }),
+      url,
+    );
+    const original = await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot());
+    const card = host.locator(".semlo-editor-embed");
+    expect(original.json.content?.[0].attrs?.url).toBe(url);
+    await expect(card.getByLabel("哔哩哔哩链接")).toHaveValue(url);
+    await expect(card.locator("iframe")).toHaveCount(0);
+    await expect(card.getByRole("toolbar", { name: "嵌入内容操作" })).toBeHidden();
+    // 隐藏控件无法由用户点击；直接触发处理器只验证失效目标的防御分支。
+    await card.locator('button[aria-label="转换为链接"]').evaluate((button: HTMLButtonElement) => button.click());
+    expect(await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").getSnapshot())).toEqual(
+      original,
+    );
+    await expect(host.locator(".semlo-editor-prose a[href]")).toHaveCount(0);
+  }
+  await page.evaluate(() => window.__semloRequireFixture("embedFidelityEditor").destroy());
 });
 
 test("long drafts and untrusted original URLs survive HTML, input, and undo", async ({ page }) => {

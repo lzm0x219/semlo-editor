@@ -110,6 +110,83 @@ export function isEmbedProvider(value: unknown): value is EmbedProvider {
   );
 }
 
+const figmaFilePath = /^\/(file|design|board|proto|slides|deck)\/([a-zA-Z0-9]{1,128})(?:\/[^/]+)?\/?$/;
+const figmaNodeParameters = ["node-id", "starting-point-node-id"] as const;
+const figmaNodeID = /^[0-9]+[:-][0-9]+$/;
+
+function hasLegacyURLControls(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return character === "\\" || code < 32 || (code >= 127 && code <= 159);
+  });
+}
+
+function legacyFigmaURL(value: string): URL | null {
+  if (
+    value.length > 2048 ||
+    value.includes(" ") ||
+    hasLegacyURLControls(value) ||
+    /%(?:25)*(?:0[\da-f]|1[\da-f]|5c|7f)/i.test(value)
+  )
+    return null;
+  try {
+    // URL 会吞掉默认端口和部分控制字符，校验原文与一层解码后再解析。
+    if (hasLegacyURLControls(decodeURIComponent(value))) return null;
+    const authority = /^https:\/\/([^/?#]+)/i.exec(value)?.[1];
+    if (!authority || authority.includes("@") || authority.includes(":")) return null;
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      !["figma.com", "www.figma.com"].includes(url.hostname) ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.hash
+    )
+      return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function hasDuplicateEmbedParameters(params: URLSearchParams): boolean {
+  const keys = new Set<string>();
+  for (const key of params.keys()) {
+    if (keys.has(key)) return true;
+    keys.add(key);
+  }
+  return false;
+}
+
+function resolveLegacyFigma(value: string): EmbedTarget | null {
+  const wrapper = legacyFigmaURL(value);
+  if (!wrapper || wrapper.pathname !== "/embed" || hasDuplicateEmbedParameters(wrapper.searchParams)) return null;
+  const host = wrapper.searchParams.get("embed_host");
+  const innerValue = wrapper.searchParams.get("url");
+  if (!host || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(host) || !innerValue) return null;
+  const inner = legacyFigmaURL(innerValue);
+  // 内层只接受文件地址；不递归解析旧包装，也不接受现代嵌入主机。
+  if (!inner || !figmaFilePath.test(inner.pathname) || hasDuplicateEmbedParameters(inner.searchParams)) return null;
+  const file = new URL(inner.href);
+  file.search = "";
+  for (const key of figmaNodeParameters) {
+    if (!inner.searchParams.has(key)) continue;
+    const node = inner.searchParams.get(key)!;
+    if (!figmaNodeID.test(node)) return null;
+    file.searchParams.set(key, node);
+  }
+  const node = wrapper.searchParams.get("node_id");
+  if (node !== null && (!figmaNodeID.test(node) || inner.searchParams.has("node-id"))) return null;
+  // 保留已观察的旧包装作为直接链接；仅重建经过校验的白名单字段。
+  const target = new URL(`${wrapper.origin}/embed`);
+  target.searchParams.set("embed_host", host);
+  target.searchParams.set("url", file.href);
+  if (node !== null) target.searchParams.set("node_id", node);
+  if (target.href.length > 2048) return null;
+  return { url: target.href, embedUrl: target.href };
+}
+
 /**
  * Validate the complete origin and construct the iframe URL from validated
  * path and query fields. Do not let HTML/JSON data supply an arbitrary iframe.
@@ -147,14 +224,15 @@ export function resolveEmbed(provider: unknown, value: unknown): EmbedTarget | n
 
   if (provider === "figma") {
     if (!["figma.com", "www.figma.com", "embed.figma.com"].includes(url.hostname)) return null;
-    const match = /^\/(file|design|board|proto|slides|deck)\/([a-zA-Z0-9]{1,128})(?:\/[^/]+)?\/?$/.exec(url.pathname);
+    if (url.pathname === "/embed") return resolveLegacyFigma(input);
+    const match = figmaFilePath.exec(url.pathname);
     if (!match) return null;
     const path = `/${match[1]}/${match[2]}`;
     const canonical = new URL(`https://www.figma.com${path}`);
     const embed = new URL(`https://embed.figma.com${path}`);
-    for (const key of ["node-id", "starting-point-node-id"]) {
+    for (const key of figmaNodeParameters) {
       const value = url.searchParams.get(key);
-      if (value && /^[0-9]+[:-][0-9]+$/.test(value)) {
+      if (value && figmaNodeID.test(value)) {
         canonical.searchParams.set(key, value);
         embed.searchParams.set(key, value);
       }
