@@ -80,18 +80,6 @@ window.mountHeadingGeneralGuard = (content, native, widget) => {
     }),
     (plugin, plugins) => [plugin, ...plugins],
   );
-  editor.registerPlugin(
-    new Plugin({
-      key: new PluginKey("headingGeneralObservation"),
-      props: {
-        handleKeyDown(_view, event) {
-          if (mismatchBefore && event.key === "End" && event.shiftKey) mismatchAfter = readMismatch();
-          return false;
-        },
-      },
-    }),
-    (plugin, plugins) => [...plugins, plugin],
-  );
   let started = 0;
   let timing: ReturnType<Probe["keyTime"]> = null;
   document.addEventListener(
@@ -102,9 +90,20 @@ window.mountHeadingGeneralGuard = (content, native, widget) => {
     true,
   );
   editor.view.dom.addEventListener("keydown", (event) => {
-    if (event.key === "End" && event.shiftKey)
+    if (event.key === "End" && event.shiftKey) {
       timing = { elapsed: performance.now() - started, prevented: event.defaultPrevented, trusted: event.isTrusted };
+    }
   });
+  const guard = editor.state.plugins.find((item) =>
+    (item as unknown as { key: string }).key.startsWith("semloEditorHeadingEndSelection$"),
+  )!;
+  const originalKeyDown = guard.props.handleKeyDown!;
+  guard.props.handleKeyDown = function (view, event) {
+    const handled = originalKeyDown.call(this, view, event);
+    // 保护会消费按键，需在其返回时观测；后续 DOMObserver 同步属于另一个时序。
+    if (mismatchBefore && event.key === "End" && event.shiftKey) mismatchAfter = readMismatch();
+    return handled;
+  };
   window.headingGeneralGuard = {
     controller,
     get mismatchBefore() {

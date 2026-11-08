@@ -1,10 +1,12 @@
 import { Extension, type Editor } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { AllSelection, Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import type { DecorationSet } from "@tiptap/pm/view";
 
 import { MAX_INDENT, safeIndent } from "../../shared/indent";
+import { selectionHasNumberingSequences } from "../list/numbering-sequence-document";
+import { indentNumberedList } from "../list/numbering-sequence-indent";
 import { normalizeOrderedAncestorPath } from "../list/ordered-path";
 import {
   listOrdinals,
@@ -12,6 +14,7 @@ import {
   rebaseOrderedListLevelStarts,
   validOrderedListStart,
 } from "../list/ordinals";
+import { canJoinRootParagraphPaste } from "./paragraph-paste";
 
 /** Supported multipliers mirror the choices in the editor's line-height menu. */
 export const LINE_HEIGHT_VALUES = ["1", "1.15", "1.5", "2", "2.5", "3"] as const;
@@ -100,9 +103,11 @@ function updateNodes(
   editor: Editor,
   nodes: SelectedBlock[],
   attrsFor: (node: ProseMirrorNode, pos: number) => Record<string, unknown> | null,
+  joinPreviousHistory = false,
 ): boolean {
   if (!editor.isEditable || editor.isDestroyed) return false;
-  let transaction = closeHistory(editor.state.tr);
+  let transaction = editor.state.tr;
+  if (!joinPreviousHistory) closeHistory(transaction);
   let changed = false;
   for (const { node, pos } of nodes) {
     const attrs = attrsFor(node, pos);
@@ -111,9 +116,11 @@ function updateNodes(
     changed = true;
   }
   if (!changed) return false;
+  const intended = transaction.doc;
   editor.view.dispatch(transaction);
   // Isolate the toolbar action from adjacent typing and other layout changes.
-  editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+  if (!editor.isDestroyed && (!joinPreviousHistory || editor.state.doc.eq(intended)))
+    editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
   return true;
 }
 
@@ -121,6 +128,7 @@ function updateNodes(
 export function adjustParagraphIndent(editor: Editor, direction: -1 | 1): boolean {
   if (editor.isDestroyed || !editor.isEditable || (direction !== -1 && direction !== 1)) return false;
   const targets = indentTargets(editor);
+  if (selectionHasNumberingSequences(editor.state)) return indentNumberedList(editor, targets, direction);
   const listChanges = new Map<number, { node: ProseMirrorNode; attrs: Record<string, unknown> }>();
   const checkedPaths = new Map<number, number[]>();
   for (const target of targets) {
@@ -179,9 +187,16 @@ export function adjustParagraphIndent(editor: Editor, direction: -1 | 1): boolea
 
 /** Apply a listed multiplier or null for the editor's default. */
 export function setParagraphLineHeight(editor: Editor, value: LineHeight | null): boolean {
+  return applyParagraphLineHeight(editor, value, false);
+}
+
+function applyParagraphLineHeight(editor: Editor, value: LineHeight | null, joinPreviousHistory: boolean): boolean {
   if (editor.isDestroyed || !editor.isEditable || (value !== null && safeLineHeight(value) === null)) return false;
-  return updateNodes(editor, selectedBlocks(editor), (node) =>
-    safeLineHeight(node.attrs.semloEditorLineHeight) === value ? null : { semloEditorLineHeight: value },
+  return updateNodes(
+    editor,
+    selectedBlocks(editor),
+    (node) => (safeLineHeight(node.attrs.semloEditorLineHeight) === value ? null : { semloEditorLineHeight: value }),
+    joinPreviousHistory,
   );
 }
 
@@ -194,7 +209,46 @@ export function getParagraphLineHeight(editor: Editor): LineHeight | null | unde
   return blocks.every(({ node }) => safeLineHeight(node.attrs.semloEditorLineHeight) === first) ? first : undefined;
 }
 
+function rootTextblocks(editor: Editor): SelectedBlock[] | null {
+  const { doc, selection } = editor.state;
+  if (selection.ranges.length !== 1) return null;
+  let first: number;
+  let last: number;
+  if (selection instanceof AllSelection) {
+    first = 0;
+    last = doc.childCount - 1;
+  } else if (selection instanceof TextSelection && selection.$from.depth === 1 && selection.$to.depth === 1) {
+    first = selection.$from.index(0);
+    last = selection.$to.index(0);
+  } else return null;
+  for (let index = first; index <= last; index++) {
+    const block = doc.child(index);
+    if (!textblockNames.has(block.type.name)) return null;
+    if (
+      block.type.name === "heading" &&
+      (!Number.isInteger(block.attrs.level) || block.attrs.level < 1 || block.attrs.level > 6)
+    )
+      return null;
+  }
+  const blocks = selectedBlocks(editor);
+  return blocks.length ? blocks : null;
+}
+
 function stepLineHeight(editor: Editor, direction: -1 | 1): boolean {
+  if (editor.isDestroyed || !editor.isEditable) return false;
+  const blocks = rootTextblocks(editor);
+  if (blocks) {
+    // 已对照的根级正文与标题以首个显式值为基准，默认值位于 1.5 和 2 之间。
+    const steps: readonly (LineHeight | null)[] = ["1", "1.15", "1.5", null, "2", "2.5", "3"];
+    const baseline =
+      blocks.map(({ node }) => safeLineHeight(node.attrs.semloEditorLineHeight)).find((value) => value !== null) ??
+      null;
+    const currentIndex = steps.indexOf(baseline);
+    const nextIndex = Math.max(0, Math.min(steps.length - 1, currentIndex + direction));
+    return nextIndex === currentIndex
+      ? false
+      : applyParagraphLineHeight(editor, steps[nextIndex], canJoinRootParagraphPaste(editor.state));
+  }
   const current = getParagraphLineHeight(editor);
   if (current === undefined) return false;
   // Yuque's first downward step from default is 1.5 in observed selections.
@@ -202,15 +256,6 @@ function stepLineHeight(editor: Editor, direction: -1 | 1): boolean {
     const { selection } = editor.state;
     const { $from, $to } = selection;
     if (selection instanceof TextSelection && selection.ranges.length === 1) {
-      if (
-        $from.depth === 1 &&
-        $to.depth === 1 &&
-        $from.start() === $to.start() &&
-        $from.parent.type.name === "heading"
-      ) {
-        const level = $from.parent.attrs.level;
-        if (Number.isInteger(level) && level >= 1 && level <= 6) return setParagraphLineHeight(editor, "1.5");
-      }
       if (
         selection.empty &&
         $from.depth === 2 &&
@@ -236,16 +281,6 @@ function stepLineHeight(editor: Editor, direction: -1 | 1): boolean {
       $from.parent.type.name === "paragraph" &&
       $to.parent.type.name === "paragraph"
     ) {
-      if ($from.depth === 1 && $to.depth === 1) {
-        let paragraphsOnly = true;
-        for (let index = $from.index(0); index <= $to.index(0); index++) {
-          if (editor.state.doc.child(index).type.name !== "paragraph") {
-            paragraphsOnly = false;
-            break;
-          }
-        }
-        if (paragraphsOnly) return setParagraphLineHeight(editor, "1.5");
-      }
       if (
         $from.depth === 3 &&
         $to.depth === 3 &&

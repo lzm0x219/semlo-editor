@@ -1,5 +1,7 @@
 import { expect, test } from "@rstest/playwright";
 
+import { openFontToolbar } from "../../fixtures/browser/font-toolbar";
+
 test("font menu ignores Escape while the editor view is composing", async ({ page }) => {
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
@@ -14,7 +16,7 @@ test("font menu ignores Escape while the editor view is composing", async ({ pag
   await page.waitForFunction(() => Boolean(Reflect.get(window, "fontComposition")));
   const host = page.locator("#font-composition"),
     prose = host.locator(".semlo-editor-prose");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await openFontToolbar(host);
   const menu = page.getByRole("dialog", { name: "选择字体" });
   await expect(menu).toBeVisible();
   await prose.evaluate((element) => element.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })));
@@ -48,7 +50,7 @@ test("font menu keyboard handling remains safe after the editor view unmounts", 
     `,
   });
   await page.waitForFunction(() => Boolean(Reflect.get(window, "fontUnmounted")));
-  await page.locator("#font-unmounted").getByRole("button", { name: "字体", exact: true }).click();
+  await openFontToolbar(page.locator("#font-unmounted"));
   const menu = page.getByRole("dialog", { name: "选择字体" });
   await expect(menu).toBeVisible();
   await page

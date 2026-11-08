@@ -1,7 +1,7 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/list/list-fold-fixture";
 
 let origin = "";
@@ -10,14 +10,7 @@ test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
 });
 test.beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/list/list-fold-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/list/list-fold-fixture.ts", { publicDir: false });
   const { port, server } = await rsbuild.startDevServer();
   origin = `http://127.0.0.1:${port}`;
   stop = async () => server.close();

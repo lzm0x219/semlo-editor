@@ -15,18 +15,18 @@ test("line-height shortcuts step down and up from the default in an ordered list
     selection.addRange(range);
     document.dispatchEvent(new Event("selectionchange"));
   });
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(item).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(text);
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(item).toHaveAttribute("data-semlo-editor-line-height", "1.15");
-  await page.keyboard.press("Alt+Meta+BracketRight");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketRight");
   await expect(item).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   await page.getByRole("button", { name: "行高调整" }).click();
   await page.getByRole("menuitem", { name: "默认" }).click();
-  await page.keyboard.press("Alt+Meta+BracketRight");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketRight");
   await expect(item).toHaveAttribute("data-semlo-editor-line-height", "2");
-  await page.keyboard.press("Alt+Meta+BracketRight");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketRight");
   await expect(item).toHaveAttribute("data-semlo-editor-line-height", "2.5");
 });
 
@@ -44,7 +44,7 @@ test("line-height shortcut steps down from default for selected ordinary text", 
     document.dispatchEvent(new Event("selectionchange"));
   });
   await expect(paragraph).not.toHaveAttribute("data-semlo-editor-line-height");
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(paragraph).toHaveAttribute("data-semlo-editor-line-height", "1.5");
 });
 
@@ -66,7 +66,7 @@ test("line-height shortcut steps both selected ordered items down from default",
     document.dispatchEvent(new Event("selectionchange"));
   });
   const selected = await page.evaluate(() => window.getSelection()?.toString());
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(items.nth(0)).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   await expect(items.nth(1)).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
@@ -90,7 +90,7 @@ test("line-height shortcut steps both selected unordered items down from default
     document.dispatchEvent(new Event("selectionchange"));
   });
   const selected = await page.evaluate(() => window.getSelection()?.toString());
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(items.nth(0)).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   await expect(items.nth(1)).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
@@ -117,7 +117,7 @@ test("line-height shortcut steps two selected adjacent paragraphs down from defa
   const selected = await page.evaluate(() => window.getSelection()?.toString());
   await expect(first).not.toHaveAttribute("data-semlo-editor-line-height");
   await expect(second).not.toHaveAttribute("data-semlo-editor-line-height");
-  await page.keyboard.press("Alt+Meta+BracketLeft");
+  await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
   await expect(first).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   await expect(second).toHaveAttribute("data-semlo-editor-line-height", "1.5");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
@@ -137,7 +137,7 @@ for (const kind of ["paragraph", "ordered item"] as const) {
     await page.getByRole("menuitem", { name: "默认" }).click();
     await expect(item).not.toHaveAttribute("data-semlo-editor-line-height");
     expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
-    await page.keyboard.press("Alt+Meta+BracketLeft");
+    await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
     await expect(item).toHaveAttribute("data-semlo-editor-line-height", "1.5");
     expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(true);
     await expect(page.locator("#editor-host .semlo-editor-prose")).toBeFocused();
@@ -160,7 +160,7 @@ for (const kind of ["paragraph", "unordered item", "heading"] as const) {
     await page.keyboard.press("Shift+ArrowRight");
     const selected = await page.evaluate(() => window.getSelection()?.toString());
     expect(selected?.length).toBeGreaterThan(0);
-    await page.keyboard.press("Alt+Meta+BracketLeft");
+    await page.keyboard.press("Alt+ControlOrMeta+BracketLeft");
     await expect(item).toHaveAttribute("data-semlo-editor-line-height", "1.5");
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(selected);
   });

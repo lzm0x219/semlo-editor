@@ -24,6 +24,7 @@
 @import "../features/text/local-fonts.css";
 @import "../ui/outline/outline.css";
 @import "../features/heading/fold.css";
+@import "../features/heading/anchor.css";
 @import "../features/heading/numbering-menu.css";
 @import "../ui/format-painter/format-painter.css";
 @import "../features/blocks/actions/block-actions.css";

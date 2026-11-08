@@ -1,0 +1,31 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "orderedList",
+      "attrs": { "semloEditorOrderedStyle": "mixed" },
+      "content": [
+        {
+          "type": "listItem",
+          "attrs": { "semloEditorListIndent": 0 },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "父" }] }]
+        },
+        {
+          "type": "listItem",
+          "attrs": { "semloEditorListIndent": 1 },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "甲" }] }]
+        },
+        {
+          "type": "listItem",
+          "attrs": { "semloEditorListIndent": 1, "semloEditorListRestart": true },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "乙" }] }]
+        },
+        {
+          "type": "listItem",
+          "attrs": { "semloEditorListIndent": 1 },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "丙" }] }]
+        }
+      ]
+    }
+  ]
+}

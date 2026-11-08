@@ -1,29 +1,11 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
-import { MAX_INDENT, safeIndent } from "../../shared/indent";
-
-/** Validate sparse first values without trusting JSON or HTML supplied by a host. */
-export function normalizeOrderedListLevelStarts(value: unknown): Record<string, number> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  try {
-    const descriptors = Object.getOwnPropertyDescriptors(value);
-    const keys = Object.keys(descriptors);
-    if (!keys.length || keys.length > MAX_INDENT + 1 || Object.getOwnPropertySymbols(value).length) return null;
-    const result: Record<string, number> = {};
-    for (const key of keys) {
-      const descriptor = descriptors[key];
-      if (!/^[0-8]$/.test(key) || !("value" in descriptor)) return null;
-      const start = descriptor.value;
-      if (typeof start !== "number" || !Number.isSafeInteger(start) || start < -2147483648 || start > 2147483647)
-        return null;
-      result[key] = start;
-    }
-    return result;
-  } catch {
-    return null;
-  }
-}
+import { safeIndent } from "../../shared/indent";
+import { mixedRomanLabel, mixedRomanMarker } from "./mixed-roman";
+import { hasNumberingSequences, sequenceListValues } from "./numbering-sequence-document";
+import { deriveOrderedListValues, normalizeOrderedListLevelStarts, validOrderedListStart } from "./numbering-values";
+export { deriveOrderedListValues, normalizeOrderedListLevelStarts, validOrderedListStart } from "./numbering-values";
 
 const orderedMarkerTypes: Readonly<Record<string, string>> = {
   "1": "decimal",
@@ -32,13 +14,7 @@ const orderedMarkerTypes: Readonly<Record<string, string>> = {
   i: "lower-roman",
   I: "upper-roman",
 };
-const orderedMarkers = ["decimal", "lower-alpha", "lower-roman"] as const;
-
-export function validOrderedListStart(value: unknown): number | null {
-  const parsed =
-    typeof value === "number" || (typeof value === "string" && /^[+-]?\d+$/.test(value.trim())) ? Number(value) : NaN;
-  return Number.isSafeInteger(parsed) && parsed >= -2147483648 && parsed <= 2147483647 ? parsed : null;
-}
+const orderedMarkers = ["decimal", "lower-alpha", mixedRomanMarker] as const;
 
 type RebasedOrderedListStarts =
   | { ok: true; attrs: { start: number; semloEditorListLevelStarts: Record<string, number> | null } | null }
@@ -104,53 +80,58 @@ function orderedListMarker(list: OrderedListLayout, item: ProseMirrorNode): stri
   return level ? orderedMarkers[level % orderedMarkers.length] : null;
 }
 
-/** Derive the values of one flat list using the first item's actual level. */
-export function deriveOrderedListValues(
-  indents: readonly unknown[],
-  start: unknown,
-  levelStarts?: unknown,
-  restarts?: readonly unknown[],
-): number[] {
-  if (!indents.length) return [];
-  const counters: number[] = Array(MAX_INDENT + 1).fill(0);
-  const started: boolean[] = Array(MAX_INDENT + 1).fill(false);
-  const starts = normalizeOrderedListLevelStarts(levelStarts);
-  const initialLevel = safeIndent(indents[0]);
-  const first = validOrderedListStart(start) ?? 1;
-  let restartValues: readonly unknown[] | undefined;
-  try {
-    if (Array.isArray(restarts)) restartValues = restarts;
-  } catch {
-    // A malformed host value must not interrupt numbering.
+/** 原生 CSS counter 的文字投影只负责格式化，不另建编号状态。 */
+function counterLabel(value: number, marker: string): string {
+  if (marker === mixedRomanMarker) return mixedRomanLabel(value);
+  if ((marker === "lower-alpha" || marker === "upper-alpha") && value >= 1) {
+    let label = "";
+    for (let remaining = value; remaining > 0; remaining = Math.floor((remaining - 1) / 26))
+      label = String.fromCharCode(97 + ((remaining - 1) % 26)) + label;
+    return marker === "upper-alpha" ? label.toUpperCase() : label;
   }
-  return indents.map((indent, index) => {
-    const level = safeIndent(indent);
-    let restart = false;
-    try {
-      if (restartValues) {
-        const descriptor = Object.getOwnPropertyDescriptor(restartValues, String(index));
-        restart = !!descriptor && "value" in descriptor && descriptor.value === true;
+  if ((marker === "lower-roman" || marker === "upper-roman") && value >= 1 && value <= 3999) {
+    let remaining = value,
+      label = "";
+    for (const [number, digit] of [
+      [1000, "M"],
+      [900, "CM"],
+      [500, "D"],
+      [400, "CD"],
+      [100, "C"],
+      [90, "XC"],
+      [50, "L"],
+      [40, "XL"],
+      [10, "X"],
+      [9, "IX"],
+      [5, "V"],
+      [4, "IV"],
+      [1, "I"],
+    ] as const)
+      while (remaining >= number) {
+        label += digit;
+        remaining -= number;
       }
-    } catch {
-      // A malformed host value must not interrupt numbering.
-    }
-    if (restart) {
-      counters[level] = 0;
-      started[level] = true;
-    } else if (!started[level]) {
-      counters[level] = (level === initialLevel ? first : (starts?.[String(level)] ?? 1)) - 1;
-      started[level] = true;
-    }
-    // HTML list values are signed 32-bit integers; native markers saturate at
-    // the upper bound rather than advancing into an invalid `value` attribute.
-    counters[level] = Math.min(2147483647, counters[level] + 1);
-    for (let deeper = level + 1; deeper <= MAX_INDENT; deeper += 1) if (started[deeper]) counters[deeper] = 0;
-    return counters[level];
-  });
+    return marker === "lower-roman" ? label.toLowerCase() : label;
+  }
+  return String(value);
+}
+
+/** 供剪贴板读取当前可见原生编号；自定义样式仍由 orderedListLabels 覆盖。 */
+export function orderedListPlainLabels(doc: ProseMirrorNode): ReadonlyMap<number, string> {
+  const result = new Map<number, string>();
+  for (const list of orderedLists(doc)) {
+    const values = sequenceListValues(list.node, list.parentList === "orderedList");
+    list.node.forEach((item, offset, index) => {
+      if (list.node.attrs.type && !Object.hasOwn(orderedMarkerTypes, String(list.node.attrs.type))) return;
+      result.set(list.pos + 1 + offset, `${counterLabel(values[index], orderedListMarker(list, item) ?? "decimal")}.`);
+    });
+  }
+  return result;
 }
 
 /** Return the visible numbers of a flat or nested ordered list when needed. */
 function orderedListOrdinals(list: OrderedListLayout): number[] | null {
+  if (hasNumberingSequences(list.node)) return sequenceListValues(list.node);
   const indents: unknown[] = [];
   const restarts: unknown[] = [];
   list.node.forEach((item) => {

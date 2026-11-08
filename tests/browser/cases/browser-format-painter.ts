@@ -103,12 +103,16 @@ async function _browserTest(page: import("playwright").Page) {
     ]),
   );
   await selectParagraph(0);
+  const bubble = host.locator(".semlo-editor-bubble");
+  await bubble.waitFor({ state: "visible" });
   await painter.click();
   if ((await painter.getAttribute("aria-pressed")) !== "true") throw new Error("Single-click did not arm the painter");
+  if (await bubble.isVisible()) throw new Error("The floating toolbar obscures the painter target");
   await dragParagraph(1);
   await waitForParagraph(1, "bold", true);
   if ((await painter.getAttribute("aria-pressed")) !== "false")
     throw new Error("Single-use painter did not exit after a drag");
+  await bubble.waitFor({ state: "visible" });
   await page.evaluate(() => window.__semloRequireFixture("painterApi").editor.commands.undo());
   if ((await paragraphData(1)).some((node) => hasMark(node, "bold")))
     throw new Error("Undo did not restore the target format");
@@ -255,7 +259,7 @@ async function _browserTest(page: import("playwright").Page) {
 
   await reset(content([paragraph(text("键盘源", [mark("bold")])), paragraph(text("键盘目标"))]));
   await selectParagraph(0);
-  await page.keyboard.press("Meta+Shift+S");
+  await page.keyboard.press("ControlOrMeta+Shift+S");
   await page.waitForTimeout(80);
   if ((await painter.getAttribute("aria-pressed")) !== "true") throw new Error("The shortcut did not arm the painter");
   await selectionAt(1);

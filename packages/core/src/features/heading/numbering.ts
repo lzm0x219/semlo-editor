@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
+import { formatChineseNumber } from "../../shared/chinese-number";
 import { headingNumberingClipboardPlugin } from "./numbering-clipboard";
 
 export type HeadingNumberingStyle = "mixed" | "chinese" | "decimal";
@@ -78,13 +79,6 @@ function mixedMarker(number: number, depth: number): string {
   return `${number}.`;
 }
 
-function chineseNumber(number: number): string {
-  const digits = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
-  if (number < 10) return digits[number];
-  if (number < 100) return `${number < 20 ? "" : digits[Math.floor(number / 10)]}十${digits[number % 10]}`;
-  return String(number);
-}
-
 function numberMarker(
   style: HeadingNumberingStyle,
   ancestors: readonly NumberedAncestor[],
@@ -93,8 +87,8 @@ function numberMarker(
 ): string {
   if (style === "decimal") return `${[...ancestors.map((item) => item.number), number].join(".")}.`;
   if (style === "chinese") {
-    if (depth % 3 === 0) return `${chineseNumber(number)}、`;
-    if (depth % 3 === 1) return `(${chineseNumber(number)})`;
+    if (depth % 3 === 0) return `${formatChineseNumber(number)}、`;
+    if (depth % 3 === 1) return `(${formatChineseNumber(number)})`;
     return `${number}.`;
   }
   return mixedMarker(number, depth);

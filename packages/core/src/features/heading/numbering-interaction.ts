@@ -1,9 +1,9 @@
 import type { Editor } from "@tiptap/core";
-import { closeHistory } from "@tiptap/pm/history";
 import type { Transaction } from "@tiptap/pm/state";
 
 import { headingNumberingStyle } from "./numbering";
 import { openHeadingNumberingMenu, type HeadingNumberingMenuClose, type HeadingNumberingStyle } from "./numbering-menu";
+import { setHeadingNumberingStyle } from "./numbering-toggle";
 
 /** Connect numbered heading markers to their editor-owned style menu. */
 export function mountHeadingNumberingInteraction(editor: Editor): () => void {
@@ -22,16 +22,7 @@ export function mountHeadingNumberingInteraction(editor: Editor): () => void {
   };
 
   const setStyle = (style: HeadingNumberingStyle) => {
-    if (editor.isDestroyed || !editor.isEditable) return;
-    const transaction = closeHistory(editor.state.tr);
-    editor.state.doc.descendants((node, pos) => {
-      if (node.type.name !== "heading" || !headingNumberingStyle(node.attrs.semloEditorHeadingNumbering)) return;
-      if (node.attrs.semloEditorHeadingNumbering !== style)
-        transaction.setNodeMarkup(pos, undefined, { ...node.attrs, semloEditorHeadingNumbering: style });
-    });
-    if (!transaction.docChanged) return;
-    view.dispatch(transaction);
-    if (!view.isDestroyed) view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
+    setHeadingNumberingStyle(editor, style);
   };
 
   const show = (marker: HTMLElement, keyboard: boolean) => {

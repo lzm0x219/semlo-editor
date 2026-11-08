@@ -58,6 +58,45 @@
   top: 0;
   left: var(--semlo-editor-block-inset-offset, 0px);
 }
+.semlo-editor-prose .semlo-editor-heading-linkable.semlo-editor-block-link-compact > .semlo-editor-heading-link {
+  left: var(--semlo-editor-heading-link-offset);
+  width: 12px;
+  font-size: 9px;
+}
+.semlo-editor-prose .semlo-editor-heading-linkable.semlo-editor-block-link-inset {
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
+.semlo-editor-prose .semlo-editor-heading-linkable.semlo-editor-block-link-inset > .semlo-editor-heading-link {
+  left: var(--semlo-editor-block-inset-offset, 0px);
+}
+.semlo-editor-prose .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-handle-inset {
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 56px);
+}
+.semlo-editor-prose
+  .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-handle-inset
+  > .semlo-editor-heading-link {
+  left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
+.semlo-editor-prose
+  .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-handle-inset.semlo-editor-block-fold-inset {
+  min-height: 44px;
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 56px);
+}
+.semlo-editor-prose
+  .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-handle-inset.semlo-editor-block-fold-inset
+  > .semlo-editor-heading-link {
+  top: 24px;
+  left: var(--semlo-editor-block-inset-offset, 0px);
+}
+.semlo-editor-prose .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-fold-stacked {
+  padding-left: calc(var(--semlo-editor-block-inset-offset, 0px) + 56px);
+}
+.semlo-editor-prose
+  .semlo-editor-heading-linkable.semlo-editor-block-link-inset.semlo-editor-block-fold-stacked
+  > .semlo-editor-heading-link {
+  top: 0;
+  left: calc(var(--semlo-editor-block-inset-offset, 0px) + 28px);
+}
 .semlo-editor-prose .semlo-editor-block-actions-selected {
   background: #e8f3ff !important;
   border-radius: 3px;

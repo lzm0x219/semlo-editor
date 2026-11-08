@@ -137,8 +137,12 @@ test("公开命令支持正文及全部标题级别，并拒绝无效输入", as
   expect(await page.evaluate(() => window.headingCommandFixture.set(2))).toBe(true);
   expect(await page.evaluate(() => window.headingCommandFixture.set(0))).toBe(true);
   expect(await page.evaluate(() => window.headingCommandFixture.state())).toEqual({ level: 0, enabled: true });
-  expect(await page.evaluate(() => window.headingCommandFixture.toggle(0))).toBe(false);
+  const paragraph = await page.evaluate(() => window.headingCommandFixture.snapshot());
+  // 公开契约中 0 对 set/toggle 都表示正文，成功不保证文档发生变化。
+  expect(await page.evaluate(() => window.headingCommandFixture.toggle(0))).toBe(true);
   expect(await page.evaluate(() => window.headingCommandFixture.state())).toEqual({ level: 0, enabled: true });
+  expect(await page.evaluate(() => window.headingCommandFixture.snapshot())).toEqual(paragraph);
+  expect(await page.evaluate(() => window.headingCommandFixture.selection())).toEqual(selection);
   await page.evaluate(() => window.headingCommandFixture.destroy());
 });
 

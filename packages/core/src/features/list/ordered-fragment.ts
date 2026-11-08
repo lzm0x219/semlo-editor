@@ -1,10 +1,21 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
+import { ContentValidationError } from "../../shared/content-error";
+import { hasNumberingSequences } from "./numbering-sequence-document";
 import { normalizeOrderedAncestorPath } from "./ordered-path";
 import { deriveOrderedListValues, normalizeOrderedListLevelStarts } from "./ordinals";
 
 /** Preserve per-level ordinals and explicit ancestors when splitting a flat list. */
 export function orderedListSuffixAttrs(list: ProseMirrorNode, children: ProseMirrorNode[], index: number) {
+  if (hasNumberingSequences(list)) {
+    if (
+      index === 0 &&
+      children.length === list.childCount &&
+      children.every((item, position) => item.eq(list.child(position)))
+    )
+      return { ...list.attrs };
+    throw new ContentValidationError("编号序列暂不支持拆分为列表片段");
+  }
   let nested = false;
   list.descendants((node) => {
     if (["bulletList", "orderedList", "taskList"].includes(node.type.name)) nested = true;

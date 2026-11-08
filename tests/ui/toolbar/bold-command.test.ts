@@ -1,23 +1,15 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/toolbar/bold-command-fixture";
 
-type Entry = "main" | "bubble" | "keyboard" | "custom-main" | "custom-floating" | "api";
+type Entry = "main" | "custom-format" | "keyboard" | "custom-main" | "custom-floating" | "api";
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const build = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/toolbar/bold-command-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await build.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/toolbar/bold-command-fixture.ts", {
+    publicDir: false,
+  }));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => {
@@ -26,16 +18,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function mount(page: Page, entry: Entry, content: string) {
-  const mode: "default" | "custom-main" | "custom-floating" =
-    entry === "custom-main" || entry === "custom-floating" ? entry : "default";
+  const mode: "default" | "custom-main" | "custom-floating" | "custom-format" =
+    entry === "custom-main" || entry === "custom-floating" || entry === "custom-format" ? entry : "default";
   await page.evaluate(({ mode, content }) => window.boldCommandFixture.mount(mode, content), { mode, content });
 }
 
 function button(page: Page, entry: Entry) {
   const host = page.locator("#bold-command-host");
   if (entry === "main") return host.getByRole("toolbar", { name: "文本格式" }).getByRole("button", { name: "加粗" });
-  if (entry === "bubble")
-    return host.getByRole("toolbar", { name: "选中文字格式" }).getByRole("button", { name: "加粗" });
+  if (entry === "custom-format")
+    return host.getByRole("toolbar", { name: "选中文字工具" }).getByRole("button", { name: "加粗" });
   if (entry === "custom-main") return host.getByRole("button", { name: "自定义主加粗" });
   if (entry === "custom-floating") return host.getByRole("button", { name: "自定义浮动加粗" });
   throw new Error("此入口没有按钮");
@@ -51,7 +43,54 @@ async function invoke(page: Page, entry: Entry) {
   await button(page, entry).click();
 }
 
-for (const entry of ["main", "bubble", "keyboard", "custom-main", "custom-floating", "api"] as const) {
+test("跨标题与正文清除格式后，一次撤销只恢复格式", async ({ page }) => {
+  await mount(
+    page,
+    "main",
+    '<h2><strong>title</strong></h2><p><a href="https://example.com"><strong><em>plain</em></strong></a></p>',
+  );
+  const editor = page.locator("#bold-command-host .semlo-editor-prose");
+  await page.evaluate(() => window.boldCommandFixture.select(13, 13));
+  await expect(editor).toBeFocused();
+  await page.keyboard.type("X");
+  await expect(editor.locator("p")).toHaveText("plainX");
+  const before = await page.evaluate(() => window.boldCommandFixture.snapshot());
+  await page.evaluate(() => window.boldCommandFixture.select(1, 14));
+  expect(await page.evaluate(() => window.boldCommandFixture.range())).toEqual({ from: 1, to: 14 });
+  await page.getByRole("toolbar", { name: "文本格式" }).getByRole("button", { name: "清除文字格式" }).click();
+  await expect(editor.locator("h2 strong, p strong, p em")).toHaveCount(0);
+  await expect(editor.locator("p a")).toHaveCount(1);
+  await expect(editor.locator("p a")).toHaveAttribute("href", "https://example.com");
+  expect(await page.evaluate(() => window.boldCommandFixture.range())).toEqual({ from: 1, to: 14 });
+  const after = await page.evaluate(() => window.boldCommandFixture.snapshot());
+  expect(await page.evaluate(() => window.boldCommandFixture.undo())).toBe(true);
+  expect(await page.evaluate(() => window.boldCommandFixture.snapshot())).toEqual(before);
+  expect(await page.evaluate(() => window.boldCommandFixture.redo())).toBe(true);
+  expect(await page.evaluate(() => window.boldCommandFixture.snapshot())).toEqual(after);
+});
+
+test("混合选区的加粗状态只反映实际受操作的正文", async ({ page }) => {
+  await mount(page, "main", "<h2>title</h2><p><strong>plain</strong></p>");
+  await page.evaluate(() => window.boldCommandFixture.select(1, 13));
+  const editor = page.locator("#bold-command-host .semlo-editor-prose");
+  const before = await page.evaluate(() => window.boldCommandFixture.snapshot());
+  expect(await page.evaluate(() => window.boldCommandFixture.state())).toEqual({ active: true, enabled: true });
+  await expect(button(page, "main")).toHaveAttribute("aria-pressed", "true");
+  await invoke(page, "main");
+  await expect(editor.locator("h2 strong, p strong")).toHaveCount(0);
+  expect(await page.evaluate(() => window.boldCommandFixture.undo())).toBe(true);
+  expect(await page.evaluate(() => window.boldCommandFixture.snapshot())).toEqual(before);
+
+  await page.evaluate(() => window.boldCommandFixture.setContent("<h2><strong>title</strong></h2><p>plain</p>"));
+  await page.evaluate(() => window.boldCommandFixture.select(1, 13));
+  expect(await page.evaluate(() => window.boldCommandFixture.state())).toEqual({ active: false, enabled: true });
+  await invoke(page, "main");
+  await expect(editor.locator("h2 strong")).toHaveText("title");
+  await expect(editor.locator("p strong")).toHaveText("plain");
+  await page.evaluate(() => window.boldCommandFixture.destroy());
+});
+
+for (const entry of ["main", "custom-format", "keyboard", "custom-main", "custom-floating", "api"] as const) {
   test(`${entry} 的段落、标题和混合选区使用同一加粗规则`, async ({ page }) => {
     await mount(page, entry, "<h2>title</h2><p>plain</p>");
     const editor = page.locator("#bold-command-host .semlo-editor-prose");
@@ -209,7 +248,7 @@ for (const selection of ["text", "all", "cells"] as const) {
   });
 }
 
-for (const entry of ["main", "bubble", "custom-main", "custom-floating"] as const) {
+for (const entry of ["main", "custom-format", "custom-main", "custom-floating"] as const) {
   test(`${entry} 窄屏下可用键盘对混合选区执行加粗`, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await mount(page, entry, "<h2>title</h2><p>plain</p>");

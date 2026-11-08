@@ -303,7 +303,7 @@ async function _browserTest(page: import("playwright").Page) {
     };
   });
   await host.locator(".semlo-editor-prose p").click();
-  await page.keyboard.press("Meta+Alt+]");
+  await page.keyboard.press("ControlOrMeta+Alt+]");
   if (
     (await page.evaluate(() =>
       window

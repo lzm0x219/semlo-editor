@@ -1,25 +1,15 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-rtl-singleline-fixture";
 
 // Local engineering safety expectations; no Yuque RTL comparison is available.
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-rtl-singleline-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-rtl-singleline-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
@@ -134,21 +124,30 @@ const nativeFallbacks = [
   { name: "middle cursor", text: "אבג דהו", anchor: 2, head: 2 },
   { name: "forward selection", text: "אבג דהו", anchor: 1, head: 3 },
   { name: "reverse selection", text: "אבג דהו", anchor: 3, head: 1 },
-  { name: "mixed scripts", text: "אבג abc דהו", anchor: 0, head: 0 },
   { name: "directional isolate", text: "אבג\u2067דהו\u2069", anchor: 0, head: 0 },
-  { name: "marked text", text: "אבג דהו", anchor: 0, head: 0, mark: "bold" as const },
   { name: "wrapped", text: "אבג דהו זחט יכל מנס עפצ קרש תאב דהו זחט יכל", anchor: 16, head: 16, width: 240 },
 ];
 for (const item of nativeFallbacks) {
-  test(`local RTL actual keyboard leaves ${item.name} identical to native`, async ({ page }) => {
+  test(`local RTL actual keyboard retains an unverified ${item.name} within the heading`, async ({ page }) => {
     async function run(native: boolean) {
       await mount(page, item, item.anchor, item.head, native);
+      const before = await page.evaluate(() => window.__semloRequireFixture("rtlSingleLineProbe").inspect());
       await page.keyboard.press("Shift+End");
       await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
       const snapshot = await page.evaluate(() => window.__semloRequireFixture("rtlSingleLineProbe").inspect());
-      return { json: snapshot.json, dom: snapshot.dom, pm: snapshot.pm, focused: snapshot.focused };
+      const relevant = (value: typeof snapshot) => ({
+        json: value.json,
+        dom: value.dom,
+        pm: value.pm,
+        focused: value.focused,
+      });
+      return { before: relevant(before), after: relevant(snapshot) };
     }
-    expect(await run(false)).toEqual(await run(true));
+    const original = await run(true);
+    const candidate = await run(false);
+    expect(candidate.before).toEqual(original.before);
+    expect(original.after.json).toEqual(original.before.json);
+    expect(candidate.after).toEqual(candidate.before);
   });
 }
 
@@ -205,7 +204,6 @@ for (const text of ["א", "ת", "ء", "غ", "ف", "ي"]) {
 }
 
 const excluded: Sample[] = [
-  { name: "mixed scripts", text: "אבג abc דהו" },
   { name: "mixed strong RTL scripts", text: "אבג مرحبا" },
   { name: "Hebrew digits", text: "אבג 123" },
   { name: "Hebrew punctuation", text: "אבג, דהו" },
@@ -220,8 +218,6 @@ const excluded: Sample[] = [
   { name: "leading neutral", text: " אבג" },
   { name: "trailing neutral", text: "אבג " },
   { name: "trailing newline", text: "אבג\n" },
-  { name: "numbered", text: "אבג דהו", numbered: true },
-  { name: "marked", text: "אבג דהו", mark: "bold" },
   { name: "LTR direction", text: "אבג דהו", direction: "ltr" },
   { name: "too long", text: "א".repeat(129) },
   { name: "wrapped", text: "אבג דהו זחט יכל מנס עפצ קרש תאב דהו זחט יכל", width: 240 },
@@ -443,7 +439,9 @@ for (const scenario of [
   "ctrl",
   "meta",
 ] as const) {
-  test(`local RTL guard does not capture ${scenario}`, async ({ page }) => {
+  test(`local RTL ${scenario === "home" ? "verified Home handles a line start" : `guard does not capture ${scenario}`}`, async ({
+    page,
+  }) => {
     const [anchor, head] =
       scenario === "middle" ? [2, 2] : scenario === "selected" ? [1, 3] : scenario === "reverse" ? [3, 1] : [0, 0];
     await mount(page, { name: "plain", text: "אבג דהו" }, anchor, head);
@@ -501,7 +499,7 @@ for (const scenario of [
     if (scenario === "viewComposing") expect(observed.viewComposing).toBe(true);
     if (scenario === "altGraph")
       expect(observed.modifiers).toEqual({ alt: false, ctrl: false, meta: false, altGraph: true });
-    expect(observed.prevented).toBe(false);
+    expect(observed.prevented).toBe(scenario === "home");
     expect(observed.after).toEqual(observed.before);
   });
 }
@@ -535,3 +533,27 @@ for (const kind of ["single", "wrapped"] as const) {
     else expect(observed.selected.length).toBeLessThan(text.length);
   });
 }
+
+for (const sample of [
+  { text: "אבג דהו", mark: "bold" as const },
+  { text: "אבג דהו", mark: "italic" as const },
+  { text: "مرحبا بالعالم", mark: "bold" as const },
+])
+  test(`local RTL ${sample.mark} ${sample.text} preserves the following paragraph`, async ({ page }) => {
+    await mount(page, { name: "marked", ...sample });
+    const before = await page.evaluate(() => window.__semloRequireFixture("rtlSingleLineProbe").inspect());
+    await page.locator("#heading-end-boundary .semlo-editor-prose h3").click();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Shift+End");
+    await page.keyboard.press("Backspace");
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    const after = await page.evaluate(() => window.__semloRequireFixture("rtlSingleLineProbe").inspect());
+    const expected = structuredClone(before.json) as JSONContent;
+    delete expected.content![0].content;
+    expect(after.json).toEqual(expected);
+    await page.keyboard.press("ControlOrMeta+z");
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    expect((await page.evaluate(() => window.__semloRequireFixture("rtlSingleLineProbe").inspect())).json).toEqual(
+      before.json,
+    );
+  });

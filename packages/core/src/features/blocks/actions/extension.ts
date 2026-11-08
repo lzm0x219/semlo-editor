@@ -5,6 +5,8 @@ import { Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import { setHeadingStyle } from "../../heading/conversion";
+import { canToggleHeadingNumbering, toggleHeadingNumbering } from "../../heading/numbering-toggle";
+import { rejoinSequenceParagraphTarget } from "../../list/numbering-sequence-bridge";
 import { preferredOrderedStyle } from "../../list/ordered-preference";
 import { convertOneTask } from "../../list/task-list-conversion";
 import { adjustParagraphIndent } from "../../text/paragraph-layout";
@@ -28,7 +30,16 @@ import {
 } from "./operations";
 import { currentTarget, type Target, type BlockActionsOptions } from "./target";
 
-type HeadingControls = { pos: number; foldInside: boolean; handleInside: boolean; stacked: boolean; offset: number };
+type HeadingControls = {
+  pos: number;
+  foldInside: boolean;
+  handleInside: boolean;
+  linkInside: boolean;
+  linkCompact: boolean;
+  stacked: boolean;
+  offset: number;
+  linkOffset: number;
+};
 type PluginState = { selected: number | null; headings: readonly HeadingControls[] };
 type Action = { selected?: number | null; headings?: readonly HeadingControls[] };
 const blockKey = new PluginKey<PluginState>("semloEditorBlockActions");
@@ -41,8 +52,11 @@ function sameHeadingControls(a: HeadingControls | undefined, b: HeadingControls 
       a.pos === b.pos &&
       a.foldInside === b.foldInside &&
       a.handleInside === b.handleInside &&
+      a.linkInside === b.linkInside &&
+      a.linkCompact === b.linkCompact &&
       a.stacked === b.stacked &&
-      a.offset === b.offset)
+      a.offset === b.offset &&
+      a.linkOffset === b.linkOffset)
   );
 }
 
@@ -106,6 +120,8 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
                 const classes = [
                   heading.foldInside && "semlo-editor-block-fold-inset",
                   heading.handleInside && "semlo-editor-block-handle-inset",
+                  heading.linkInside && "semlo-editor-block-link-inset",
+                  heading.linkCompact && "semlo-editor-block-link-compact",
                   heading.stacked && "semlo-editor-block-fold-stacked",
                 ]
                   .filter(Boolean)
@@ -113,7 +129,7 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
                 decorations.push(
                   Decoration.node(heading.pos, heading.pos + node.nodeSize, {
                     class: classes,
-                    style: `--semlo-editor-block-inset-offset:${heading.offset}px`,
+                    style: `--semlo-editor-block-inset-offset:${heading.offset}px;--semlo-editor-heading-link-offset:${heading.linkOffset}px`,
                   }),
                 );
               }
@@ -267,9 +283,10 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
             const headingControls = (heading: HTMLElement): HeadingControls | undefined => {
               if (!win || !heading.isConnected || heading.closest(".semlo-editor-heading-fold-hidden"))
                 return undefined;
-              const button = heading.querySelector<HTMLButtonElement>(":scope > .semlo-editor-heading-fold-toggle");
-              if (!button) return undefined;
-              const pos = Number(button.dataset.semloEditorHeadingFoldPos),
+              const fold = heading.querySelector<HTMLButtonElement>(":scope > .semlo-editor-heading-fold-toggle");
+              const link = heading.querySelector<HTMLButtonElement>(":scope > .semlo-editor-heading-link");
+              if (!fold && !link) return undefined;
+              const pos = Number(fold?.dataset.semloEditorHeadingFoldPos ?? link?.dataset.semloEditorHeadingAnchorPos),
                 rect = heading.getBoundingClientRect();
               if (
                 !Number.isInteger(pos) ||
@@ -290,17 +307,23 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
               }
               // Reserve the same control gutter in both modes so switching to
               // read-only does not reflow the heading when the handle hides.
-              const foldInside = rect.left - 28 < left,
-                handleInside = rect.left - 52 < left;
-              if (!foldInside && !handleInside) return undefined;
+              const foldInside = !!fold && rect.left - 28 < left,
+                handleInside = rect.left - 52 < left,
+                linkClipped = !!link && rect.left - 80 < left,
+                linkCompact = linkClipped && !handleInside && rect.left - 52 - left >= 12,
+                linkInside = linkClipped && !linkCompact;
+              if (!foldInside && !handleInside && !linkInside && !linkCompact) return undefined;
               const offset = Math.max(0, Math.ceil(left - rect.left));
               const visibleWidth = Math.min(rect.right, right) - Math.max(rect.left, left);
               return {
                 pos,
                 foldInside,
                 handleInside,
-                stacked: foldInside && handleInside && visibleWidth < 84,
+                linkInside,
+                linkCompact,
+                stacked: foldInside && handleInside && visibleWidth < (linkInside ? 112 : 84),
                 offset,
+                linkOffset: Math.ceil(left - rect.left),
               };
             };
             const setTarget = (next: Target | null) => {
@@ -326,7 +349,9 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
               const pos = heading
                 ? Number(
                     heading.querySelector<HTMLButtonElement>(":scope > .semlo-editor-heading-fold-toggle")?.dataset
-                      .semloEditorHeadingFoldPos,
+                      .semloEditorHeadingFoldPos ??
+                      heading.querySelector<HTMLButtonElement>(":scope > .semlo-editor-heading-link")?.dataset
+                        .semloEditorHeadingAnchorPos,
                   )
                 : -1;
               const applied = blockKey.getState(view.state)?.headings.find((item) => item.pos === pos);
@@ -354,7 +379,11 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
               layoutFrame = win.requestAnimationFrame(() => {
                 layoutFrame = undefined;
                 if (destroyed || editor.isDestroyed) return;
-                const headings = Array.from(view.dom.querySelectorAll<HTMLElement>(".semlo-editor-heading-foldable"))
+                const headings = Array.from(
+                  view.dom.querySelectorAll<HTMLElement>(
+                    ".semlo-editor-heading-foldable,.semlo-editor-heading-linkable",
+                  ),
+                )
                   .map(headingControls)
                   .filter((value): value is HeadingControls => !!value);
                 const previous = blockKey.getState(view.state)?.headings ?? [];
@@ -474,9 +503,42 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
             const { positionMenu, menuItem, moveMenuFocus } = createBlockMenuHelpers(doc, win);
             const executeConversion = (item: Conversion) => {
               if (!target || !editor.isEditable) return;
+              if (target.kind === "block" && target.node.type.name === "heading" && item.type === "orderedList") {
+                if (view.state.doc.nodeAt(target.pos) !== target.node || !toggleHeadingNumbering(editor, target.pos)) {
+                  setStatus("当前块无法无损转换");
+                  return;
+                }
+                closeMenu();
+                return;
+              }
+              if (target.kind === "block" && target.node.type.name === "paragraph" && item.type === "orderedList") {
+                if (view.state.doc.nodeAt(target.pos) !== target.node) return;
+                const style = preferredOrderedStyle(editor);
+                const rejoin = rejoinSequenceParagraphTarget(
+                  view.state,
+                  target.pos,
+                  style ? { semloEditorOrderedStyle: style } : null,
+                );
+                if (rejoin !== null) {
+                  if (!rejoin) {
+                    setStatus("当前块无法无损转换");
+                    return;
+                  }
+                  const before = view.state.doc;
+                  view.dispatch(rejoin);
+                  if (editor.isDestroyed || view.state.doc.eq(before)) {
+                    setStatus("当前块无法无损转换");
+                    return;
+                  }
+                  view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
+                  closeMenu();
+                  view.focus();
+                  return;
+                }
+              }
               if (target.kind === "item" && (item.type === "heading" || item.type === "paragraph")) {
                 if (view.composing) return;
-                const range = listGroupTextRange(view.state, target);
+                const range = listGroupTextRange(view.state, target, "text");
                 if (!range) {
                   setStatus("当前块无法无损转换");
                   if (item.type === "paragraph" && !editor.isDestroyed) view.focus();
@@ -511,7 +573,7 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
                 target.kind === "item" &&
                 (item.type === "bulletList" || item.type === "orderedList" || item.type === "taskList")
               ) {
-                const range = listGroupTextRange(view.state, target);
+                const range = listGroupTextRange(view.state, target, true);
                 const list = view.state.doc.nodeAt(target.parentPos);
                 if (!range || list?.type.name === item.type) {
                   setStatus("当前块无法无损转换");
@@ -615,21 +677,38 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
                   const headingGroup =
                     target.kind === "item" &&
                     (item.type === "heading" || item.type === "paragraph") &&
-                    listGroupTextRange(view.state, target);
+                    listGroupTextRange(view.state, target, "text");
                   const listGroup =
                     target.kind === "item" &&
                     ["bulletList", "orderedList", "taskList"].includes(item.type) &&
                     view.state.doc.nodeAt(target.parentPos)?.type.name !== item.type &&
-                    listGroupTextRange(view.state, target);
+                    listGroupTextRange(view.state, target, true);
                   const codePlan = item.type === "codeBlock" && listGroupCodePlan(view.state, target);
                   const unwrap = item.type === "blockquote" && linkedQuoteUnwrap(view.state, target);
+                  const headingNumbering =
+                    item.type === "orderedList" &&
+                    target.kind === "block" &&
+                    canToggleHeadingNumbering(view.state, target.pos);
+                  const paragraphRejoin =
+                    item.type === "orderedList" && target.kind === "block" && target.node.type.name === "paragraph"
+                      ? rejoinSequenceParagraphTarget(
+                          view.state,
+                          target.pos,
+                          preferredOrderedStyle(editor)
+                            ? { semloEditorOrderedStyle: preferredOrderedStyle(editor) }
+                            : null,
+                        )
+                      : null;
                   const disabled =
-                    !replacement(view.state, target, item) &&
-                    !wrapper &&
-                    !headingGroup &&
-                    !listGroup &&
-                    !codePlan &&
-                    !unwrap;
+                    paragraphRejoin === false ||
+                    (!replacement(view.state, target, item) &&
+                      !wrapper &&
+                      !headingGroup &&
+                      !listGroup &&
+                      !codePlan &&
+                      !unwrap &&
+                      !headingNumbering &&
+                      !paragraphRejoin);
                   unavailable ||= disabled;
                   menuItem(panel, item.label, () => executeConversion(item), disabled);
                 }

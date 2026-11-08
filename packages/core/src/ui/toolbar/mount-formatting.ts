@@ -1,5 +1,7 @@
 import type { Editor } from "@tiptap/core";
 
+import { headingNumberingStyle } from "../../features/heading/numbering";
+import { selectedHeadingPosition, setHeadingNumberingStyle } from "../../features/heading/numbering-toggle";
 import { getListState, toggleList } from "../../features/list/list-command";
 import { setOrderedListStyle } from "../../features/list/ordered-style";
 import { openOrderedListStyleMenu } from "../../features/list/ordered-style-menu";
@@ -138,14 +140,17 @@ export function mountFormattingToolbar({
   );
   const orderedControl = doc.createElement("span");
   orderedControl.className = "semlo-editor-ordered-style-control";
-  button(
+  const orderedButton = button(
     orderedControl,
     "有序列表",
     "ordered",
     () => toggleList(context.editor, "orderedList"),
     undefined,
     undefined,
-    () => getListState(context.editor, "orderedList"),
+    () => {
+      orderedButton.title = selectedHeadingPosition(context.editor.state) === null ? "有序列表" : "标题序号";
+      return getListState(context.editor, "orderedList");
+    },
   );
   const orderedArrow = doc.createElement("button");
   orderedArrow.type = "button";
@@ -163,14 +168,21 @@ export function mountFormattingToolbar({
     context.closeFonts?.();
     context.closeCardMenu?.();
     if (wasOpen) return;
-    const current = context.editor.isActive("orderedList")
-      ? context.editor.getAttributes("orderedList").semloEditorOrderedStyle
-      : "mixed";
+    const headingPos = selectedHeadingPosition(context.editor.state);
+    const openingDoc = context.editor.state.doc;
+    const current =
+      headingPos !== null
+        ? headingNumberingStyle(openingDoc.nodeAt(headingPos)?.attrs.semloEditorHeadingNumbering)
+        : context.editor.isActive("orderedList")
+          ? context.editor.getAttributes("orderedList").semloEditorOrderedStyle
+          : "mixed";
     context.closeDropdown = openOrderedListStyleMenu(
       orderedArrow,
       current ?? "mixed",
       (style) => {
-        setOrderedListStyle(context.editor, style);
+        if (headingPos !== null) {
+          if (context.editor.state.doc === openingDoc) setHeadingNumberingStyle(context.editor, style, headingPos);
+        } else setOrderedListStyle(context.editor, style);
         context.editor.view.focus();
       },
       event.detail === 0,

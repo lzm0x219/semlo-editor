@@ -1,20 +1,15 @@
-import { createRsbuild } from "@rsbuild/core";
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/list/task-item-conversion-fixture";
 
 let origin = "";
 let stop = async () => {};
 
 test.beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/list/task-item-conversion-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true, publicDir: false },
-      dev: { hmr: false, liveReload: false },
-    },
+  const rsbuild = await createFixtureRsbuild("./tests/fixtures/list/task-item-conversion-fixture.ts", {
+    publicDir: false,
   });
   const { port, server } = await rsbuild.startDevServer();
   origin = `http://127.0.0.1:${port}`;

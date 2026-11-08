@@ -140,7 +140,7 @@ test("standalone exported HTML displays and exposes the same list markers", asyn
     "lower-alpha",
     "decimal",
     "lower-alpha",
-    "lower-roman",
+    "semlo-mixed-roman",
     "lower-alpha",
     "decimal",
   ]);
@@ -176,6 +176,6 @@ test("standalone exported HTML displays and exposes the same list markers", asyn
   // Yuque shows alphabetic markers for an ordered list nested in another one;
   // a directly tested nested start=7 is reset while the parent remains ordered.
   await expect(reader.locator("ol ol > li").first()).toHaveCSS("list-style-type", "lower-alpha");
-  expect(markers.slice(7)).toEqual(["a.", "i.", "b.", "5.", "7.", "a.", "8.", "4.", "5."]);
+  expect(markers.slice(7)).toEqual(["a.", "ⅰ.", "b.", "5.", "7.", "a.", "8.", "4.", "5."]);
   await session.detach();
 });

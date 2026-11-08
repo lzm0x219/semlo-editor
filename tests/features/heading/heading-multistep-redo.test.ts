@@ -1,34 +1,24 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-quick-history-fixture";
 
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-quick-history-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-quick-history-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
 
 type Options = {
-  append?: "metadata" | "history" | "nohistory" | "paragraph" | "number";
+  append?: "metadata" | "history" | "nohistory" | "nohistory-attr" | "paragraph" | "number";
   dispatch?: "metadata" | "nohistory";
   replaceHistoryInAppend?: boolean;
-  rootNoHistoryAppend?: boolean;
+  rootNoHistoryAppend?: boolean | "attribute";
   normalizeNoHistory?: boolean;
   appendOnRedo?: boolean;
   appendSelectionThenDocument?: boolean;
@@ -123,7 +113,7 @@ for (const numbering of ["mixed", "decimal", "chinese"] as const) {
 }
 
 for (const priority of [2000, 1]) {
-  for (const append of ["metadata", "history", "nohistory"] as const) {
+  for (const append of ["metadata", "history", "nohistory", "nohistory-attr"] as const) {
     test(`${priority === 1 ? "late" : "early"} host ${append} append survives multi-step redo`, async ({ page }) => {
       const prose = await mount(page, "<p></p>", { append, priority });
       await typeAndClear(page, prose, 3, true);
@@ -440,6 +430,21 @@ test("a nonhistorical root with an appended document change invalidates owned hi
   expect((await state(page)).json.content?.[0]?.type).toBe("paragraph");
 });
 
+test("an appended attribute inherits the root's nonhistorical status", async ({ page }) => {
+  const prose = await mount(page, "<h3>test</h3>", { rootNoHistoryAppend: "attribute" });
+  await prose.locator("h3").click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("Backspace");
+  await page.evaluate(() => window.__semloRequireFixture("quickHistoryFixture").hostNoHistoryRoot());
+  const written = await state(page);
+  expect(written.json.content?.[0]?.attrs?.textAlign).toBe("center");
+  await undo(page, 1);
+  expect((await state(page)).selection.text).toBe("test");
+  await redo(page, 1);
+  expect((await state(page)).json).toEqual(written.json);
+});
+
 test("a host deletion plus nonhistorical normalization cannot acquire a heading deletion marker", async ({ page }) => {
   const prose = await mount(page, "<h3>test</h3>", { normalizeNoHistory: true });
   await prose.locator("h3").click();
@@ -453,4 +458,80 @@ test("a host deletion plus nonhistorical normalization cannot acquire a heading 
   await page.keyboard.press("Shift+End");
   await redo(page, 1);
   expect((await state(page)).json.content?.[0]?.type).toBe("paragraph");
+});
+
+for (const container of ["root", "quote"] as const) {
+  for (const multi of [false, true]) {
+    test(`${container} ${multi ? "multi" : "single"} redo after nonhistorical attribute`, async ({ page }) => {
+      const node = multi ? "<p></p>" : "<h3>test</h3>";
+      const prose = await mount(page, container === "root" ? node : `<blockquote>${node}</blockquote>`);
+      await prose.locator(multi ? "p" : "h3").click();
+      if (multi) {
+        await page.keyboard.type("test");
+        await page.keyboard.press("ControlOrMeta+Alt+3");
+      }
+      await page.keyboard.press("Home");
+      await page.keyboard.press("Shift+End");
+      await page.keyboard.press("Backspace");
+      await page.evaluate(
+        (pos) => {
+          const editor = window.__semloRequireFixture("quickHistoryFixture").editor.editor;
+          editor.view.dispatch(
+            editor.state.tr.setNodeAttribute(pos, "textAlign", "center").setMeta("addToHistory", false),
+          );
+        },
+        container === "root" ? 0 : 1,
+      );
+      await undo(page, multi ? 3 : 1);
+      await redo(page, multi ? 3 : 1);
+      const heading = prose.locator("h3");
+      await expect(heading).toHaveText("");
+      if (!multi) await expect(heading).toHaveCSS("text-align", "center");
+    });
+  }
+}
+
+test("an attribute write cannot transfer ownership to a replacement event", async ({ page }) => {
+  const prose = await mount(page, "<h3>test</h3>");
+  await prose.locator("h3").click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("Backspace");
+  await undo(page, 1);
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quickHistoryFixture").editor.editor;
+    editor.view.dispatch(editor.state.tr.setNodeAttribute(0, "textAlign", "center").setMeta("addToHistory", false));
+  });
+  await page.evaluate(() => window.__semloRequireFixture("quickHistoryFixture").hostDelete());
+  await undo(page, 1);
+  await redo(page, 1);
+  await expect(prose.locator("p")).toHaveText("");
+});
+
+test("a later nonhistorical position-changing transaction invalidates ownership", async ({ page }) => {
+  const prose = await mount(page, "<h3>test</h3>");
+  await prose.locator("h3").click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("Backspace");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quickHistoryFixture").editor.editor;
+    editor.view.dispatch(editor.state.tr.setNodeAttribute(0, "textAlign", "center").setMeta("addToHistory", false));
+    editor.view.dispatch(editor.state.tr.insertText("x", 1).delete(1, 2).setMeta("addToHistory", false));
+  });
+  await undo(page, 1);
+  await redo(page, 1);
+  await expect(prose.locator("p")).toHaveText("");
+});
+
+test("输入引用并转标题后清空文字仍保留引用结构", async ({ page }) => {
+  const prose = await mount(page, "<p></p>");
+  await prose.locator("p").click();
+  await page.keyboard.type("> test");
+  await expect(prose.locator("blockquote p")).toHaveText("test");
+  await page.keyboard.press("ControlOrMeta+Alt+3");
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.keyboard.press("Delete");
+  await expect(prose.locator("blockquote h3")).toHaveText("");
 });

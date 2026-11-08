@@ -5,7 +5,10 @@ import { Plugin, PluginKey, TextSelection, type EditorState } from "@tiptap/pm/s
 import type { EditorView } from "@tiptap/pm/view";
 
 import { historyPosition, isProvableRedo } from "../../runtime/history-redo-probe";
+import { rejoinSequenceParagraphs } from "../list/numbering-sequence-bridge";
 import { getBoldState, toggleBold } from "../text/bold-command";
+import { canJoinQuoteHeadingDeletion } from "../text/quote-keyboard";
+import { setHeadingStyle as convertHeadingStyle } from "./conversion";
 import {
   advanceHeadingDeletionLedger,
   emptyHeadingDeletionLedger,
@@ -13,8 +16,8 @@ import {
   type HeadingDeletionLedger,
 } from "./deletion-ledger";
 import { headingNumberingStyle } from "./numbering";
+import { selectedHeadingPosition, toggleHeadingNumbering } from "./numbering-toggle";
 import { getHeadingSelection, type HeadingStyleLevel } from "./selection";
-import { toggleHeadingStyle } from "./style-command";
 
 type EmptyHeadingHistory = { before: ProseMirrorNode; after: ProseMirrorNode; phase: "deleted" | "undone" };
 type HeadingHistoryState = { recent: EmptyHeadingHistory | null; ledger: HeadingDeletionLedger };
@@ -66,6 +69,10 @@ function isAltGraph(view: EditorView, event: KeyboardEvent) {
 
 export function isBoldShortcut(view: EditorView, event: KeyboardEvent) {
   return hasMod(view, event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "b";
+}
+
+function isHeadingNumberingShortcut(view: EditorView, event: KeyboardEvent) {
+  return hasMod(view, event) && event.shiftKey && !event.altKey && (event.code === "Digit7" || event.key === "7");
 }
 
 export function headingStyleShortcut(
@@ -153,6 +160,11 @@ export const HeadingKeyboard = Extension.create({
               if (isAltGraph(view, event) && headingStyleShortcut(view, event, true) !== null) return true;
               if (!event.isComposing && event.keyCode !== 229) return false;
               if (headingStyleShortcut(view, event) !== null) return true;
+              if (
+                isHeadingNumberingShortcut(view, event) &&
+                (selectedHeadingPosition(view.state) !== null || rejoinSequenceParagraphs(view.state, null) !== null)
+              )
+                return true;
               if (event.key !== "Backspace" && event.key !== "Delete" && !isBoldShortcut(view, event)) return false;
               return getHeadingSelection(view.state).headingsOnly;
             },
@@ -178,10 +190,25 @@ export const HeadingKeyboard = Extension.create({
               }
             }
             if (!(selection instanceof TextSelection)) return false;
+            if (isHeadingNumberingShortcut(view, event) && selectedHeadingPosition(state) !== null) {
+              toggleHeadingNumbering(editor);
+              return true;
+            }
+            if (isHeadingNumberingShortcut(view, event)) {
+              const rejoin = rejoinSequenceParagraphs(state, null);
+              if (rejoin !== null) {
+                if (rejoin) {
+                  view.dispatch(rejoin);
+                  if (!editor.isDestroyed && !view.state.doc.eq(state.doc))
+                    view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
+                }
+                return true;
+              }
+            }
             const level = headingStyleShortcut(view, event);
             if (level !== null) {
               try {
-                toggleHeadingStyle(editor, level);
+                convertHeadingStyle(editor, level, { toggle: true, joinQuoteHistory: true });
               } catch (error) {
                 // 命令失败时也阻止浏览器默认编辑，避免重复修改 DOM。
                 event.preventDefault();
@@ -199,15 +226,17 @@ export const HeadingKeyboard = Extension.create({
             ) {
               // Tiptap otherwise treats a selected single heading as a whole
               // document deletion and appends a paragraph reset.
-              const transaction = closeHistory(state.tr)
+              const joinQuoteHistory = canJoinQuoteHeadingDeletion(state);
+              const transaction = state.tr
                 .deleteSelection()
                 .setMeta("preventClearDocument", true)
                 .setMeta(emptyHeadingHistoryKey, "delete");
+              if (!joinQuoteHistory) closeHistory(transaction);
               if (!transaction.docChanged) return false;
               view.dispatch(transaction.scrollIntoView());
               // A host filter can reject the deletion; in that case a
               // separate closeHistory would still alter later undo grouping.
-              if (!view.isDestroyed && !view.state.doc.eq(state.doc))
+              if (!joinQuoteHistory && !view.isDestroyed && !view.state.doc.eq(state.doc))
                 view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
               return true;
             }

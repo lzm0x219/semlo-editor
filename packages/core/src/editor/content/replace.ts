@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 
+import { documentWithoutSlashDraft } from "../../features/insertion/slash-draft";
 import { clearAttachments } from "../../features/media/attachment/uploads";
 import { clearGalleryUploads } from "../../features/media/gallery/uploads";
 import { clearUploads } from "../../features/media/image/uploads";
@@ -9,6 +10,7 @@ import {
   TransactionAbortedError,
 } from "../../runtime/transaction-guard";
 import type { ContentReplacementResult, EditorContent } from "../../types";
+import { serializeEditorHTML } from "./html-output";
 import { createContentParser } from "./parse";
 
 export function createContentReplacement(options: {
@@ -55,7 +57,35 @@ export function createContentReplacement(options: {
     try {
       if (unavailable()) return { status: "interrupted", reason: "destroyed" };
       if (editor.state.doc !== beforeParsing) return { status: "interrupted", reason: "superseded" };
-      if (parsed.eq(editor.state.doc)) return { status: "unchanged" };
+      // 同一内容回写不替换文档；活动查询按保存投影比较，保留仍在编辑的查询。
+      const state = editor.state;
+      const current = state.doc;
+      const projected = documentWithoutSlashDraft(state);
+      if (parsed.eq(current) || parsed.eq(projected)) return { status: "unchanged" };
+      // 普通文档只为有效挂载视图新增快路径；先前已卸载时仍允许原有的内容替换。
+      if (typeof content === "string" && (projected !== current || !editor.isDestroyed)) {
+        const view = editor.view;
+        const serializationInterruption = (): "destroyed" | "unmounted" | "superseded" | undefined => {
+          if (unavailable()) return "destroyed";
+          if (editor.isDestroyed || view.isDestroyed || editor.view !== view) return "unmounted";
+          if (editor.state !== state || editor.state.doc !== current) return "superseded";
+        };
+        let html: string;
+        try {
+          // 仅识别当前保存投影的精确自身输出，不改写合法 JSON 属性或泛化 HTML 等价。
+          html = serializeEditorHTML(editor, doc, projected);
+        } catch (error) {
+          const reason = serializationInterruption();
+          const guarded = interrupted(error);
+          if (guarded) return guarded;
+          const reported = failure("failed", error);
+          return reason ? { status: "interrupted", reason, error: reported.error } : reported;
+        }
+        // renderHTML 属于宿主代码；匹配与否都不能让旧调用越过新的状态或视图。
+        const reason = serializationInterruption();
+        if (reason) return { status: "interrupted", reason };
+        if (content === html) return { status: "unchanged" };
+      }
       assertTransactionMayStart(editor);
       // Node views may retain asynchronous work even when their own content is
       // unchanged. Invalidate it before replacing the surrounding document.

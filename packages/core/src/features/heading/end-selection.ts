@@ -4,6 +4,7 @@ import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } 
 import type { EditorView } from "@tiptap/pm/view";
 
 import { HeadingHomeLineEvidence } from "./home-line-evidence";
+import { stopUnverifiedHeadingLineSelection } from "./line-selection-fallback";
 
 const textMarks = new Set([
   "bold",
@@ -38,10 +39,17 @@ const numberedStyles = new Set(["mixed", "decimal", "chinese"]);
 // accept a bounded subset of common characters for this geometry shortcut.
 const simpleLTR =
   /^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Inherited}\x20-\x7e\u2000-\u2065\u2600-\u27bf\u3000-\u303f\uff01-\uff60\u{1f000}-\u{1faff}]*$/u;
+// 西里尔基本与补充区的字符双向类别为 L 或 NSM，仅扩展已验证的单行路径。
+const singleLineLTR =
+  /^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Inherited}\u0400-\u052f\x20-\x7e\u2000-\u2065\u2600-\u27bf\u3000-\u303f\uff01-\uff60\u{1f000}-\u{1faff}]*$/u;
+// 两端与段落方向一致，并通过字形几何验证整行的逻辑端点。
+const mixedSingleLineLTR =
+  /^[A-Za-z\u4e00-\u9fff][A-Za-z\u4e00-\u9fff \u05d0-\u05ea\u0621-\u063a\u0641-\u064a]*[A-Za-z\u4e00-\u9fff](?![\s\S])/u;
+const mixedSingleLineRTL =
+  /^(?:[\u05d0-\u05ea][\u05d0-\u05ea A-Za-z\u4e00-\u9fff]*[\u05d0-\u05ea]|[\u0621-\u063a\u0641-\u064a][\u0621-\u063a\u0641-\u064a A-Za-z\u4e00-\u9fff]*[\u0621-\u063a\u0641-\u064a])(?![\s\S])/u;
 const bidiControls = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
 // In Unicode Character Database 16.0.0 these letters are Lo and Bidi=R or AL;
-// U+0020 is WS and is only allowed between letters from one script. Combining
-// marks, punctuation, digits, mixed scripts and controls retain native behavior.
+// U+0020 is WS and is only allowed between letters from one script.
 const simpleRTL =
   /^(?:[\u05d0-\u05ea]+(?: +[\u05d0-\u05ea]+)*|[\u0621-\u063a\u0641-\u064a]+(?: +[\u0621-\u063a\u0641-\u064a]+)*)(?![\s\S])/u;
 
@@ -109,15 +117,24 @@ function singleVisualTextHeading(
     if (!node.isText || node.marks.some((mark) => !textMarks.has(mark.type.name))) supported = false;
   });
   if (!supported || bidiControls.test(heading.textContent)) return false;
+  const mixedLTR = direction === "ltr" && !singleLineLTR.test(heading.textContent);
+  const mixedRTL = direction === "rtl" && !simpleRTL.test(heading.textContent);
   if (direction === "ltr") {
-    if (!simpleLTR.test(heading.textContent)) return false;
+    if (
+      mixedLTR &&
+      (heading.content.size > 128 ||
+        heading.childCount !== 1 ||
+        !heading.firstChild?.isText ||
+        heading.firstChild.marks.some((mark) => !["bold", "italic"].includes(mark.type.name)) ||
+        !mixedSingleLineLTR.test(heading.textContent))
+    )
+      return false;
   } else if (
     heading.content.size > 128 ||
-    heading.attrs.semloEditorHeadingNumbering != null ||
     heading.childCount !== 1 ||
     !heading.firstChild?.isText ||
-    heading.firstChild.marks.length !== 0 ||
-    !simpleRTL.test(heading.textContent)
+    heading.firstChild.marks.some((mark) => !["bold", "italic"].includes(mark.type.name)) ||
+    (mixedRTL && !mixedSingleLineRTL.test(heading.textContent))
   )
     return false;
 
@@ -129,6 +146,7 @@ function singleVisualTextHeading(
   if (
     headingStyle.writingMode !== "horizontal-tb" ||
     headingStyle.direction !== direction ||
+    (mixedLTR && headingStyle.display !== "block") ||
     (direction === "rtl" && headingStyle.display !== "block") ||
     !["normal", "isolate"].includes(headingStyle.unicodeBidi)
   )
@@ -148,13 +166,22 @@ function singleVisualTextHeading(
   let content = "";
   let visited = 0;
   let rtlText: Text | undefined;
+  let mixedLtrText: Text | undefined;
+  const rtlMarks = new Set<string>(
+    heading.firstChild?.marks.map((mark) => (mark.type.name === "bold" ? "STRONG" : "EM")),
+  );
+  const visitedRtlMarks = new Set<string>();
   function visit(node: Node): boolean {
     if (++visited > 512) return false;
     if (node.nodeType === 3) {
       content += node.textContent ?? "";
       if (!node.textContent) return true;
+      if (mixedLTR) {
+        if (mixedLtrText) return false;
+        mixedLtrText = node as Text;
+      }
       if (direction === "rtl") {
-        if (node.parentNode !== element || rtlText) return false;
+        if (rtlText) return false;
         rtlText = node as Text;
       }
       const range = view.dom.ownerDocument.createRange();
@@ -172,12 +199,50 @@ function singleVisualTextHeading(
       (child.classList.contains("semlo-editor-heading-number") ||
         child.classList.contains("semlo-editor-heading-fold-toggle"))
     ) {
-      if (direction === "ltr") return true;
-      if (!child.classList.contains("semlo-editor-heading-fold-toggle")) return false;
+      if (direction === "ltr" && !mixedLTR) return true;
+      if (mixedLTR) {
+        const style = getStyle(child);
+        if (child.classList.contains("semlo-editor-heading-fold-toggle"))
+          return style.position === "absolute" && style.cssFloat === "none" && !hasCoordinateTransform(style);
+        return (
+          style.display === "inline" &&
+          style.position === "static" &&
+          style.cssFloat === "none" &&
+          style.direction === "ltr" &&
+          style.unicodeBidi === "normal" &&
+          !hasCoordinateTransform(style)
+        );
+      }
       const style = getStyle(child);
+      if (child.classList.contains("semlo-editor-heading-number"))
+        return (
+          style.display === "inline" &&
+          style.position === "static" &&
+          style.cssFloat === "none" &&
+          style.direction === "rtl" &&
+          style.unicodeBidi === "normal" &&
+          !hasCoordinateTransform(style)
+        );
       return style.position === "absolute" && style.cssFloat === "none" && !hasCoordinateTransform(style);
     }
-    if (direction === "rtl") return false;
+    if (direction === "rtl" || mixedLTR) {
+      if (!rtlMarks.has(child.tagName) || visitedRtlMarks.has(child.tagName) || child.hasAttribute("contenteditable"))
+        return false;
+      const style = getStyle(child);
+      if (
+        style.display !== "inline" ||
+        style.position !== "static" ||
+        style.cssFloat !== "none" ||
+        style.direction !== direction ||
+        style.writingMode !== "horizontal-tb" ||
+        style.unicodeBidi !== "normal" ||
+        hasCoordinateTransform(style)
+      )
+        return false;
+      visitedRtlMarks.add(child.tagName);
+      for (const next of child.childNodes) if (!visit(next)) return false;
+      return true;
+    }
     if (!textElements.has(child.tagName) || child.hasAttribute("contenteditable")) return false;
     const style = getStyle(child);
     if (style.direction !== "ltr" || style.unicodeBidi !== "normal") return false;
@@ -187,11 +252,42 @@ function singleVisualTextHeading(
   for (const child of element.childNodes) if (!visit(child)) return false;
   if (content !== heading.textContent || !rects.length) return false;
 
+  if (mixedLTR) {
+    if (!mixedLtrText || mixedLtrText.data !== heading.textContent || visitedRtlMarks.size !== rtlMarks.size)
+      return false;
+    const glyph = view.dom.ownerDocument.createRange();
+    let firstLeft = Infinity;
+    let lastRight = -Infinity;
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
+    for (let offset = 0; offset < mixedLtrText.length; offset++) {
+      glyph.setStart(mixedLtrText, offset);
+      glyph.setEnd(mixedLtrText, offset + 1);
+      const boxes = Array.from(glyph.getClientRects());
+      if (boxes.length !== 1) return false;
+      const box = boxes[0];
+      if (
+        ![box.left, box.right, box.top, box.bottom, box.width, box.height].every(Number.isFinite) ||
+        box.width <= 0 ||
+        box.height <= 0
+      )
+        return false;
+      if (offset === 0) firstLeft = box.left;
+      lastRight = box.right;
+      minLeft = Math.min(minLeft, box.left);
+      maxRight = Math.max(maxRight, box.right);
+    }
+    if (firstLeft > minLeft + 1 || lastRight < maxRight - 1) return false;
+  }
+
   if (direction === "rtl") {
-    if (!rtlText || rtlText.data !== heading.textContent) return false;
+    if (!rtlText || rtlText.data !== heading.textContent || visitedRtlMarks.size !== rtlMarks.size) return false;
     const glyph = view.dom.ownerDocument.createRange();
     let previousLeft = Infinity;
     let previousRight = Infinity;
+    let firstRight = -Infinity;
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
     for (let offset = 0; offset < rtlText.length; offset++) {
       glyph.setStart(rtlText, offset);
       glyph.setEnd(rtlText, offset + 1);
@@ -202,13 +298,16 @@ function singleVisualTextHeading(
         ![box.left, box.right, box.top, box.bottom, box.width, box.height].every(Number.isFinite) ||
         box.width <= 0 ||
         box.height <= 0 ||
-        box.left > previousLeft + 1 ||
-        box.right > previousRight + 1
+        (!mixedRTL && (box.left > previousLeft + 1 || box.right > previousRight + 1))
       )
         return false;
       previousLeft = box.left;
       previousRight = box.right;
+      if (offset === 0) firstRight = box.right;
+      minLeft = Math.min(minLeft, box.left);
+      maxRight = Math.max(maxRight, box.right);
     }
+    if (mixedRTL && (firstRight < maxRight - 1 || previousLeft > minLeft + 1)) return false;
   }
 
   const commonTop = Math.max(...rects.map((rect) => rect.top));
@@ -401,6 +500,7 @@ function previousGraphemeBoundary(text: string, offset: number): number | null {
 /** Extend an existing selection only within a validated heading visual line. */
 function selectNonemptyHeadingEnd(view: EditorView, event: KeyboardEvent, remember: (origin: number) => void): boolean {
   if (
+    view.isDestroyed ||
     !view.editable ||
     !view.hasFocus() ||
     event.defaultPrevented ||
@@ -433,6 +533,11 @@ function selectNonemptyHeadingEnd(view: EditorView, event: KeyboardEvent, rememb
   try {
     anchor = view.posAtDOM(native.anchorNode, native.anchorOffset);
     const position = view.posAtDOM(native.focusNode, native.focusOffset);
+    if (
+      !view.state.selection.empty &&
+      (view.state.selection.anchor !== anchor || view.state.selection.head !== position)
+    )
+      return false;
     origin = position;
     const $anchor = view.state.doc.resolve(anchor),
       $head = view.state.doc.resolve(position);
@@ -456,14 +561,17 @@ function selectNonemptyHeadingEnd(view: EditorView, event: KeyboardEvent, rememb
     const center = (before.top + before.bottom) / 2;
     if (after.top > center || after.bottom < center) return false;
     const singleLine = singleVisualTextHeading(view, heading, $head.before());
-    if (singleLine) return false;
-    const target = multiVisualLineEnd(view, heading, $head.before(), position, !event.getModifierState("AltGraph"));
+    const target = singleLine
+      ? $head.end()
+      : multiVisualLineEnd(view, heading, $head.before(), position, !event.getModifierState("AltGraph"));
     if (target === null) return false;
     end = target;
     selected = TextSelection.create(doc, anchor, end);
   } catch {
     return false;
   }
+  // 选区事务一旦交给宿主，本次按键即结束；拒绝或重入不能继续执行原生扩选。
+  event.preventDefault();
   if (!view.state.selection.eq(selected))
     view.dispatch(view.state.tr.setSelection(selected).setMeta("addToHistory", false));
   if (
@@ -473,7 +581,7 @@ function selectNonemptyHeadingEnd(view: EditorView, event: KeyboardEvent, rememb
     view.state.doc !== doc ||
     !view.state.selection.eq(selected)
   )
-    return false;
+    return true;
   try {
     const committed = view.dom.ownerDocument.getSelection();
     if (
@@ -484,24 +592,75 @@ function selectNonemptyHeadingEnd(view: EditorView, event: KeyboardEvent, rememb
       view.posAtDOM(committed.anchorNode, committed.anchorOffset) !== anchor ||
       view.posAtDOM(committed.focusNode, committed.focusOffset) !== end
     )
-      return false;
-    event.preventDefault();
+      return true;
     remember(origin);
     return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
-/** Confine line-start selection to a verified visual line in a text heading. */
+/** 探测后恢复光标；宿主状态变化或探测失败时停止本次默认操作。 */
+function probeWrappedLineSide(view: EditorView, position: number, target: number): "upper" | "lower" | "abort" | null {
+  const selection = view.dom.ownerDocument.getSelection();
+  const state = view.state;
+  if (!selection?.isCollapsed || !selection.anchorNode || typeof selection.modify !== "function") return null;
+  const anchorNode = selection.anchorNode;
+  const anchorOffset = selection.anchorOffset;
+  try {
+    selection.modify("extend", "forward", "lineboundary");
+    if (view.state !== state || view.isDestroyed || !view.hasFocus()) return "abort";
+    if (
+      !selection.anchorNode ||
+      !selection.focusNode ||
+      view.posAtDOM(selection.anchorNode, selection.anchorOffset) !== position
+    ) {
+      selection.collapse(anchorNode, anchorOffset);
+      return "abort";
+    }
+    const end = view.posAtDOM(selection.focusNode, selection.focusOffset);
+    const upper = selection.isCollapsed && end === position;
+    const lower = !selection.isCollapsed && end === target;
+    if (upper) {
+      // 向前一个字符再移至该行末，恢复浏览器隐藏的上行亲和性。
+      selection.modify("move", "backward", "character");
+      selection.modify("move", "forward", "lineboundary");
+    } else {
+      selection.collapse(anchorNode, anchorOffset);
+    }
+    if (
+      (!upper && !lower) ||
+      view.state !== state ||
+      view.isDestroyed ||
+      !view.hasFocus() ||
+      !selection.isCollapsed ||
+      !selection.anchorNode ||
+      view.posAtDOM(selection.anchorNode, selection.anchorOffset) !== position
+    )
+      return "abort";
+    return upper ? "upper" : "lower";
+  } catch {
+    if (view.state === state && !view.isDestroyed && view.hasFocus()) {
+      try {
+        selection.collapse(anchorNode, anchorOffset);
+      } catch {
+        // 宿主可能已经移除选区节点；交还当前状态并阻止本次默认操作。
+      }
+    }
+    return "abort";
+  }
+}
+
 function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLine = false): boolean {
   const home = event.key === "Home" && !event.shiftKey;
+  const shiftHome = event.key === "Home" && event.shiftKey;
   const shiftEnd = event.key === "End" && event.shiftKey;
   if (
+    view.isDestroyed ||
     !view.editable ||
     !view.hasFocus() ||
     event.defaultPrevented ||
-    (!home && !shiftEnd) ||
+    (!home && !shiftHome && !shiftEnd) ||
     event.altKey ||
     event.ctrlKey ||
     event.metaKey ||
@@ -509,15 +668,28 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
     event.keyCode === 229 ||
     view.composing ||
     !(view.state.selection instanceof TextSelection) ||
-    !view.state.selection.empty
+    (shiftEnd && !view.state.selection.empty)
   )
     return false;
   const native = view.dom.ownerDocument.getSelection();
-  if (!native?.isCollapsed || !native.anchorNode || !view.dom.contains(native.anchorNode)) return false;
+  if (
+    !native?.anchorNode ||
+    !native.focusNode ||
+    (shiftEnd && !native.isCollapsed) ||
+    !view.dom.contains(native.anchorNode) ||
+    !view.dom.contains(native.focusNode)
+  )
+    return false;
   let transaction: Transaction | undefined;
   let syncNativeSelection = false;
   try {
-    const position = view.posAtDOM(native.anchorNode, native.anchorOffset);
+    const position = view.posAtDOM(native.focusNode, native.focusOffset);
+    const nativeAnchor = view.state.doc.resolve(view.posAtDOM(native.anchorNode, native.anchorOffset));
+    if (
+      !view.state.selection.empty &&
+      (view.state.selection.anchor !== nativeAnchor.pos || view.state.selection.head !== position)
+    )
+      return false;
     const cursor = view.state.doc.resolve(position);
     const heading = cursor.parent;
     if (
@@ -525,7 +697,10 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
       !Number.isInteger(heading.attrs.level) ||
       heading.attrs.level < 1 ||
       heading.attrs.level > 6 ||
-      (home && !numberedStyles.has(heading.attrs.semloEditorHeadingNumbering))
+      !nativeAnchor.sameParent(cursor) ||
+      ((home || shiftHome) &&
+        heading.attrs.semloEditorHeadingNumbering != null &&
+        !numberedStyles.has(heading.attrs.semloEditorHeadingNumbering))
     )
       return false;
     const insideRoot = cursor.depth === 1;
@@ -535,11 +710,17 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
     if (!insideRoot && !insideQuote && !insideDetails) return false;
     const singleLine =
       singleVisualTextHeading(view, heading, cursor.before()) ||
-      (shiftEnd &&
+      ((shiftEnd || home) &&
         !event.getModifierState("AltGraph") &&
         singleVisualTextHeading(view, heading, cursor.before(), "rtl"));
     let anchor = cursor.start();
     let head = home ? cursor.start() : cursor.end();
+    if (shiftHome) {
+      // 已确认的单行可直接定位行首；多行继续使用上层的视觉行证据。
+      if (!singleLine) return false;
+      anchor = nativeAnchor.pos;
+      head = cursor.start();
+    }
     if (singleLine && shiftEnd && cursor.parentOffset !== 0) {
       if (event.getModifierState("AltGraph")) return false;
       const previous = previousGraphemeBoundary(heading.textContent, cursor.parentOffset);
@@ -550,11 +731,18 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
     }
     if (!singleLine) {
       if (home) {
-        // Reuse the full text and layout validation before treating the first
-        // visual line of a numbered heading as a safe Home target.
-        const firstEnd = multiVisualLineEnd(view, heading, cursor.before(), cursor.start());
+        // 明确的 hardBreak 给出下一逻辑行的起点；仍验证完整布局及其第一视觉行，
+        // 不能把同一逻辑行的后续自动换行误当作该起点。
+        if (heading.content.size > 4096 || heading.childCount > 256) return false;
+        let start = cursor.start();
+        heading.forEach((node, offset) => {
+          if (node.type.name === "hardBreak" && offset < cursor.parentOffset)
+            start = cursor.start() + offset + node.nodeSize;
+        });
+        const firstEnd = multiVisualLineEnd(view, heading, cursor.before(), start);
         if (firstEnd === null || position > firstEnd) return false;
-        if (position === firstEnd && position > cursor.start()) {
+        anchor = head = start;
+        if (position === firstEnd && position > start) {
           // A wrapped boundary can represent a caret on either adjacent line;
           // only handle it when both position affinities remain on one line.
           const before = view.coordsAtPos(position, -1);
@@ -573,8 +761,17 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
           cursor.parentOffset > 0 &&
           cursor.nodeBefore?.type.name !== "hardBreak" &&
           (after.top > center || after.bottom < center)
-        )
-          return false;
+        ) {
+          if (!event.isTrusted || event.getModifierState("AltGraph")) return false;
+          const end = multiVisualLineEnd(view, heading, cursor.before(), position, true);
+          if (end === null || end <= position) return false;
+          const side = probeWrappedLineSide(view, position, end);
+          if (side === "upper" || side === "abort") {
+            event.preventDefault();
+            return true;
+          }
+          if (side !== "lower") return false;
+        }
         const target = multiVisualLineEnd(
           view,
           heading,
@@ -716,41 +913,19 @@ export const HeadingEndSelection = Extension.create({
               const candidate = home.prepare(view, event, true);
               if (candidate) {
                 const selected = TextSelection.create(candidate.document, candidate.source, candidate.start);
+                // 与 Home、Shift+End 保持相同的事务归属，尊重宿主最终选区。
+                event.preventDefault();
                 if (!view.state.selection.eq(selected))
                   view.dispatch(view.state.tr.setSelection(selected).setMeta("addToHistory", false));
-                if (
-                  !view.isDestroyed &&
-                  view.editable &&
-                  view.hasFocus() &&
-                  view.state.doc === candidate.document &&
-                  view.state.selection.eq(selected)
-                ) {
-                  try {
-                    const native = view.dom.ownerDocument.getSelection();
-                    if (
-                      native?.anchorNode &&
-                      native.focusNode &&
-                      !native.isCollapsed &&
-                      view.dom.contains(native.anchorNode) &&
-                      view.dom.contains(native.focusNode) &&
-                      view.posAtDOM(native.anchorNode, native.anchorOffset) === candidate.source &&
-                      view.posAtDOM(native.focusNode, native.focusOffset) === candidate.start
-                    ) {
-                      event.preventDefault();
-                      return true;
-                    }
-                  } catch {
-                    /* Let the host and browser handle an unrecognized selection. */
-                  }
-                }
+                return true;
               }
-              return false;
+              return selectHeadingEnd(view, event) || stopUnverifiedHeadingLineSelection(view, event);
             }
             if (event.key === "Home" && !event.shiftKey) {
               clickLine = null;
               repeatedEnd = null;
               if (home.handle(view, event)) return true;
-              return selectHeadingEnd(view, event);
+              return selectHeadingEnd(view, event) || stopUnverifiedHeadingLineSelection(view, event);
             }
             if (event.key === "Shift") return selectHeadingEnd(view, event);
             const eligible =
@@ -840,7 +1015,7 @@ export const HeadingEndSelection = Extension.create({
             clickLine = null;
             const proven = eligible ? home.consume(view, view.state.selection.anchor) || clicked : false;
             if (!eligible) home.clear();
-            return selectHeadingEnd(view, event, proven);
+            return selectHeadingEnd(view, event, proven) || stopUnverifiedHeadingLineSelection(view, event);
           },
         },
         view(view) {

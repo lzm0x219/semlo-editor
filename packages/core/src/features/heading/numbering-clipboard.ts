@@ -3,9 +3,17 @@ import { DOMSerializer, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
+import { isSequenceCopyHook } from "../../shared/clipboard-hooks";
+import { selectionHasNumberingSequences } from "../list/numbering-sequence-document";
 import { semloEditorTableClipboardKey } from "../table/keys";
 
 type HeadingNumber = { pos: number; marker: string };
+const headingSerializers = new WeakSet<DOMSerializer>();
+
+/** 区分内置标题序列化器与宿主提供的剪贴板输出。 */
+export function isHeadingNumberingClipboardSerializer(serializer: DOMSerializer): boolean {
+  return headingSerializers.has(serializer);
+}
 
 /**
  * Let ProseMirror create both clipboard representations as usual. Only add
@@ -36,9 +44,20 @@ export function headingNumberingClipboardPlugin(
   const hasHostClipboardHandler = (currentView: EditorView, eventType: "copy" | "cut") =>
     currentView.someProp(
       "handleDOMEvents",
-      (handlers) => handlers !== plugin.props.handleDOMEvents && Boolean(handlers[eventType]),
+      (handlers) =>
+        handlers !== plugin.props.handleDOMEvents &&
+        Boolean(handlers[eventType]) &&
+        !(isSequenceCopyHook(handlers) && !selectionHasNumberingSequences(currentView.state)),
+    );
+  const hasHostCopyTransform = (currentView: EditorView) =>
+    currentView.someProp(
+      "transformCopied",
+      (transform) =>
+        transform !== plugin.props.transformCopied &&
+        !(isSequenceCopyHook(transform) && !selectionHasNumberingSequences(currentView.state)),
     );
   const serializer = new DOMSerializer({}, {});
+  headingSerializers.add(serializer);
   const resolveDelegate = () => {
     const state = view?.state ?? editor.state;
     const index = state.plugins.indexOf(plugin);
@@ -81,8 +100,7 @@ export function headingNumberingClipboardPlugin(
     if (hasHostClipboardHandler(currentView, eventType)) return serialized;
     // Another transform can deliberately return an equal slice from elsewhere
     // in the document. Structural equality cannot establish its origin.
-    if (currentView.someProp("transformCopied", (transform) => transform !== plugin.props.transformCopied))
-      return serialized;
+    if (hasHostCopyTransform(currentView)) return serialized;
 
     const { selection, doc } = currentView.state;
     const slice = selection.content();
@@ -189,8 +207,7 @@ export function headingNumberingClipboardPlugin(
         if (!clipboardEvent || !delegate || !/^clipboardTextSerializer\$(?:\d+)?$/.test(key ?? "")) return "";
         const eventType = clipboardEvent.type as "copy" | "cut";
         if (hasHostClipboardHandler(currentView, eventType)) return "";
-        if (currentView.someProp("transformCopied", (transform) => transform !== plugin.props.transformCopied))
-          return "";
+        if (hasHostCopyTransform(currentView)) return "";
         // Check owners, not function identity: a host may deliberately reuse a
         // serializer function on another plugin or on the view itself.
         if (

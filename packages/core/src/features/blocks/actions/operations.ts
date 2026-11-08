@@ -3,10 +3,22 @@ import { closeHistory } from "@tiptap/pm/history";
 import { DOMSerializer, Fragment, type Node as ProseMirrorNode, type NodeType } from "@tiptap/pm/model";
 import { Selection, type EditorState, type Transaction } from "@tiptap/pm/state";
 
+import { canConvertSequenceTextblocks } from "../../heading/sequence-conversion";
+import { canConvertSequenceChain } from "../../list/numbering-sequence-continuation";
+import {
+  hasNumberingSequences,
+  parseSequenceLink,
+  sequenceConvertible,
+  sequenceLinkAttribute,
+} from "../../list/numbering-sequence-document";
+import { markSequenceOperation, sequenceLeaf } from "../../list/numbering-sequence-transactions";
 import { orderedListSuffixAttrs } from "../../list/ordered-fragment";
 import { normalizeOrderedAncestorPath } from "../../list/ordered-path";
+import { serializeOrderedListStyles } from "../../list/ordered-style";
 import { orderedListLabels } from "../../list/ordered-style";
+import { serializeOrderedListOrdinals } from "../../list/ordinals";
 import { deriveOrderedListValues, rebaseOrderedListLevelStarts } from "../../list/ordinals";
+import { clipboardSourceAttribute } from "../../text/quote-paste";
 import type { Target } from "./target";
 
 export type Conversion = { label: string; type: string; level?: 1 | 2 | 3 | 4 | 5 | 6 };
@@ -77,13 +89,26 @@ export function rebaseOrderedListAfterChange(
 }
 
 /** Select a flat parent and its consecutive descendants without flattening rich blocks. */
-export function listGroupTextRange(state: EditorState, target: Target): { from: number; to: number } | null {
+export function listGroupTextRange(
+  state: EditorState,
+  target: Target,
+  allowSequenceConversion: boolean | "text" = false,
+): { from: number; to: number } | null {
   if (target.kind !== "item" || target.parentPos !== target.rootPos || state.doc.nodeAt(target.pos) !== target.node)
     return null;
   const list = state.doc.nodeAt(target.parentPos);
   if (!list || !isFlatList(list)) return null;
   const start = state.doc.resolve(target.pos).index(),
     level = Number(target.node.attrs.semloEditorListIndent ?? 0);
+  if (
+    hasNumberingSequences(list) &&
+    (allowSequenceConversion === "text"
+      ? !canConvertSequenceTextblocks(list, start) || !canConvertSequenceChain(state.doc, target.parentPos)
+      : !allowSequenceConversion ||
+        !sequenceConvertible(list, start) ||
+        !canConvertSequenceChain(state.doc, target.parentPos))
+  )
+    return null;
   let end = start + 1,
     size = target.node.nodeSize;
   while (end < list.childCount && Number(list.child(end).attrs.semloEditorListIndent ?? 0) > level) {
@@ -286,6 +311,7 @@ export function listItemWrapper(
   const list = state.doc.nodeAt(target.parentPos);
   const wrapper = state.schema.nodes[wrapperType];
   if (!list || !listNodes.has(list.type.name) || !wrapper || !isFlatList(list)) return null;
+  if (hasNumberingSequences(list)) return null;
   // Wrapping splits a list into independently numbered fragments. Their
   // continuation modes are not yet established for a continued first item.
   const index = state.doc.resolve(target.pos).index();
@@ -493,6 +519,31 @@ export function deleteTarget(editor: Editor, target: Target): boolean {
   )
     return false;
   const parent = target.kind === "item" ? editor.state.doc.resolve(target.pos).parent : null;
+  if (parent && hasNumberingSequences(parent)) {
+    const index = editor.state.doc.resolve(target.pos).index();
+    if (!sequenceLeaf(parent, index)) return false;
+    if (parent.childCount === 1) {
+      const position = editor.state.doc.resolve(target.parentPos);
+      if (
+        target.parentPos !== target.rootPos ||
+        position.depth !== 0 ||
+        !parseSequenceLink(parent.attrs[sequenceLinkAttribute]) ||
+        !position.parent.canReplace(position.index(), position.index() + 1)
+      )
+        return false;
+      dispatchChange(
+        editor,
+        markSequenceOperation(editor.state.tr.delete(target.parentPos, target.parentPos + parent.nodeSize)),
+      );
+      return true;
+    }
+    dispatchChange(
+      editor,
+      markSequenceOperation(editor.state.tr.delete(target.pos, target.pos + target.node.nodeSize)),
+    );
+    return true;
+  }
+
   if (parent?.type.name === "orderedList" && parent.attrs.semloEditorListFirstContinue === true) {
     let flat = isFlatList(parent);
     parent.forEach((item) => {
@@ -652,16 +703,26 @@ export function clipboardContents(editor: Editor, target: Target): { html: strin
       return null;
     const all: ProseMirrorNode[] = [];
     parent.forEach((child) => all.push(child));
-    const attrs =
-      parent.type.name === "orderedList" ? orderedListSuffixAttrs(parent, all, resolved.index()) : parent.attrs;
+    if (hasNumberingSequences(parent) && children.length !== parent.childCount) return null;
+    const attrs = hasNumberingSequences(parent)
+      ? parent.attrs
+      : parent.type.name === "orderedList"
+        ? orderedListSuffixAttrs(parent, all, resolved.index())
+        : parent.attrs;
     node = parent.type.create(attrs, fragment, parent.marks);
   }
   const wrapper = doc.createElement("div");
   wrapper.append(DOMSerializer.fromSchema(editor.schema).serializeFragment(Fragment.from(node), { document: doc }));
+  wrapper.firstElementChild?.setAttribute(clipboardSourceAttribute, "1");
   const text =
     node.textBetween(0, node.content.size, "\n", "") ||
     String(target.node.attrs.alt ?? target.node.attrs.title ?? target.node.attrs.name ?? "");
-  return { html: wrapper.innerHTML, text };
+  let html = wrapper.innerHTML;
+  if (hasNumberingSequences(node)) {
+    const root = editor.schema.topNodeType.create(null, node);
+    html = serializeOrderedListStyles(serializeOrderedListOrdinals(html, doc, root), doc, root);
+  }
+  return { html, text };
 }
 
 export async function writeClipboard(

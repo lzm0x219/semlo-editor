@@ -1,7 +1,7 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-delete-controlled-fixture";
 import type { RestartFramework } from "../../fixtures/list/ordered-restart-controlled-fixture";
 
@@ -30,26 +30,9 @@ declare global {
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: {
-        entry: { index: "./tests/fixtures/heading/heading-delete-controlled-fixture.ts" },
-        define: {
-          "process.env.NODE_ENV": JSON.stringify("development"),
-          __VUE_OPTIONS_API__: true,
-          __VUE_PROD_DEVTOOLS__: false,
-          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-        },
-      },
-      resolve: { alias: { "@semlo-editor/core$": "./packages/core/src/index.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-delete-controlled-fixture.ts", {
+    framework: true,
+  }));
 });
 afterAll(async () => stop?.());
 
@@ -218,6 +201,8 @@ async function wrappedLine(page: Page) {
         start: part.index,
         end: part.index + part.segment.length,
         text: part.segment,
+        left: rect.left,
+        right: rect.right,
         x: (rect.left + rect.right) / 2,
         y: (rect.top + rect.bottom) / 2,
         top: rect.top,
@@ -243,6 +228,11 @@ async function wrappedLine(page: Page) {
       to: line[line.length - 1].end,
       selected: line.map((part) => part.text).join(""),
       click: { x: middle.x, y: middle.y },
+      upper: {
+        x: Math.min(rows.get(0)!.at(-1)!.right + 4, heading.getBoundingClientRect().right - 1),
+        y: rows.get(0)![0].y,
+      },
+      lower: { x: line[0].left + 0.5, y: line[0].y },
     };
   });
 }
@@ -425,6 +415,38 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       expect(redone.changes).toHaveLength(3);
       expect(redone.errors).toEqual([]);
       await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
+    });
+  }
+}
+
+for (const framework of ["react", "vue", "solid"] as const) {
+  for (const side of ["upper", "lower"] as const) {
+    test(`${framework} controlled content preserves the ${side} wrap boundary`, async ({ page }) => {
+      await mount(page, framework, wrapText, 300);
+      const line = await wrappedLine(page);
+      const before = await read(page);
+      await page.mouse.click(line[side].x, line[side].y);
+      await page.keyboard.press("Shift+End");
+      const selected = await read(page);
+      expect(selected.domSelection.text).toBe(side === "upper" ? "" : line.selected);
+      if (side === "lower") {
+        const expected = await expectedDocument(page, line.from, line.to);
+        await page.keyboard.press("Backspace");
+        await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").settle());
+        const after = await read(page);
+        expect(after.snapshot.json).toEqual(expected);
+        expect(after.changes.at(-1)?.json).toEqual(expected);
+        await page.keyboard.press("ControlOrMeta+z");
+        await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").settle());
+        expect((await read(page)).snapshot.json).toEqual(before.snapshot.json);
+      } else {
+        await page.keyboard.type("X");
+        await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").settle());
+        const after = await read(page);
+        const text = after.snapshot.json.content?.[0].content?.[0].text;
+        expect(text).toBe(wrapText.slice(0, line.from) + "X" + wrapText.slice(line.from));
+        expect(after.changes.at(-1)?.json).toEqual(after.snapshot.json);
+      }
     });
   }
 }

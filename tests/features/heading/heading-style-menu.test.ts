@@ -107,7 +107,8 @@ test("only all-heading selections disable main bold and font size; italic and fo
   const size = toolbar.getByRole("button", { name: "字号" });
   const bold = toolbar.getByRole("button", { name: "加粗" });
   const italic = toolbar.getByRole("button", { name: "斜体" });
-  const font = toolbar.getByRole("button", { name: "字体", exact: true });
+  const moreId = await toolbar.getByRole("button", { name: "更多", exact: true }).getAttribute("aria-controls");
+  const font = page.locator(`[id="${moreId}"]`).getByRole("button", { name: "字体", exact: true, includeHidden: true });
   const heading = toolbar.getByRole("button", { name: "段落样式" });
   for (const [first, last, text, disabled] of [
     [0, 0, "正文", false],

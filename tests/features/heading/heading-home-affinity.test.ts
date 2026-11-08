@@ -1,24 +1,14 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-wrap-home-host-fixture";
 
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-wrap-home-host-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const server = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${server.port}`;
-  stop = () => server.server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-wrap-home-host-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
@@ -73,17 +63,25 @@ async function geometry(page: Page) {
       top: target.top,
       bottom: target.bottom,
       left: line[0].left,
+      upperRight: Math.min(rows[0].at(-1)!.right + 4, heading.getBoundingClientRect().right - 1),
+      upperY: (rows[0][0].top + rows[0][0].bottom) / 2,
       firstTag: line[0].tag,
       previousTag: rows[0].at(-1)!.tag,
     };
   });
 }
-async function mount(page: Page, numbered: boolean, candidate: boolean, marked: boolean) {
+async function mount(
+  page: Page,
+  numbered: boolean,
+  candidate: boolean,
+  marked: boolean,
+  mode: "normal" | "reject-range" = "normal",
+) {
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountWrapHome === "function");
   await page.evaluate(
-    ({ numbered, candidate }) => {
-      window.__semloRequireFixture("mountWrapHome")(numbered, "normal", "early");
+    ({ numbered, candidate, mode }) => {
+      window.__semloRequireFixture("mountWrapHome")(numbered, mode, "early");
       const view = window.__semloRequireFixture("wrapHome").controller.editor.view;
       view.dom.style.caretColor = "rgb(255, 0, 255)";
       const plugin = view.state.plugins.find((entry) =>
@@ -94,7 +92,7 @@ async function mount(page: Page, numbered: boolean, candidate: boolean, marked: 
       if (!candidate)
         plugin.props.handleKeyDown = (v, event) => (event.key === "Home" ? false : original.call(plugin, v, event));
     },
-    { numbered, candidate },
+    { numbered, candidate, mode },
   );
   await page.evaluate(() => window.__semloRequireFixture("wrapHome").settle());
   const original = await geometry(page);
@@ -223,7 +221,9 @@ test("a clicked wrap boundary loses its evidence after the host moves the select
   }, line.from);
   await page.keyboard.press("Shift+End");
   const result = await inspect(page);
-  expect(result.events.at(-1)).toMatchObject({ key: "End", prevented: false });
+  expect(result.events.at(-1)).toMatchObject({ key: "End" });
+  expect(result.native.text).not.toContain("NEXT");
+  if (result.events.at(-1)?.prevented) expect(["", line.text]).toContain(result.native.text);
 });
 
 for (const action of ["blur", "layout"] as const) {
@@ -240,7 +240,9 @@ for (const action of ["blur", "layout"] as const) {
       }
     }, action);
     await page.keyboard.press("Shift+End");
-    expect((await inspect(page)).events.at(-1)).toMatchObject({ key: "End", prevented: false });
+    const result = await inspect(page);
+    expect(result.events.at(-1)).toMatchObject({ key: "End" });
+    expect(result.native.text).not.toContain("NEXT");
   });
 }
 
@@ -267,7 +269,7 @@ for (const numbered of [false, true])
     });
   }
 
-test("host rejection of nonempty heading selection leaves Shift+End unconsumed", async ({ page }) => {
+test("host rejection of nonempty heading selection consumes Shift+End and retains the selection", async ({ page }) => {
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountWrapHome === "function");
   await page.evaluate(() => window.__semloRequireFixture("mountWrapHome")(false, "reject-range", "early"));
@@ -275,12 +277,16 @@ test("host rejection of nonempty heading selection leaves Shift+End unconsumed",
   const line = await geometry(page);
   await page.mouse.click(line.x, line.y);
   await page.keyboard.press("Shift+ArrowRight");
-  expect((await inspect(page)).native.text.length).toBe(1);
+  const before = await inspect(page);
+  expect(before.native.text.length).toBe(1);
   await page.evaluate(() => window.__semloRequireFixture("wrapHome").arm());
   await page.keyboard.press("Shift+End");
   const result = await inspect(page);
   expect(await page.evaluate(() => window.__semloRequireFixture("wrapHome").trace)).toContain("filter");
-  expect(result.events.at(-1)).toMatchObject({ key: "End", prevented: false });
+  expect(result.events.at(-1)).toMatchObject({ key: "End", prevented: true });
+  expect(result.json).toEqual(before.json);
+  expect(result.native).toEqual(before.native);
+  expect(result.pm).toEqual(before.pm);
   await expect(page.locator("#heading-wrap-home-test .semlo-editor-prose > p")).toHaveText("NEXT");
 });
 
@@ -326,8 +332,14 @@ for (const action of ["selection", "blur", "layout"] as const) {
       },
       { action, anchor: original.pm.anchor, head: original.pm.head },
     );
+    const invalidated = await inspect(page);
     await page.keyboard.press("Shift+End");
-    expect((await inspect(page)).events.at(-1)).toMatchObject({ key: "End", prevented: false });
+    const result = await inspect(page);
+    // 证据失效后不能让原生扩选跨入正文，保留当前选区且不生成文档变化。
+    expect(result.events.at(-1)).toMatchObject({ key: "End", prevented: true });
+    expect(result.json).toEqual(invalidated.json);
+    expect(result.native).toEqual(invalidated.native);
+    expect(result.pm).toEqual(invalidated.pm);
   });
 }
 
@@ -358,7 +370,7 @@ for (const numbered of [false, true]) {
   });
 }
 
-test("host rejection of Shift+Home range is not consumed or applied", async ({ page }) => {
+test("host rejection of Shift+Home range is consumed without applying it", async ({ page }) => {
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountWrapHome === "function");
   await page.evaluate(() => {
@@ -372,10 +384,62 @@ test("host rejection of Shift+Home range is not consumed or applied", async ({ p
   const line = await geometry(page);
   const before = await inspect(page);
   await page.mouse.click(line.x, line.y);
+  const clicked = await inspect(page);
   await page.evaluate(() => window.__semloRequireFixture("wrapHome").arm());
   await page.keyboard.press("Shift+Home");
   const result = await inspect(page);
   expect(await page.evaluate(() => window.__semloRequireFixture("wrapHome").trace)).toContain("filter");
-  expect(result.events.at(-1)).toMatchObject({ key: "Home", prevented: false });
+  expect(result.events.at(-1)).toMatchObject({ key: "Home", prevented: true });
   expect(result.json).toEqual(before.json);
+  expect(result.native).toEqual(clicked.native);
+  expect(result.pm).toEqual(clicked.pm);
 });
+
+for (const numbered of [false, true]) {
+  for (const marked of [false, true]) {
+    for (const side of ["upper", "lower"] as const) {
+      for (const mode of ["normal", "reject-range"] as const) {
+        test(`ambiguous ${side} boundary respects ${mode}: ${numbered ? "numbered" : "plain"} ${marked ? "marked" : "unmarked"}`, async ({
+          page,
+        }) => {
+          const line = await mount(page, numbered, true, marked, mode);
+          await page.evaluate(() => window.__semloRequireFixture("wrapHome").closeHistory());
+          await page.mouse.click(
+            side === "upper" ? line.upperRight : line.left + 0.5,
+            side === "upper" ? line.upperY : line.y,
+          );
+          await page.evaluate(() => window.__semloRequireFixture("wrapHome").settle());
+          if (side === "lower") {
+            await page.evaluate(() => {
+              const s = document.getSelection()!;
+              if (!s.anchorNode) throw new Error("Missing selection");
+              s.collapse(s.anchorNode, s.anchorOffset);
+            });
+          }
+          await page.evaluate(() => window.__semloRequireFixture("wrapHome").arm());
+          const before = await inspect(page);
+          expect(before.native.anchor).toBe(line.from);
+          await page.keyboard.press("Shift+End");
+          await page.evaluate(() => window.__semloRequireFixture("wrapHome").settle());
+          const after = await inspect(page);
+          expect(after.json).toEqual(before.json);
+          if (side === "upper" || mode === "reject-range") {
+            expect(after.native).toMatchObject({ anchor: line.from, head: line.from, collapsed: true });
+            const probe = await page.evaluate(() => {
+              const s = document.getSelection()!;
+              s.modify("extend", "forward", "lineboundary");
+              return s.toString();
+            });
+            expect(probe).toBe(side === "upper" ? "" : line.text);
+          } else {
+            expect(after.native).toMatchObject({ anchor: line.from, head: line.to, text: line.text, collapsed: false });
+            await page.keyboard.press("Backspace");
+            await expect(page.locator("#heading-wrap-home-test .semlo-editor-prose > p")).toHaveText("NEXT");
+            await page.keyboard.press("ControlOrMeta+z");
+            expect((await inspect(page)).json).toEqual(before.json);
+          }
+        });
+      }
+    }
+  }
+}

@@ -4,18 +4,19 @@ import { Fragment, type Node as ProseMirrorNode, type ResolvedPos } from "@tipta
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Mapping } from "@tiptap/pm/transform";
 
+import { sequenceConversionHintAttribute } from "../list/numbering-sequence-conversion-hint";
+import { selectionHasNumberingSequences } from "../list/numbering-sequence-document";
 import { normalizeOrderedAncestorPath } from "../list/ordered-path";
 import {
   deriveOrderedListValues,
   normalizeOrderedListLevelStarts,
   rebaseOrderedListLevelStarts,
 } from "../list/ordinals";
+import { canJoinQuoteHeading, markJoinedQuoteHeading } from "../text/quote-keyboard";
+import { clearHeadingInlineFormat } from "./clear-inline";
 import { headingNumberingStyle, inheritedHeadingNumbering, type HeadingNumberingStyle } from "./numbering";
 import { getHeadingSelection, type HeadingStyleLevel } from "./selection";
-
-// These marks are removed by Yuque when changing block style explicitly.
-// Text and background colors are deliberately retained.
-const removedMarks = ["bold", "italic", "underline", "strike", "superscript", "subscript"];
+import { convertSequenceTextblocks } from "./sequence-conversion";
 
 type OriginalBlock = {
   pos: number;
@@ -1096,13 +1097,6 @@ function flatOrderedParagraphSelection(state: EditorState, blocks: readonly Orig
   return true;
 }
 
-function withoutFontSize(attrs: Record<string, unknown>): Record<string, unknown> | null {
-  const remaining = { ...attrs, fontSize: null };
-  return Object.entries(remaining).some(([key, value]) => key !== "fontSize" && value !== null && value !== undefined)
-    ? remaining
-    : null;
-}
-
 function headingPlan(
   state: EditorState,
   level: HeadingStyleLevel,
@@ -1214,9 +1208,13 @@ export function setHeadingStyle(
     preserveInlineMarks?: boolean;
     selection?: { from: number; to: number };
     focus?: boolean;
+    joinQuoteHistory?: boolean;
   } = {},
 ): boolean {
   if (editor.isDestroyed || !editor.isEditable) return false;
+  if (selectionHasNumberingSequences(editor.state, options.selection?.from, options.selection?.to))
+    return convertSequenceTextblocks(editor, level, options);
+  const joinQuoteHistory = options.joinQuoteHistory === true && canJoinQuoteHeading(editor.state, level);
   const preplanned = options.selection ? null : headingPlan(editor.state, level, options);
   if (!options.selection && !preplanned) return false;
   const initialDoc = editor.state.doc;
@@ -1245,6 +1243,14 @@ export function setHeadingStyle(
       }
       const plan = preplanned ?? headingPlan(state, level, options);
       if (!plan) return reject();
+      const conversionHints: Array<{ pos: number; value: unknown }> = [];
+      const firstRoot = state.selection.$from.index(0),
+        lastRoot = state.selection.$to.index(0);
+      state.doc.forEach((node, pos, index) => {
+        if (index < firstRoot || index > lastRoot || !["paragraph", "heading"].includes(node.type.name)) return;
+        const value = node.attrs[sequenceConversionHintAttribute];
+        if (value != null) conversionHints.push({ pos, value });
+      });
       const {
         selected,
         target,
@@ -1264,7 +1270,7 @@ export function setHeadingStyle(
         preservedFirstContinueLists,
         preservedContainers,
       } = plan;
-      closeHistory(tr);
+      if (!joinQuoteHistory) closeHistory(tr);
       let converted: boolean;
       // List commands map positions from their initial transaction document.
       // Stage each required command from the current document, then append its
@@ -1274,7 +1280,7 @@ export function setHeadingStyle(
         // committed state until the final transaction is dispatched.
         const staged = EditorState.create({ doc: tr.doc, selection: tr.selection, storedMarks: tr.storedMarks }).tr;
         const fresh = createChainableState({ state: editor.state, transaction: staged });
-        closeHistory(staged);
+        if (!joinQuoteHistory) closeHistory(staged);
         const setMeta = staged.setMeta.bind(staged);
         const getMeta = staged.getMeta.bind(staged);
         const presence = EditorState.create({ doc: tr.doc, selection: tr.selection }).tr;
@@ -1441,6 +1447,25 @@ export function setHeadingStyle(
         tr.setMeta("preventDispatch", true);
         return false;
       }
+      for (const hint of conversionHints) {
+        const mapped = tr.mapping.mapResult(hint.pos + 1, 1);
+        if (mapped.deletedAcross) return reject();
+        const position = tr.doc.resolve(mapped.pos);
+        const block = position.parent;
+        if (
+          position.depth !== 1 ||
+          !["paragraph", "heading"].includes(block.type.name) ||
+          !Object.hasOwn(block.type.spec.attrs ?? {}, sequenceConversionHintAttribute) ||
+          (block.attrs[sequenceConversionHintAttribute] != null &&
+            block.attrs[sequenceConversionHintAttribute] !== hint.value)
+        )
+          return reject();
+        if (block.attrs[sequenceConversionHintAttribute] !== hint.value)
+          tr.setNodeMarkup(position.before(), undefined, {
+            ...block.attrs,
+            [sequenceConversionHintAttribute]: hint.value,
+          });
+      }
       if (
         listItems.length &&
         ((normalizedFlatOrdered.size > 0 && target && !preservedSelectedHeadings(tr, originalBlocks, target)) ||
@@ -1501,50 +1526,15 @@ export function setHeadingStyle(
       // Block-menu list extraction retains its inline formatting; toolbar and
       // keyboard paragraph conversion continue to use the existing cleanup.
       if (options.preserveInlineMarks && flatOrderedParagraphs) return true;
-      for (const [from, to] of blocks) {
-        for (const name of removedMarks) {
-          const mark = tr.doc.type.schema.marks[name];
-          if (mark) tr.removeMark(from, to, mark);
-        }
-      }
-      const textStyle = tr.doc.type.schema.marks.textStyle;
-      if (textStyle) {
-        const runs: Array<{ from: number; to: number; attrs: Record<string, unknown> | null }> = [];
-        for (const [from, to] of blocks) {
-          tr.doc.nodesBetween(from, to, (node, pos) => {
-            if (!node.isInline) return;
-            const style = textStyle.isInSet(node.marks);
-            if (style?.attrs.fontSize === null || style?.attrs.fontSize === undefined) return;
-            runs.push({
-              from: Math.max(from, pos),
-              to: Math.min(to, pos + node.nodeSize),
-              attrs: withoutFontSize(style.attrs),
-            });
-          });
-        }
-        for (const run of runs) {
-          if (run.attrs) tr.addMark(run.from, run.to, textStyle.create(run.attrs));
-          else tr.removeMark(run.from, run.to, textStyle);
-        }
-        const stored = tr.storedMarks && textStyle.isInSet(tr.storedMarks);
-        if (tr.selection.empty && stored && stored.attrs.fontSize !== null && stored.attrs.fontSize !== undefined) {
-          const attrs = withoutFontSize(stored.attrs);
-          tr.removeStoredMark(textStyle);
-          if (attrs) tr.addStoredMark(textStyle.create(attrs));
-        }
-      }
-      if (tr.selection.empty && tr.storedMarks) {
-        for (const name of removedMarks) {
-          const mark = tr.doc.type.schema.marks[name];
-          if (mark) tr.removeStoredMark(mark);
-        }
-      }
+      clearHeadingInlineFormat(tr, blocks);
+      if (joinQuoteHistory) markJoinedQuoteHeading(tr);
       return true;
     })
     .run();
   // A host filterTransaction may reject the candidate despite a successful
   // Tiptap command result. Keep the block menu and current selection intact.
   if (result && attempted?.docChanged && !editor.isDestroyed && editor.state.doc.eq(initialDoc)) return false;
-  if (result && !editor.isDestroyed) editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+  if (result && !editor.isDestroyed && !joinQuoteHistory)
+    editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
   return result;
 }

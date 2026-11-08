@@ -1,5 +1,6 @@
 import { isHistoryTransaction } from "@tiptap/pm/history";
 import { Transaction, type EditorState, type Plugin } from "@tiptap/pm/state";
+import { AttrStep } from "@tiptap/pm/transform";
 
 import { historyDirection, historyPosition } from "../../runtime/history-redo-probe";
 
@@ -21,6 +22,15 @@ function isSameHistoryRoot(root: unknown, previous: Pending | null): boolean {
     isHistoryTransaction(root) &&
     (previous.kind === "redo" || previous.kind === "undo" || previous.kind === "history-append")
   );
+}
+
+function isUnmappedNonhistoricalAttributeChange(transaction: Transaction): boolean {
+  if (transaction.getMeta("rebased") || !transaction.steps.length) return false;
+  const root: unknown = transaction.getMeta("appendedTransaction");
+  if (root !== undefined && (!(root instanceof Transaction) || isHistoryTransaction(root))) return false;
+  if (transaction.getMeta("addToHistory") !== false && root?.getMeta("addToHistory") !== false) return false;
+  // 属性步骤不移动文档位置，不会替换既有撤销事件。
+  return transaction.steps.every((step) => step instanceof AttrStep);
 }
 
 // This observes the next fully applied state, never the partially initialized
@@ -69,6 +79,16 @@ export function advanceHeadingDeletionLedger(
     if (!direction) return emptyHeadingDeletionLedger();
     kind = direction;
   } else if (transaction.docChanged) {
+    if (isUnmappedNonhistoricalAttributeChange(transaction))
+      return {
+        slots: settled.slots,
+        pending: {
+          plugin: position.plugin,
+          beforeDone: position.done,
+          beforeUndone: position.undone,
+          kind: "unchanged",
+        },
+      };
     if (transaction.getMeta("addToHistory") === false) return emptyHeadingDeletionLedger();
     // In the locked ProseMirror version, an appended transaction inherits the
     // root transaction's addToHistory=false even when its own metadata is

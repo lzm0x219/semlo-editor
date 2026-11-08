@@ -1,8 +1,8 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-end-boundary-fixture";
 
 test.beforeEach(async ({ page }) => {
@@ -12,17 +12,7 @@ test.beforeEach(async ({ page }) => {
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-end-boundary-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-end-boundary-fixture.ts"));
 });
 afterAll(async () => stop?.());
 
@@ -48,6 +38,7 @@ type Sample = {
   before?: boolean;
   beforeText?: boolean;
   level?: number;
+  textValue?: string;
   format?: "bold" | "italic" | "mixed" | "numbered" | "both";
   initial: Initial;
   key: string;
@@ -72,7 +63,8 @@ const paragraph = (content: JSONContent[] = []): JSONContent => ({
   ...(content.length ? { content } : {}),
 });
 function documentFor(sample: Sample): JSONContent {
-  const textContent = sample.shape === "wrapped" ? "长".repeat(100) : sample.format === "mixed" ? "abcd" : "test";
+  const textContent =
+    sample.textValue ?? (sample.shape === "wrapped" ? "长".repeat(100) : sample.format === "mixed" ? "abcd" : "test");
   const body: JSONContent[] = [
     ...(sample.before ? [paragraph()] : sample.beforeText ? [paragraph([text("first")])] : []),
     sample.shape === "paragraph"
@@ -395,28 +387,41 @@ cases.push(
   },
 );
 
-// H1–H6 in root plus nonempty text and root H3 within a quote or a
-// details body were observed in Yuque; other combinations are limited extensions.
-for (const container of ["root", "quote", "details"] as const)
-  for (const level of [1, 2, 4, 5, 6])
-    for (const shape of ["simple", "next-text"] as const)
-      for (const deletion of ["Backspace", "Delete"] as const)
-        cases.push({
-          name: `${container}/level-${level}/${shape}/${deletion}`,
-          container,
-          shape,
-          level,
-          initial: "home",
-          key: "Shift+End",
-          targeted: true,
-          deletion,
-        });
+// 保留语雀中观察过的正文标题组合；引用和折叠块用交叉组合覆盖各级别、后续内容与删除键。
+for (const [index, level] of [1, 2, 4, 5, 6].entries()) {
+  for (const [offset, container] of (["root", "quote", "details"] as const).entries()) {
+    const variants: { shape: "simple" | "next-text"; deletion: "Backspace" | "Delete" }[] =
+      container === "root"
+        ? [
+            { shape: "next-text", deletion: "Backspace" },
+            { shape: "next-text", deletion: "Delete" },
+          ]
+        : [
+            {
+              shape: (index + offset - 1) % 2 === 0 ? "next-text" : "simple",
+              deletion: (Math.floor(index / 2) + offset - 1) % 2 === 0 ? "Backspace" : "Delete",
+            },
+          ];
+    for (const { shape, deletion } of variants)
+      cases.push({
+        name: `${container}/level-${level}/${shape}/${deletion}`,
+        container,
+        shape,
+        level,
+        initial: "home",
+        key: "Shift+End",
+        targeted: true,
+        deletion,
+      });
+  }
+}
 
-// Root H3 with numbering, bold, italic and mixed plain/bold text were
-// observed in Yuque; applying the same rule to other levels is a limited extension.
-for (const level of [1, 2, 3, 4, 5, 6])
-  for (const format of ["bold", "italic", "mixed", "numbered"] as const)
-    for (const deletion of ["Backspace", "Delete"] as const)
+// H3 的格式和删除键均保留，其他级别覆盖每种格式并交替使用两种删除键。
+for (const level of [1, 2, 3, 4, 5, 6]) {
+  for (const [index, format] of (["bold", "italic", "mixed", "numbered"] as const).entries()) {
+    const deletions: NonNullable<Sample["deletion"]>[] =
+      level === 3 ? ["Backspace", "Delete"] : [(level + index) % 2 === 0 ? "Backspace" : "Delete"];
+    for (const deletion of deletions)
       cases.push({
         name: `root/level-${level}/${format}/${deletion}`,
         container: "root",
@@ -428,6 +433,37 @@ for (const level of [1, 2, 3, 4, 5, 6])
         targeted: true,
         deletion,
       });
+  }
+}
+
+for (const level of [1, 2, 3, 4, 5, 6])
+  for (const format of [undefined, "numbered"] as const)
+    cases.push({
+      name: `cyrillic-single-line/H${level}/${format ?? "plain"}`,
+      container: "root",
+      shape: "next-text",
+      level,
+      format,
+      textValue: "Пример",
+      initial: "home",
+      key: "Shift+End",
+      targeted: true,
+      deletion: "Backspace",
+    });
+
+for (const container of ["quote", "details"] as const)
+  cases.push({
+    name: `cyrillic-single-line/${container}/mixed-latin`,
+    container,
+    shape: "next-text",
+    level: 3,
+    format: "italic",
+    textValue: "Тест test",
+    initial: "home",
+    key: "Shift+End",
+    targeted: true,
+    deletion: "Delete",
+  });
 
 for (const key of ["Shift+Home", "Alt+Home", "Control+Home", "Meta+Home"])
   cases.push({
@@ -580,6 +616,29 @@ for (const sample of cases) {
       const undone = await inspect(page);
       expect(undone.json).toEqual(before.json);
       expect(undone.selection).toEqual(after.selection);
+    } else if (sample.name === "reverse-selection" || sample.name === "numbered-unobserved-Shift+Home") {
+      const { before, after } = await exercise(page, sample, false);
+      const reverse = sample.name === "reverse-selection";
+      expect(before.selection).toMatchObject({ anchorType: "heading", headType: "heading", anchorOffset: 4 });
+      // 此处初始选区完全在标题内；原生 End 跨正文的结果不能作为安全基线。
+      expect(after.selection).toMatchObject({
+        anchorType: "heading",
+        headType: "heading",
+        anchorOffset: 4,
+        headOffset: reverse ? 4 : 0,
+        text: reverse ? "" : "test",
+        nativeCollapsed: reverse,
+        focused: true,
+      });
+      await page.keyboard.press("Backspace");
+      const expected = (reverse ? structuredClone(before.json) : emptiedHeading(before.json)) as JSONContent;
+      if (reverse) expected.content![0].content![0].text = "tes";
+      expect((await inspect(page)).json).toEqual(expected);
+      await page.keyboard.press("ControlOrMeta+z");
+      await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+      const undone = await inspect(page);
+      expect(undone.json).toEqual(before.json);
+      expect(undone.selection).toEqual(after.selection);
     } else if (!sample.targeted) {
       // Disable only this plugin in a fresh instance and compare real browser
       // behavior, so untouched scenarios do not depend on a specific OS keymap.
@@ -593,8 +652,8 @@ for (const sample of cases) {
         anchorType: "heading",
         anchorOffset: 0,
         headType: "heading",
-        headOffset: 4,
-        text: sample.format === "mixed" ? "abcd" : "test",
+        headOffset: sample.textValue?.length ?? 4,
+        text: sample.textValue ?? (sample.format === "mixed" ? "abcd" : "test"),
         nativeCollapsed: false,
         focused: true,
       });
@@ -626,5 +685,57 @@ for (const sample of cases) {
       expect(undone.selection).toEqual(after.selection);
     }
     expect(errors).toEqual([]);
+  });
+}
+
+for (const direction of ["forward", "reverse"] as const) {
+  test(`explicit ${direction} cross-block selection retains the native key path`, async ({ page }) => {
+    const run = async (native: boolean) => {
+      await page.goto(origin);
+      await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
+      await page.evaluate(
+        (native) =>
+          window.__semloRequireFixture("mountHeadingEndBoundary")(
+            {
+              type: "doc",
+              content: [
+                { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "test" }] },
+                { type: "paragraph", content: [{ type: "text", text: "NEXT" }] },
+              ],
+            },
+            850,
+            native,
+          ),
+        native,
+      );
+      await page.evaluate((direction) => {
+        const editor = window.__semloRequireFixture("headingEndBoundary").controller.editor;
+        editor.view.focus();
+        editor.commands.setTextSelection(direction === "forward" ? { from: 2, to: 9 } : { from: 9, to: 2 });
+        Reflect.set(window, "crossBlockEndPrevented", undefined);
+        editor.view.dom.addEventListener("keydown", (event) => {
+          if (event.key === "End" && event.shiftKey)
+            Reflect.set(window, "crossBlockEndPrevented", event.defaultPrevented);
+        });
+      }, direction);
+      await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+      const before = await inspect(page);
+      expect(before.selection).toMatchObject({
+        anchorType: direction === "forward" ? "heading" : "paragraph",
+        headType: direction === "forward" ? "paragraph" : "heading",
+        nativeCollapsed: false,
+      });
+      expect(before.selection.text).toContain("NE");
+      await page.keyboard.press("Shift+End");
+      await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+      const after = await inspect(page);
+      expect(after.json).toEqual(before.json);
+      return { before, after, prevented: await page.evaluate(() => Reflect.get(window, "crossBlockEndPrevented")) };
+    };
+    const original = await run(true);
+    const candidate = await run(false);
+    expect(candidate.before).toEqual(original.before);
+    expect(candidate.after).toEqual(original.after);
+    expect(candidate.prevented).toBe(false);
   });
 }

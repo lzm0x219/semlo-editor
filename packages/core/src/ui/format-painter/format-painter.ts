@@ -5,6 +5,7 @@ import { TextSelection, type Selection, type Transaction } from "@tiptap/pm/stat
 import { ReplaceStep } from "@tiptap/pm/transform";
 
 import { readDocumentFont, type LocalFontVariants } from "../../features/text/document-font";
+import { captureBlockFormat, paintBlock, type BlockFormat } from "./block-format";
 
 const markNames = ["bold", "italic", "underline", "strike", "highlight", "subscript", "superscript"] as const;
 type MarkName = (typeof markNames)[number];
@@ -17,6 +18,7 @@ type CapturedFormat = {
   font: FontValue | Mixed;
   fontSize: unknown;
   color: ColorValue;
+  block: BlockFormat | null;
 };
 
 function cssFamily(name: string): string {
@@ -32,7 +34,7 @@ function documentFont(node: ProseMirrorNode): FontValue {
   }
 }
 
-function nodeFormat(marks: readonly Mark[], inherited: FontValue): CapturedFormat {
+function nodeFormat(marks: readonly Mark[], inherited: FontValue, block: BlockFormat | null): CapturedFormat {
   const captured = Object.fromEntries(
     markNames.map((name) => [name, marks.find((mark) => mark.type.name === name) ?? null]),
   ) as CapturedFormat["marks"];
@@ -51,6 +53,7 @@ function nodeFormat(marks: readonly Mark[], inherited: FontValue): CapturedForma
     font,
     fontSize: textStyle?.attrs.fontSize ?? null,
     color: { color: textStyle?.attrs.color ?? null, gradient: textStyle?.attrs.semloEditorGradient ?? null },
+    block,
   };
 }
 
@@ -58,20 +61,21 @@ function sameValue(first: unknown, second: unknown): boolean {
   return JSON.stringify(first) === JSON.stringify(second);
 }
 
-/** Text marks, font size and text color follow the first selected text. */
+/** 文字格式与段落样式均从选区起点读取；拖选目标时只应用文字格式。 */
 function captureFormat(editor: Editor): CapturedFormat | null {
   const { state } = editor,
     selection = state.selection,
-    inherited = documentFont(state.doc);
+    inherited = documentFont(state.doc),
+    block = selection instanceof TextSelection ? captureBlockFormat(selection.$from) : null;
   if (selection.empty) {
     if (!(selection instanceof TextSelection)) return null;
-    return nodeFormat(state.storedMarks ?? selection.$from.marks(), inherited);
+    return nodeFormat(state.storedMarks ?? selection.$from.marks(), inherited, block);
   }
   let result: CapturedFormat | null = null;
   for (const { $from, $to } of selection.ranges) {
     state.doc.nodesBetween($from.pos, $to.pos, (node) => {
       if (!node.isText) return;
-      const next = nodeFormat(node.marks, inherited);
+      const next = nodeFormat(node.marks, inherited, block);
       if (!result) {
         result = next;
         return;
@@ -117,19 +121,39 @@ function updateStoredMarks(editor: Editor, selection: TextSelection, source: Cap
   tr.setStoredMarks(marks);
 }
 
-function applyFormat(editor: Editor, selection: Selection, source: CapturedFormat): boolean {
+function applyFormat(editor: Editor, selection: Selection, source: CapturedFormat, blockClick = false): boolean {
   if (editor.isDestroyed || !editor.isEditable) return false;
   const state = editor.state,
     tr = state.tr.setSelection(selection);
+  let clickedPosition: number | undefined;
+  if (blockClick) {
+    if (!(selection instanceof TextSelection)) return false;
+    const offset = selection.$from.parentOffset;
+    try {
+      const painted = source.block
+        ? paintBlock(tr, selection, source.block)
+        : TextSelection.create(tr.doc, selection.$from.start(), selection.$from.end());
+      if (!painted) return false;
+      clickedPosition = painted.from + Math.min(offset, painted.$from.parent.content.size);
+      selection = painted;
+      tr.setSelection(selection);
+    } catch {
+      return false;
+    }
+  }
   if (selection.empty) {
     if (!(selection instanceof TextSelection)) return false;
     updateStoredMarks(editor, selection, source, tr);
-    editor.view.dispatch(tr);
+    if (tr.docChanged) {
+      editor.view.dispatch(closeHistory(tr));
+      if (!editor.isDestroyed) editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+    } else editor.view.dispatch(tr);
     return true;
   }
   let textFound = false;
+  const formattedDoc = tr.doc;
   for (const { $from, $to } of selection.ranges) {
-    state.doc.nodesBetween($from.pos, $to.pos, (node, pos, parent) => {
+    formattedDoc.nodesBetween($from.pos, $to.pos, (node, pos, parent) => {
       if (!node.isText || !parent) return;
       const from = Math.max(pos, $from.pos),
         to = Math.min(pos + node.nodeSize, $to.pos);
@@ -155,11 +179,13 @@ function applyFormat(editor: Editor, selection: Selection, source: CapturedForma
     });
   }
   if (!textFound) return false;
+  // 点击目标只借用整块范围应用格式，完成后将光标留在用户点击的位置。
+  if (clickedPosition !== undefined) tr.setSelection(TextSelection.create(tr.doc, clickedPosition));
   if (tr.docChanged) {
     editor.view.dispatch(closeHistory(tr));
     // Keep later typing or another brush stroke in a separate undo step.
     editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
-  } else if (!selection.eq(state.selection)) editor.view.dispatch(tr);
+  } else if (!tr.selection.eq(state.selection)) editor.view.dispatch(tr);
   return true;
 }
 
@@ -253,7 +279,7 @@ export function mountFormatPainter(
       return null;
     }
   };
-  const paint = (selection: Selection | null, allowEmpty: boolean) => {
+  const paint = (selection: Selection | null, allowEmpty: boolean, blockClick = false) => {
     if (
       !source ||
       !selection ||
@@ -265,7 +291,7 @@ export function mountFormatPainter(
       return;
     applying = true;
     try {
-      if (applyFormat(editor, selection, source) && !continuous) cancel();
+      if (applyFormat(editor, selection, source, blockClick) && !continuous) cancel();
     } finally {
       applying = false;
     }
@@ -295,14 +321,9 @@ export function mountFormatPainter(
         !dragged &&
         selection instanceof TextSelection &&
         selection.empty &&
-        selection.$from.parent.type.name === "paragraph"
+        ["paragraph", "heading"].includes(selection.$from.parent.type.name)
       ) {
-        const { $from } = selection;
-        if ($from.parent.content.size) {
-          paint(TextSelection.create(editor.state.doc, $from.start(), $from.end()), false);
-          return;
-        }
-        if (!continuous) cancel();
+        paint(selection, true, true);
         return;
       }
       if (dragged) paint(selection, false);

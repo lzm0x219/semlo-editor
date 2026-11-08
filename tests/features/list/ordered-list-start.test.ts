@@ -374,5 +374,5 @@ test("the marker level combines ordinary ancestors with item indents", async ({ 
     await host
       .locator(".semlo-editor-prose ol > li")
       .evaluateAll((items) => items.map((item) => getComputedStyle(item).listStyleType)),
-  ).toEqual(["lower-roman", "decimal"]);
+  ).toEqual(["semlo-mixed-roman", "decimal"]);
 });

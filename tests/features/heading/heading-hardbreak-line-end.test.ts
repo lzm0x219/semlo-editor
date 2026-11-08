@@ -1,24 +1,14 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-hardbreak-line-end-fixture";
 
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-hardbreak-line-end-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const server = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${server.port}`;
-  stop = () => server.server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-hardbreak-line-end-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => {
@@ -272,7 +262,7 @@ for (const numbered of [false, true]) {
 }
 
 for (const widget of ["src", "size"] as const) {
-  test(`host image widget resembling a separator with ${widget} falls back without being swallowed`, async ({
+  test(`host image widget resembling a separator with ${widget} keeps unverified line operations bounded`, async ({
     page,
   }) => {
     const content: JSONContent = {
@@ -298,11 +288,77 @@ for (const widget of ["src", "size"] as const) {
     if (widget === "src") await expect(hostImage).toHaveAttribute("src", /^data:image\/svg\+xml/);
     else await expect(hostImage).toHaveAttribute("width", "16");
     const before = await read(page);
+    await page.evaluate(() => {
+      window.__semloRequireFixture("hardBreakLineEnd").controller.editor.commands.setTextSelection(4);
+    });
+    const interior = await read(page);
+    await page.keyboard.press("Home");
+    const home = await read(page);
+    // 外观相似的宿主 widget 使整段布局无法验证，不能借 hardBreak 猜测行首。
+    expect(home.json).toEqual(interior.json);
+    expect(home.pm).toEqual(interior.pm);
+    expect(home.dom).toEqual(interior.dom);
+    await page.evaluate(() => {
+      window.__semloRequireFixture("hardBreakLineEnd").controller.editor.commands.setTextSelection(1);
+    });
     await page.keyboard.press("Shift+End");
     const after = await read(page);
-    expect(after.prevented).toEqual([false]);
+    expect(after.prevented).toEqual([true]);
     expect(after.json).toEqual(before.json);
+    expect(after.pm).toEqual(before.pm);
+    expect(after.dom).toEqual(before.dom);
     await expect(hostImage).toHaveCount(1);
+  });
+}
+
+for (const order of ["early", "late"] as const) {
+  test(`${order} hardBreak Home respects host rejection and the transaction reentry guard`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await mount(page, false, order);
+    await page.evaluate(() => {
+      const editor = window.__semloRequireFixture("hardBreakLineEnd").controller.editor;
+      editor.view.focus();
+      editor.commands.setTextSelection(8);
+      Reflect.set(window, "hardBreakHomeEvents", []);
+      editor.view.dom.addEventListener("keydown", (event) => {
+        if (event.key === "Home")
+          Reflect.get(window, "hardBreakHomeEvents").push({
+            prevented: event.defaultPrevented,
+            trusted: event.isTrusted,
+          });
+      });
+    });
+    await page.evaluate(() => window.__semloRequireFixture("hardBreakLineEnd").settle());
+    const before = await read(page);
+    const expected = await page.evaluate(() => {
+      const { state } = window.__semloRequireFixture("hardBreakLineEnd").controller.editor;
+      return state.tr.delete(7, 8).doc.toJSON();
+    });
+    await page.evaluate(() => window.__semloRequireFixture("hardBreakLineEnd").armReject());
+    await page.keyboard.press("Home");
+    const rejected = await read(page);
+    expect(rejected.rejected).toBe(before.rejected + 1);
+    expect(rejected.pm).toEqual(before.pm);
+    expect(rejected.dom).toEqual(before.dom);
+    expect(rejected.json).toEqual(before.json);
+    expect(rejected.focusCalls).toBe(0);
+    await page.keyboard.press("Backspace");
+    expect((await read(page)).json).toEqual(expected);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await read(page)).json).toEqual(before.json);
+    await page.evaluate(() => window.__semloRequireFixture("hardBreakLineEnd").armReject("reenter-selection"));
+    await page.keyboard.press("Home");
+    const afterReentry = await read(page);
+    expect(afterReentry.json).toEqual(before.json);
+    expect(afterReentry.pm).toEqual(before.pm);
+    expect(afterReentry.dom).toEqual(before.dom);
+    expect(afterReentry.focusCalls).toBe(0);
+    expect(errors).toEqual(["A transaction cannot be dispatched before the current transaction commits"]);
+    expect(await page.evaluate(() => Reflect.get(window, "hardBreakHomeEvents"))).toEqual([
+      { prevented: true, trusted: true },
+      { prevented: true, trusted: true },
+    ]);
   });
 }
 
@@ -373,3 +429,53 @@ for (const order of ["early", "late"] as const) {
     });
   }
 }
+
+test("H2 soft-line deletion keeps following text and restores selection on undo", async ({ page }) => {
+  const content: JSONContent = {
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "甲乙丙" }, { type: "hardBreak" }, { type: "text", text: "丁戊己" }],
+      },
+      { type: "paragraph", content: [{ type: "text", text: "后文甲乙" }] },
+    ],
+  };
+  await mount(page, false, "early", content);
+  const original = (await read(page)).json;
+  const select = async (from: number, to = from) => {
+    await page.evaluate(
+      ({ from, to }) => {
+        const fixture = window.__semloRequireFixture("hardBreakLineEnd");
+        fixture.controller.editor.commands.setTextSelection({ from, to });
+        fixture.controller.editor.view.focus();
+      },
+      { from, to },
+    );
+    await page.evaluate(() => window.__semloRequireFixture("hardBreakLineEnd").settle());
+  };
+  await select(2, 6);
+  expect((await read(page)).text).toBe("乙丙\n丁");
+  await page.keyboard.press("Backspace");
+  let after = (await read(page)).json;
+  expect(after.content?.[0].content).toEqual([{ type: "text", text: "甲戊己" }]);
+  expect(after.content?.[1].content).toEqual([{ type: "text", text: "后文甲乙" }]);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await read(page)).json).toEqual(original);
+  expect((await read(page)).text).toBe("乙丙\n丁");
+  await select(5, 8);
+  await page.keyboard.press("Backspace");
+  after = (await read(page)).json;
+  expect(after.content?.[0].content).toEqual([{ type: "text", text: "甲乙丙" }, { type: "hardBreak" }]);
+  expect(after.content?.[1].content).toEqual([{ type: "text", text: "后文甲乙" }]);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await read(page)).json).toEqual(original);
+  await select(5);
+  await page.keyboard.press("Backspace");
+  after = (await read(page)).json;
+  expect(after.content?.[0].content).toEqual([{ type: "text", text: "甲乙丙丁戊己" }]);
+  expect(after.content?.[1].content).toEqual([{ type: "text", text: "后文甲乙" }]);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await read(page)).json).toEqual(original);
+});

@@ -4,9 +4,11 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
+import { formatChineseNumber } from "../../shared/chinese-number";
+import { rejoinSequenceParagraphs } from "./numbering-sequence-bridge";
+import { sequenceListValues } from "./numbering-sequence-document";
 import { normalizeOrderedAncestorPath } from "./ordered-path";
 import { rememberOrderedStyle } from "./ordered-preference";
-import { deriveOrderedListValues } from "./ordinals";
 import { convertOneTask, hasTaskSelection } from "./task-list-conversion";
 export { normalizeOrderedAncestorPath } from "./ordered-path";
 
@@ -25,40 +27,6 @@ function parseAncestorPath(element: HTMLElement): number[] | null {
   } catch {
     return null;
   }
-}
-
-function chinese(value: number): string {
-  if (!Number.isInteger(value) || value < 1 || value > 2147483647) return String(value);
-  const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
-  const units = ["", "十", "百", "千"];
-  const groups: number[] = [];
-  for (let remaining = value; remaining > 0; remaining = Math.floor(remaining / 10000)) groups.push(remaining % 10000);
-  let result = "";
-  let pendingZero = false;
-  for (let groupIndex = groups.length - 1; groupIndex >= 0; groupIndex--) {
-    const group = groups[groupIndex];
-    if (!group) {
-      if (result) pendingZero = true;
-      continue;
-    }
-    if (result && (pendingZero || group < 1000)) result += "零";
-    pendingZero = false;
-    let inner = "";
-    let innerZero = false;
-    for (let power = 3; power >= 0; power--) {
-      const digit = Math.floor(group / 10 ** power) % 10;
-      if (!digit) {
-        if (inner) innerZero = true;
-        continue;
-      }
-      if (innerZero) inner += "零";
-      innerZero = false;
-      const omitOne = digit === 1 && power === 1 && !inner && !result;
-      inner += `${omitOne ? "" : digits[digit]}${units[power]}`;
-    }
-    result += inner + (["", "万", "亿"][groupIndex] ?? "");
-  }
-  return result;
 }
 
 type Marker = { listPos: number; itemPos: number; itemIndex: number; label: string };
@@ -90,12 +58,7 @@ function markers(doc: ProseMirrorNode): Marker[] {
       const indent = Number(item.attrs.semloEditorListIndent);
       return Number.isInteger(indent) ? Math.max(0, Math.min(8, indent)) : 0;
     });
-    const values = deriveOrderedListValues(
-      indents,
-      orderedParent ? 1 : list.attrs.start,
-      list.attrs.semloEditorListLevelStarts,
-      items.map((item) => item.attrs.semloEditorListRestart),
-    );
+    const values = sequenceListValues(list, orderedParent);
     const explicitPath = normalizeOrderedAncestorPath(list.attrs.semloEditorOrderedAncestorPath);
     const levels: number[] = !parentPath.length && explicitPath?.length === indents[0] ? [...explicitPath] : [];
     list.forEach((item, offset, index) => {
@@ -112,9 +75,9 @@ function markers(doc: ProseMirrorNode): Marker[] {
         style === "decimal"
           ? `${path.join(".")}.`
           : depth % 3 === 0
-            ? `${chinese(value)}、`
+            ? `${formatChineseNumber(value)}、`
             : depth % 3 === 1
-              ? `(${chinese(value)})`
+              ? `(${formatChineseNumber(value)})`
               : `${value}.`;
       result.push({ listPos, itemPos, itemIndex: index, label });
     });
@@ -186,6 +149,17 @@ export const OrderedListStyles = Extension.create({
 /** Choose a style for the current ordered list, creating one at a paragraph. */
 export function setOrderedListStyle(editor: Editor, style: OrderedListStyle): boolean {
   if (!styleValue(style) || editor.isDestroyed || !editor.isEditable) return false;
+  const rejoin = rejoinSequenceParagraphs(editor.state, { semloEditorOrderedStyle: style });
+  if (rejoin === false) return false;
+  if (rejoin) {
+    const before = editor.state.doc;
+    editor.view.dispatch(rejoin);
+    if (editor.isDestroyed || editor.state.doc.eq(before)) return false;
+    editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+    rememberOrderedStyle(editor, style);
+    editor.view.focus();
+    return true;
+  }
   const task = convertOneTask(editor, "orderedList", { semloEditorOrderedStyle: style });
   if (task !== null) {
     if (task) rememberOrderedStyle(editor, style);

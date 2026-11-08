@@ -1,34 +1,17 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
 import type { EditorContent } from "../../../packages/core/src/types";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-multistep-controlled-fixture";
 import type { RestartFramework } from "../../fixtures/list/ordered-restart-controlled-fixture";
 
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: {
-        entry: { index: "./tests/fixtures/heading/heading-multistep-controlled-fixture.ts" },
-        define: {
-          "process.env.NODE_ENV": JSON.stringify("development"),
-          __VUE_OPTIONS_API__: true,
-          __VUE_PROD_DEVTOOLS__: false,
-          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-        },
-      },
-      resolve: { alias: { "@semlo-editor/core$": "./packages/core/src/index.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-multistep-controlled-fixture.ts", {
+    framework: true,
+  }));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
@@ -221,6 +204,34 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
     expect(redone.changes).toHaveLength(undone.changes.length + 1);
     expect(redone.focused).toBe(true);
     expect(redone.errors).toEqual([]);
+    await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
+  });
+
+  test(`${framework}: redo preserves a heading after a nonhistorical attribute write`, async ({ page }) => {
+    await mount(page, framework, "<h3>test</h3>");
+    const host = page.locator("#restart-controlled-fixture .semlo-editor-prose");
+    await host.locator("h3").click();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Shift+End");
+    await page.keyboard.press("Backspace");
+    await settle(page);
+    await page.evaluate(() =>
+      window.__semloRequireFixture("controlledHistoryProbe").changeHeadingOutsideHistory("attribute"),
+    );
+    await settle(page);
+    const written = await read(page);
+    expect(written.snapshot.json.content?.[0]?.attrs?.textAlign).toBe("center");
+    await pressHistory(page, "undo");
+    const undone = await read(page);
+    expect(undone.selection.text).toBe("test");
+    await pressHistory(page, "redo");
+    const redone = await read(page);
+    expect(redone.snapshot.json).toEqual(written.snapshot.json);
+    expect(redone.snapshot.html).toEqual(written.snapshot.html);
+    expect(redone.changes).toHaveLength(undone.changes.length + 1);
+    expect(redone.focused).toBe(true);
+    expect(redone.errors).toEqual([]);
+    await assertRoundTrips(page, redone.snapshot.json, redone.snapshot.html, redone.changes.length);
     await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
   });
 }

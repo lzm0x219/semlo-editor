@@ -60,7 +60,7 @@ async function mount(page: Page) {
   return page.locator("#observed-line-height-test");
 }
 
-async function setContent(page: Page, content: JSONContent) {
+async function setContent(page: Page, content: JSONContent | string) {
   await page.evaluate((value) => {
     const controller = window.observedLineHeightEditor;
     if (!controller) throw new Error("Editor not mounted");
@@ -149,6 +149,107 @@ async function resetFromMenu(page: Page) {
 
 const down = "ControlOrMeta+Alt+BracketLeft";
 const up = "ControlOrMeta+Alt+BracketRight";
+
+test("mixed root paragraph and heading shortcuts use the observed line-height steps", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await mount(page);
+  const samples = [
+    { heights: [null, null, null], key: down, expected: "1.5" },
+    { heights: [null, null, null], key: up, expected: "2" },
+    { heights: ["1.5", null, null], key: down, expected: "1.15" },
+    { heights: [null, null, "2"], key: down, expected: null },
+    { heights: ["1.5", null, "2"], key: down, expected: "1.15" },
+    { heights: ["2", null, "1.5"], key: down, expected: null },
+    { heights: ["1.5", null, "2"], key: up, expected: null },
+    { heights: ["1.5", "1.5", "1.5"], key: up, expected: null },
+    { heights: ["2", "2", "2"], key: down, expected: null },
+  ] as const;
+
+  for (const sample of samples) {
+    for (const backward of [false, true]) {
+      const [first, middle, last] = sample.heights;
+      await setContent(
+        page,
+        doc(
+          paragraph("BEFORE"),
+          paragraph("FIRST", first),
+          heading("MIDDLE", 3, middle),
+          paragraph("LAST", last),
+          paragraph("AFTER"),
+        ),
+      );
+      await focusAcross(page, "FIRST", "LAST", backward);
+      const before = await inspect(page);
+      expect(before.selection.anchor > before.selection.head).toBe(backward);
+      expect(before.selectedText.replace(/\n+/g, "\n")).toBe("FIRST\nMIDDLE\nLAST");
+      await page.keyboard.press(sample.key);
+      const after = await inspect(page);
+      expect(after.blocks).toEqual([
+        { text: "BEFORE", height: null },
+        { text: "FIRST", height: sample.expected },
+        { text: "MIDDLE", height: sample.expected },
+        { text: "LAST", height: sample.expected },
+        { text: "AFTER", height: null },
+      ]);
+      expect(withoutLineHeight(after.json)).toEqual(withoutLineHeight(before.json));
+      expect(after.selection).toEqual(before.selection);
+      expect(after.selectedText).toBe(before.selectedText);
+      expect(after.focused).toBe(true);
+      expect(after.changes - before.changes).toBe(1);
+      await page.keyboard.press("ControlOrMeta+z");
+      expect((await inspect(page)).json).toEqual(before.json);
+      await page.keyboard.press("ControlOrMeta+Shift+z");
+      expect((await inspect(page)).json).toEqual(after.json);
+      for (const content of [after.json, after.html]) {
+        await setContent(page, content);
+        expect((await inspect(page)).json).toEqual(after.json);
+      }
+    }
+  }
+  expect(await page.evaluate(() => window.observedLineHeightErrors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test("heading and paragraph selection leaves the preceding paragraph unchanged", async ({ page }) => {
+  await mount(page);
+  await setContent(page, doc(paragraph("FIRST"), heading("MIDDLE", 3), paragraph("LAST")));
+  await focusAcross(page, "MIDDLE", "LAST");
+  const before = await inspect(page);
+  await page.keyboard.press(down);
+  const after = await inspect(page);
+  expect(after.blocks).toEqual([
+    { text: "FIRST", height: null },
+    { text: "MIDDLE", height: "1.5" },
+    { text: "LAST", height: "1.5" },
+  ]);
+  expect(after.selection).toEqual(before.selection);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await inspect(page)).json).toEqual(before.json);
+});
+
+test("select-all across a paragraph and heading steps down from default", async ({ page }) => {
+  await mount(page);
+  for (const sample of [
+    { first: null, last: null, expected: "1.5" },
+    { first: "1.5", last: "2", expected: "1.15" },
+  ]) {
+    await setContent(page, doc(paragraph("FIRST", sample.first), heading("MIDDLE", 3), paragraph("LAST", sample.last)));
+    await focusText(page, "FIRST");
+    await page.keyboard.press("ControlOrMeta+a");
+    const selectionType = await page.evaluate(
+      () => window.observedLineHeightEditor?.editor.state.selection.constructor.name,
+    );
+    expect(selectionType).toBe("AllSelection");
+    const before = await inspect(page);
+    await page.keyboard.press(down);
+    const after = await inspect(page);
+    expect(after.blocks.map((block) => block.height)).toEqual([sample.expected, sample.expected, sample.expected]);
+    expect(after.selection).toEqual(before.selection);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await inspect(page)).json).toEqual(before.json);
+  }
+});
 
 const observed = [
   ...Array.from({ length: 6 }, (_, index) => ({
@@ -350,28 +451,86 @@ test("three or more consecutive paragraphs or flat bullet items step down togeth
   }
 });
 
-test("root selections containing another block type or mixed heights keep their previous behavior", async ({
-  page,
-}) => {
+test("root mixed selections step from their observed baseline", async ({ page }) => {
   await mount(page);
   await setContent(page, doc(paragraph("甲"), heading("标题", 2), paragraph("乙"), paragraph("后文")));
   await focusAcross(page, "甲", "乙");
   let before = await inspect(page);
   await page.keyboard.press(down);
   let after = await inspect(page);
-  expect(after.blocks.map((block) => block.height)).toEqual(["1.15", "1.15", "1.15", null]);
+  expect(after.blocks.map((block) => block.height)).toEqual(["1.5", "1.5", "1.5", null]);
   expect(withoutLineHeight(after.json)).toEqual(withoutLineHeight(before.json));
   expect(after.selection).toEqual(before.selection);
   expect(after.focused).toBe(true);
-  await setContent(page, doc(paragraph("甲"), paragraph("乙", "2"), paragraph("丙"), paragraph("后文")));
+  await setContent(page, doc(paragraph("甲", "1.5"), paragraph("乙"), paragraph("丙", "2"), paragraph("后文")));
   await focusAcross(page, "甲", "丙");
   before = await inspect(page);
   await page.keyboard.press(down);
   after = await inspect(page);
-  expect(after.json).toEqual(before.json);
+  expect(after.blocks.map((block) => block.height)).toEqual(["1.15", "1.15", "1.15", null]);
+  expect(withoutLineHeight(after.json)).toEqual(withoutLineHeight(before.json));
   expect(after.selection).toEqual(before.selection);
   expect(after.focused).toBe(true);
-  expect(after.changes - before.changes).toBe(0);
+  expect(after.changes - before.changes).toBe(1);
+});
+
+test("same-type root selections use the observed steps and preserve the bounds", async ({ page }) => {
+  await mount(page);
+  for (const sample of [
+    { type: "paragraph", heights: ["1.5", null, "2"], key: down, expected: ["1.15", "1.15", "1.15"] },
+    { type: "paragraph", heights: ["2", null, "1.5"], key: down, expected: [null, null, null] },
+    { type: "paragraph", heights: ["1.5", null, "2"], key: up, expected: [null, null, null] },
+    { type: "heading", heights: ["1.5", null, "2"], key: down, expected: ["1.15", "1.15", "1.15"] },
+    { type: "paragraph", heights: ["3", null, "1"], key: up, expected: ["3", null, "1"] },
+    { type: "paragraph", heights: ["1", null, "3"], key: down, expected: ["1", null, "3"] },
+  ] as const) {
+    for (const backward of [false, true]) {
+      const [first, middle, last] = sample.heights;
+      const block = (text: string, value: string | null) =>
+        sample.type === "paragraph" ? paragraph(text, value) : heading(text, 3, value);
+      await setContent(
+        page,
+        doc(block("FIRST", first), block("MIDDLE", middle), block("LAST", last), paragraph("AFTER")),
+      );
+      await focusAcross(page, "FIRST", "LAST", backward);
+      const before = await inspect(page);
+      await page.keyboard.press(sample.key);
+      const after = await inspect(page);
+      expect(after.blocks.map((item) => item.height)).toEqual([...sample.expected, null]);
+      expect(after.selection).toEqual(before.selection);
+      expect(withoutLineHeight(after.json)).toEqual(withoutLineHeight(before.json));
+      if (sample.expected.every((height, index) => height === sample.heights[index])) {
+        expect(after.changes - before.changes).toBe(0);
+      } else {
+        expect(after.changes - before.changes).toBe(1);
+        await page.keyboard.press("ControlOrMeta+z");
+        expect((await inspect(page)).json).toEqual(before.json);
+        await page.keyboard.press("ControlOrMeta+Shift+z");
+        expect((await inspect(page)).json).toEqual(after.json);
+      }
+    }
+  }
+});
+
+test("a root paragraph or heading at the caret steps through the default value", async ({ page }) => {
+  await mount(page);
+  for (const sample of [
+    { target: paragraph("ONLY", "2"), key: down },
+    { target: heading("ONLY", 3, "1.5"), key: up },
+  ]) {
+    await setContent(page, doc(sample.target, paragraph("TAIL")));
+    await focusText(page, "ONLY");
+    const before = await inspect(page);
+    await page.keyboard.press(sample.key);
+    const after = await inspect(page);
+    expect(after.blocks).toEqual([
+      { text: "ONLY", height: null },
+      { text: "TAIL", height: null },
+    ]);
+    expect(after.selection).toEqual(before.selection);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await inspect(page)).json).toEqual(before.json);
+  }
 });
 
 test("partially selected H1–H6 step down and keep the single-character selection", async ({ page }) => {

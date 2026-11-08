@@ -1,5 +1,6 @@
 import { Extension, type Editor } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
+import { DOMSerializer, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";
 
 export type LocalFontVariants = { bold?: string; italic?: string; boldItalic?: string };
@@ -177,11 +178,21 @@ export function extractDocumentFontHTML(html: string, doc: Document): { html: st
   return { html: wrapper.innerHTML, font: { family, name, variants } };
 }
 
-export function serializeDocumentHTML(editor: Editor, doc: Document): string {
-  const html = editor.getHTML();
+export function serializeDocumentHTML(
+  editor: Editor,
+  doc: Document,
+  content: ProseMirrorNode = editor.state.doc,
+): string {
+  let html: string;
+  if (content === editor.state.doc) html = editor.getHTML();
+  else {
+    const fragment = doc.createElement("div");
+    fragment.append(DOMSerializer.fromSchema(editor.schema).serializeFragment(content.content, { document: doc }));
+    html = fragment.innerHTML;
+  }
   let font: DocumentFont;
   try {
-    font = readDocumentFont(editor.state.doc.attrs);
+    font = readDocumentFont(content.attrs);
   } catch {
     return html;
   }

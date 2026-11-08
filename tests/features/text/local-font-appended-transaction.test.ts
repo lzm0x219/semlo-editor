@@ -1,5 +1,7 @@
 import { expect, test } from "@rstest/playwright";
 
+import { openFontToolbar } from "../../fixtures/browser/font-toolbar";
+
 test("font menu closes when a plugin appends a document change", async ({ page }) => {
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
@@ -23,7 +25,7 @@ test("font menu closes when a plugin appends a document change", async ({ page }
   });
   await page.waitForFunction(() => Boolean(Reflect.get(window, "fontAppendedEditor")));
   const host = page.locator("#font-appended-test");
-  await host.getByRole("button", { name: "字体", exact: true }).click();
+  await openFontToolbar(host);
   const menu = page.getByRole("dialog", { name: "选择字体" });
   await expect(menu).toBeVisible();
   await page.evaluate(() => {

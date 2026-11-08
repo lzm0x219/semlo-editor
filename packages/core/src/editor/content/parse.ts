@@ -1,6 +1,7 @@
 import { createDocument, type Editor, type JSONContent } from "@tiptap/core";
 import { Schema } from "@tiptap/pm/model";
 
+import { assertNumberingSequenceDocument } from "../../features/list/numbering-sequence-document";
 import { tableValidationRules } from "../../features/table/schema";
 import { extractDocumentFontHTML, readDocumentFont, withDocumentFontAttrs } from "../../features/text/document-font";
 import { ContentValidationError } from "../../shared/content-error";
@@ -8,7 +9,24 @@ import type { EditorContent } from "../../types";
 import { cloneContentValue } from "./clone-value";
 
 export function assertSupportedContent(content: EditorContent, editor: Editor): void {
-  if (typeof content === "string") return;
+  if (typeof content === "string") {
+    if (/data-semlo-editor-list-sequence/i.test(content)) {
+      const template = editor.view.dom.ownerDocument.createElement("template");
+      template.innerHTML = content;
+      for (const element of template.content.querySelectorAll(
+        "[data-semlo-editor-list-sequences], [data-semlo-editor-list-sequence], [data-semlo-editor-list-sequence-link]",
+      )) {
+        if (
+          (element.hasAttribute("data-semlo-editor-list-sequences") && element.localName !== "ol") ||
+          (element.hasAttribute("data-semlo-editor-list-sequence") && element.localName !== "li") ||
+          (element.hasAttribute("data-semlo-editor-list-sequence-link") && element.localName !== "ol")
+        )
+          throw new ContentValidationError("编号序列 HTML 属性位于不支持的元素");
+      }
+      assertNumberingSequenceDocument(createDocument(content, editor.schema, {}, { errorOnInvalidContent: false }));
+    }
+    return;
+  }
 
   // ProseMirror 解析 JSON 时会静默丢弃未声明的属性；必须在解析前检查。
   const pending: JSONContent[] = [content];
@@ -35,7 +53,9 @@ export function assertSupportedContent(content: EditorContent, editor: Editor): 
 
 export function createCheckedJSONDocument(content: JSONContent, schema: Schema) {
   try {
-    return createDocument(content, schema, {}, { errorOnInvalidContent: true });
+    const parsed = createDocument(content, schema, {}, { errorOnInvalidContent: true });
+    assertNumberingSequenceDocument(parsed);
+    return parsed;
   } catch (error) {
     // Tiptap 会包装 schema 校验异常，保留功能提供的可恢复错误信息。
     if (error instanceof Error && error.cause instanceof ContentValidationError) throw error.cause;
@@ -86,6 +106,7 @@ export function createContentParser(editor: Editor, doc: Document) {
       }
       createDocument(html, htmlValidationSchema, {}, { errorOnInvalidContent: true });
       parsed = createDocument(html, editor.schema, {}, { errorOnInvalidContent: false });
+      assertNumberingSequenceDocument(parsed);
       if (fontContent)
         parsed = parsed.type.create(
           withDocumentFontAttrs(parsed.attrs, fontContent.font),

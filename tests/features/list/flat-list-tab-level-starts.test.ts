@@ -143,7 +143,7 @@ for (const source of ["already converted", "convert in editor"] as const) {
       expect(await selection(page)).toEqual(selected);
       expect(await page.evaluate(() => window.__semloRequireFixture("listTabLevelStartsChanges"))).toBe(changes + 1);
       expect(await markers(page)).toEqual([
-        { text: "丁", indent: 2, value: "1", marker: "lower-roman" },
+        { text: "丁", indent: 2, value: "1", marker: "semlo-mixed-roman" },
         { text: "戊", indent: 1, value: "2", marker: "lower-alpha" },
       ]);
       const after = await page.evaluate(() => window.__semloRequireFixture("listTabLevelStartsEditor").getSnapshot());

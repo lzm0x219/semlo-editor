@@ -3,6 +3,7 @@ import { Fragment, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Selection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
+import { hasNumberingSequences } from "../../list/numbering-sequence-document";
 import { orderedListSuffixAttrs } from "../../list/ordered-fragment";
 import { normalizeOrderedAncestorPath } from "../../list/ordered-path";
 import {
@@ -13,6 +14,7 @@ import {
   rebaseOrderedListAfterChange,
   removal,
 } from "./operations";
+import { restartedDrag } from "./restarted-drag";
 import { currentTarget, type Target } from "./target";
 
 interface BlockDragContext {
@@ -131,6 +133,27 @@ export function createBlockDrag({
     )
       return;
     const sourceParent = view.state.doc.resolve(source.pos).parent;
+    const sequenceSource = hasNumberingSequences(sourceParent) || listHasRestarts(sourceParent);
+    const sequenceTargetParent = next.over.kind === "item" ? view.state.doc.resolve(next.over.pos).parent : null;
+    if (
+      source.kind === "item" &&
+      next.over.kind === "item" &&
+      (sequenceSource || (sequenceTargetParent && hasNumberingSequences(sequenceTargetParent)))
+    ) {
+      const transaction = restartedDrag(view.state, source.pos, next.over.pos, next.before);
+      if (transaction) {
+        dispatchChange(editor, transaction);
+        if (!editor.isDestroyed && editor.view === view && !view.isDestroyed) view.focus();
+      }
+      return;
+    }
+    if (
+      hasNumberingSequences(source.node) ||
+      hasNumberingSequences(next.over.node) ||
+      hasNumberingSequences(sourceParent) ||
+      (sequenceTargetParent && hasNumberingSequences(sequenceTargetParent))
+    )
+      return;
     if (source.kind === "item" && listHasRestarts(sourceParent)) return;
     if (next.over.kind === "item" && listHasRestarts(view.state.doc.resolve(next.over.pos).parent)) return;
     const targetParent = next.over.kind === "item" ? view.state.doc.resolve(next.over.pos).parent : null;

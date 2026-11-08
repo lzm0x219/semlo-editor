@@ -139,7 +139,7 @@ for (const action of ["删除", "剪切"] as const) {
         });
       });
     }
-    expect(await markerNames(page)).toEqual(["i.", "b."]);
+    expect(await markerNames(page)).toEqual(["ⅰ.", "b."]);
     const before = await snapshot(page);
     await menuAction(page, host.getByText("丁丁", { exact: true }), action);
     await expect(host.getByText("丁丁", { exact: true })).toHaveCount(0);
@@ -160,17 +160,17 @@ for (const mode of ["first-after", "second-before"] as const) {
   test(`moving ${mode} preserves both levels and starts in one undo`, async ({ page }) => {
     const host = await mount(page);
     const before = await snapshot(page);
-    expect(await markerNames(page)).toEqual(["i.", "b."]);
+    expect(await markerNames(page)).toEqual(["ⅰ.", "b."]);
     if (mode === "first-after")
       await drag(page, host.getByText("丁丁", { exact: true }), host.getByText("戊戊", { exact: true }));
     else await drag(page, host.getByText("戊戊", { exact: true }), host.getByText("丁丁", { exact: true }), true);
     const after = await snapshot(page);
     expect(after.json).not.toEqual(before.json);
     expect(after.changes - before.changes).toBe(1);
-    expect(await markerNames(page)).toEqual(["b.", "i."]);
+    expect(await markerNames(page)).toEqual(["b.", "ⅰ."]);
     expect(await markerInfo(page)).toEqual([
       { text: "戊戊", value: "2", style: "lower-alpha", level: 1 },
-      { text: "丁丁", value: "1", style: "lower-roman", level: 2 },
+      { text: "丁丁", value: "1", style: "semlo-mixed-roman", level: 2 },
     ]);
     expect(after.json.content?.[0].attrs).toMatchObject({ start: 2, semloEditorListLevelStarts: { "0": 2 } });
     await undoRedo(page, before, after);
@@ -183,7 +183,7 @@ test("deleting a later item leaves the first item's stored start unchanged", asy
   await menuAction(page, host.getByText("戊戊", { exact: true }), "删除");
   const after = await snapshot(page);
   expect(after.json.content?.[0].attrs).toEqual(before.json.content?.[0].attrs);
-  expect(await markerNames(page)).toEqual(["i."]);
+  expect(await markerNames(page)).toEqual(["ⅰ."]);
   await undoRedo(page, before, after);
 });
 

@@ -183,6 +183,46 @@ test("folding follows a numbered heading through edits but not through its delet
   await expect(nav.getByRole("button", { name: "第二子项", exact: true })).toBeVisible();
 });
 
+test("outline updates and preserves folding across appended transactions", async ({ page }) => {
+  const host = await mount(page, "<h1>主题</h1><h2>子项</h2><h1>其他</h1>");
+  const nav = await openOutline(page, host);
+  await nav.getByRole("button", { name: "折叠 主题" }).click();
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { Plugin } from '/dist/index.js'
+      const editor = window.outlineNumberingEditors[0].editor
+      editor.registerPlugin(new Plugin({
+        appendTransaction(transactions, _oldState, state) {
+          if (transactions.some(tr => tr.getMeta('outline-title'))) return state.tr.insertText('新', 1)
+          if (transactions.some(tr => tr.getMeta('outline-before'))) {
+            return state.tr.insert(0, state.schema.nodes.paragraph.create(null, state.schema.text('宿主')))
+          }
+          return null
+        },
+      }))
+      document.body.dataset.outlineAppendReady = 'true'
+    `,
+  });
+  await page.waitForFunction(() => document.body.dataset.outlineAppendReady === "true");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("outlineNumberingEditors")[0].editor;
+    editor.view.dispatch(editor.state.tr.setMeta("outline-title", true));
+  });
+  await expect(nav.getByRole("button", { name: "展开 新主题" })).toBeVisible();
+  await expect(nav.getByRole("button", { name: "子项", exact: true })).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("outlineNumberingEditors")[0].editor;
+    const paragraph = editor.schema.nodes.paragraph.create(null, editor.schema.text("用户"));
+    editor.view.dispatch(editor.state.tr.insert(0, paragraph).setMeta("outline-before", true));
+  });
+  await expect(nav.getByRole("button", { name: "展开 新主题" })).toBeVisible();
+  await expect(nav.getByRole("button", { name: "子项", exact: true })).toHaveCount(0);
+  await nav.getByRole("button", { name: "展开 新主题" }).click();
+  await expect(nav.getByRole("button", { name: "子项", exact: true })).toBeVisible();
+});
+
 test("read-only and multiple editors keep independent outlines and exported content", async ({ page }) => {
   const first = await mount(page, mixedHeadings, 2);
   const second = page.locator("#outline-numbering-1");

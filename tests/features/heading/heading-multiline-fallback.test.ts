@@ -1,10 +1,10 @@
 import { writeFile } from "node:fs/promises";
 
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-end-boundary-fixture";
 type Sample = { name: string; content: JSONContent[]; mode?: "rtl" | "vertical" | "no-segmenter" };
 const text = (value: string, marks?: JSONContent["marks"]): JSONContent => ({
@@ -15,6 +15,7 @@ const text = (value: string, marks?: JSONContent["marks"]): JSONContent => ({
 const samples: Sample[] = [
   { name: "segmenter unavailable", content: [text("test ".repeat(25))], mode: "no-segmenter" },
   { name: "RTL wrapped", content: [text("אבג דהו ".repeat(20))], mode: "rtl" },
+  { name: "Cyrillic wrapped", content: [text("Пример текст ".repeat(20))] },
   { name: "mixed bidi wrapped", content: [text("test אבג ".repeat(20))] },
   { name: "Arabic question mark wrapped", content: [text("test؟ tail ".repeat(20))] },
   { name: "Arabic tatweel wrapped", content: [text("testـ tail ".repeat(20))] },
@@ -52,17 +53,7 @@ let origin: string;
 let stop: (() => Promise<void>) | undefined;
 const results: unknown[] = [];
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-end-boundary-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-end-boundary-fixture.ts"));
 });
 afterAll(async () => {
   const output = process.env.SEMLO_MULTILINE_DIAGNOSTICS;

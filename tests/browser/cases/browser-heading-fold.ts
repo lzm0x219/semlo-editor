@@ -117,7 +117,7 @@ async function _browserTest(page: import("playwright").Page) {
   await toggle("子标题").click();
   await toggle("父标题").click();
   await paragraph("后续正文").click();
-  await page.keyboard.press("Meta+a");
+  await page.keyboard.press("ControlOrMeta+a");
   const all = await page.evaluate(() => {
     const state = window.__semloRequireFixture("foldApi").editor.state;
     return {

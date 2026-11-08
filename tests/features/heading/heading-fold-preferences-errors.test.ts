@@ -1,22 +1,12 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-fold-preferences-fixture";
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-fold-preferences-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const server = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${server.port}`;
-  stop = () => server.server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-fold-preferences-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
@@ -35,6 +25,13 @@ for (const fault of ["load", "save"] as const) {
     const before = await page.evaluate(() => window.__semloRequireFixture("foldPreferences").controller!.getSnapshot());
     await host.getByRole("button", { name: "折叠标题：标题" }).click();
     await expect(host.locator(".semlo-editor-prose > p").first()).toBeHidden();
+    if (fault === "save") {
+      const committed = await page.evaluate(() => {
+        const fixture = window.__semloRequireFixture("foldPreferences");
+        return fixture.captures[fixture.capture()].commit("r2");
+      });
+      expect(committed).toBe(false);
+    }
     await host.getByRole("button", { name: "展开标题：标题" }).click();
     await expect(host.locator(".semlo-editor-prose > p").first()).toBeVisible();
     expect(

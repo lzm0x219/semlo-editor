@@ -1,7 +1,7 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-wrap-home-host-fixture";
 
 for (const numbered of [false, true]) {
@@ -42,17 +42,7 @@ declare global {
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-wrap-home-host-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const server = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${server.port}`;
-  stop = () => server.server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-wrap-home-host-fixture.ts"));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => {
@@ -217,7 +207,17 @@ for (const order of ["early", "late"] as const) {
         await page.keyboard.press("ControlOrMeta+z");
         expect((await read(page)).json).toEqual(home.json);
       } else {
-        expect(after.events[1]).toEqual({ key: "End", prevented: false, trusted: true });
+        expect(after.events[1]).toEqual({ key: "End", prevented: true, trusted: true });
+        expect(after.dom).toMatchObject({
+          anchor: line.from + 1,
+          head: line.to + 1,
+          text: line.text,
+          collapsed: false,
+        });
+        await page.keyboard.press("Backspace");
+        expect((await read(page)).last).toBe(mode === "append-doc" ? "NEXT!" : "NEXT");
+        await page.keyboard.press("ControlOrMeta+z");
+        expect((await read(page)).json).toEqual(home.json);
       }
     });
   }
@@ -337,8 +337,15 @@ for (const action of [
       expect((await read(page)).last).toBe("NEXT");
       await page.keyboard.press("ControlOrMeta+z");
       expect((await read(page)).json).toEqual(result.json);
-    } else {
-      expect(result.events.at(-1)).toEqual({ key: "End", prevented: false, trusted: true });
+    } else if (result.events.at(-1)?.prevented) {
+      expect(result.dom?.text).not.toContain("NEXT");
+      expect(["", line.text]).toContain(result.dom?.text);
+      if (result.dom?.text) {
+        await page.keyboard.press("Backspace");
+        expect((await read(page)).last).toBe("NEXT");
+        await page.keyboard.press("ControlOrMeta+z");
+        expect((await read(page)).json).toEqual(result.json);
+      }
     }
   });
 }

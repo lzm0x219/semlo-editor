@@ -269,15 +269,30 @@ export function mountOutline(editor: Editor, container: HTMLElement, revealHeadi
         ?.focus({ preventScroll: true });
     scheduleActive();
   };
-  const onTransaction = ({ transaction }: { transaction: Transaction }) => {
-    if (transaction.docChanged) {
+  const onTransaction = ({
+    transaction,
+    appendedTransactions = [],
+  }: {
+    transaction: Transaction;
+    appendedTransactions?: Transaction[];
+  }) => {
+    const transactions = [transaction, ...appendedTransactions];
+    if (transactions.some((item) => item.docChanged)) {
       const next = new Set<number>();
       for (const pos of folded) {
-        // Heading attribute changes replace its opening token, but preserve its
-        // content. Map inside the heading so a numbering change keeps it folded.
-        const mapped = transaction.mapping.mapResult(pos + 1, 1);
-        if (mapped.deletedAcross) continue;
-        const resolved = editor.state.doc.resolve(mapped.pos);
+        // 标题属性变化可能替换起始标记；从标题内容内部依次映射所有事务。
+        let mappedPos = pos + 1;
+        let deleted = false;
+        for (const item of transactions) {
+          const mapped = item.mapping.mapResult(mappedPos, 1);
+          if (mapped.deletedAcross) {
+            deleted = true;
+            break;
+          }
+          mappedPos = mapped.pos;
+        }
+        if (deleted) continue;
+        const resolved = editor.state.doc.resolve(mappedPos);
         if (resolved.parent.type.name === "heading") next.add(resolved.before());
       }
       folded = next;

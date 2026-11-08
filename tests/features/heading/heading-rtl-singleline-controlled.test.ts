@@ -1,34 +1,17 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-delete-controlled-fixture";
 import type { RestartFramework } from "../../fixtures/list/ordered-restart-controlled-fixture";
 
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: {
-        entry: { index: "./tests/fixtures/heading/heading-delete-controlled-fixture.ts" },
-        define: {
-          "process.env.NODE_ENV": JSON.stringify("development"),
-          __VUE_OPTIONS_API__: true,
-          __VUE_PROD_DEVTOOLS__: false,
-          __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
-        },
-      },
-      resolve: { alias: { "@semlo-editor/core$": "./packages/core/src/index.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-delete-controlled-fixture.ts", {
+    framework: true,
+  }));
 });
 afterAll(async () => stop?.());
 test.beforeEach(async ({ page }) => installFixtureGuards(page));

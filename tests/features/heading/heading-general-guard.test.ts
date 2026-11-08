@@ -1,8 +1,8 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-general-guard-fixture";
 
 test.beforeEach(async ({ page }) => {
@@ -12,17 +12,7 @@ test.beforeEach(async ({ page }) => {
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-general-guard-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  stop = () => server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-general-guard-fixture.ts"));
 });
 afterAll(async () => stop?.());
 const doc = (title = "test"): JSONContent => ({
@@ -109,25 +99,28 @@ for (const reverse of [false, true]) {
     expect(candidate.timing?.prevented).toBe(expected.timing?.prevented);
   });
 }
-test("noneditable host widget causes the same native fallback", async ({ page }) => {
+test("无法验证的宿主控件保留原选区并停止原生行扩选", async ({ page }) => {
   async function run(native: boolean) {
     await mount(page, native, true);
     await page.locator("#heading-general-guard .semlo-editor-prose h3").click();
     await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
+    const before = await selection(page);
     await page.keyboard.press("Home");
     await page.keyboard.press("Shift+End");
     await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
     return {
+      before,
       selection: await selection(page),
       timing: await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").keyTime()),
     };
   }
   const baseline = await run(true);
   const candidate = await run(false);
-  expect(candidate.selection).toEqual(baseline.selection);
-  expect(candidate.timing?.prevented).toBe(baseline.timing?.prevented);
+  expect(candidate.before).toEqual(baseline.before);
+  expect(candidate.selection).toEqual(candidate.before);
+  expect(candidate.timing?.prevented).toBe(true);
 });
-test("host-created noncollapsed PM selection is not overwritten by a stale DOM caret", async ({ page }) => {
+test("标题行保护不以旧 DOM 光标覆盖宿主已提交的非空选区", async ({ page }) => {
   await mount(page);
   await page.locator("#heading-general-guard .semlo-editor-prose h3").click();
   await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
@@ -136,9 +129,11 @@ test("host-created noncollapsed PM selection is not overwritten by a stale DOM c
   const result = await page.evaluate(() => ({
     before: window.__semloRequireFixture("headingGeneralGuard").mismatchBefore,
     after: window.__semloRequireFixture("headingGeneralGuard").mismatchAfter,
+    timing: window.__semloRequireFixture("headingGeneralGuard").keyTime(),
   }));
   expect(result.before).toEqual({ anchor: 1, head: 11, domCollapsed: true });
   expect(result.after).toEqual(result.before);
+  expect(result.timing?.prevented).toBe(true);
 });
 for (const reverse of [false, true]) {
   test(`real multiline ${reverse ? "reverse" : "forward"} cross-block selection follows native behavior`, async ({
@@ -169,23 +164,26 @@ for (const reverse of [false, true]) {
     expect(candidate.timing?.prevented).toBe(expected.timing?.prevented);
   });
 }
-test("multiline noneditable host widget causes the same native fallback", async ({ page }) => {
+test("多行标题中的未验证宿主控件保留原选区", async ({ page }) => {
   async function run(native: boolean) {
     await mount(page, native, true, "test ".repeat(25));
     await page.locator("#heading-general-guard .semlo-editor-prose h3").click();
     await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
+    const before = await selection(page);
     await page.keyboard.press("Home");
     await page.keyboard.press("Shift+End");
     await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
     return {
+      before,
       selection: await selection(page),
       timing: await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").keyTime()),
     };
   }
   const baseline = await run(true);
   const candidate = await run(false);
-  expect(candidate.selection).toEqual(baseline.selection);
-  expect(candidate.timing?.prevented).toBe(baseline.timing?.prevented);
+  expect(candidate.before).toEqual(baseline.before);
+  expect(candidate.selection).toEqual(candidate.before);
+  expect(candidate.timing?.prevented).toBe(true);
 });
 for (const length of [4096, 4097]) {
   test(`long single-line title of ${length} chars is bounded`, async ({ page }) => {
@@ -193,6 +191,7 @@ for (const length of [4096, 4097]) {
       await mount(page, native, false, "A".repeat(length), true);
       await page.locator("#heading-general-guard .semlo-editor-prose h3").click({ position: { x: 50, y: 8 } });
       await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
+      const before = await selection(page);
       await page.keyboard.press("Home");
       await page.keyboard.press("Shift+End");
       await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
@@ -238,6 +237,7 @@ for (const length of [4096, 4097]) {
         };
       });
       return {
+        before,
         selection: await selection(page),
         timing: await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").keyTime()),
         geometry,
@@ -252,9 +252,8 @@ for (const length of [4096, 4097]) {
       expect(candidate.selection.text).toBe("A".repeat(length));
       expect(candidate.selection.json).toEqual((await run(true)).selection.json);
     } else {
-      const baseline = await run(true);
-      expect(candidate.selection).toEqual(baseline.selection);
-      expect(candidate.timing?.prevented).toBe(baseline.timing?.prevented);
+      expect(candidate.selection).toEqual(candidate.before);
+      expect(candidate.timing?.prevented).toBe(true);
     }
   });
 }

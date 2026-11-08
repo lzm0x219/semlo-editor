@@ -1,8 +1,8 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-end-boundary-fixture";
 
 declare global {
@@ -14,13 +14,13 @@ declare global {
 let origin = "";
 let stop: (() => Promise<void>) | undefined;
 const title = "alpha beta gamma delta epsilon zeta eta theta ".repeat(8);
-const content = (numbered: boolean): JSONContent => ({
+const content = (numbered: boolean, text = title): JSONContent => ({
   type: "doc",
   content: [
     {
       type: "heading",
       attrs: { level: 3, semloEditorHeadingNumbering: numbered ? "mixed" : null },
-      content: [{ type: "text", text: title }],
+      content: [{ type: "text", text }],
     },
     { type: "paragraph", content: [{ type: "text", text: "NEXT" }] },
   ],
@@ -30,26 +30,16 @@ test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
 });
 beforeAll(async () => {
-  const rsbuild = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-end-boundary-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const server = await rsbuild.startDevServer();
-  origin = `http://127.0.0.1:${server.port}`;
-  stop = () => server.server.close();
+  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-end-boundary-fixture.ts"));
 });
 afterAll(async () => stop?.());
 
-async function mount(page: Page, numbered: boolean, native: boolean) {
+async function mount(page: Page, numbered: boolean, native: boolean, text = title, width = 260) {
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
   await page.evaluate(
-    ({ document, native }) => {
-      window.__semloRequireFixture("mountHeadingEndBoundary")(document, 260, native);
+    ({ document, native, width }) => {
+      window.__semloRequireFixture("mountHeadingEndBoundary")(document, width, native);
       const editor = window.__semloRequireFixture("headingEndBoundary").controller.editor;
       window.endEvent = undefined;
       editor.view.dom.addEventListener(
@@ -60,7 +50,7 @@ async function mount(page: Page, numbered: boolean, native: boolean) {
         true,
       );
     },
-    { document: content(numbered), native },
+    { document: content(numbered, text), native, width },
   );
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
 }
@@ -145,6 +135,7 @@ for (const numbered of [false, true]) {
         expect(selected.json).toEqual(before.json);
         // If a future implementation can prove the click's visual side, it may
         // handle the key, but must never choose text from a different line.
+        expect(selected.prevented).toBe(true);
         if (selected.prevented) {
           if (line === 0) {
             expect(selected.dom.collapsed).toBe(true);
@@ -163,3 +154,141 @@ for (const numbered of [false, true]) {
     }
   }
 }
+
+for (const sample of [
+  { name: "Chinese", text: "标题正文测试中文内容测试换行位置".repeat(12), width: 240 },
+  { name: "graphemes", text: "cafe\u0301 emoji👩‍💻 alpha ".repeat(15), width: 260 },
+  { name: "spaces", text: "alpha   beta gamma    delta ".repeat(14), width: 280 },
+]) {
+  for (const numbered of [false, true]) {
+    for (const line of [0, 1] as const) {
+      test(`${sample.name} soft wrap selects the clicked visual line: ${numbered ? "numbered" : "ordinary"} ${line}`, async ({
+        page,
+      }) => {
+        await mount(page, numbered, false, sample.text, sample.width);
+        const point = await clickBoundary(page, line);
+        await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+        const before = await snapshot(page);
+        expect(before.ambiguous).toBe(true);
+        await page.keyboard.press("Shift+End");
+        const after = await snapshot(page);
+        expect(after.prevented).toBe(true);
+        if (line === 0) expect(after.text).toBe("");
+        else {
+          expect(after.text).not.toContain("NEXT");
+          expect(after.visibleRects.length).toBeGreaterThan(0);
+          for (const rect of after.visibleRects) {
+            expect(rect.top).toBeLessThanOrEqual(point.y);
+            expect(rect.bottom).toBeGreaterThanOrEqual(point.y);
+          }
+          await page.keyboard.press("Backspace");
+          await page.keyboard.press("ControlOrMeta+z");
+          expect((await snapshot(page)).json).toEqual(before.json);
+        }
+      });
+    }
+  }
+}
+
+for (const numbered of [false, true]) {
+  test(`typing immediately after upper boundary Shift+End inserts at the caret: ${numbered ? "numbered" : "ordinary"}`, async ({
+    page,
+  }) => {
+    await mount(page, numbered, false);
+    await clickBoundary(page, 0);
+    const before = await snapshot(page);
+    expect(before.ambiguous).toBe(true);
+    const offset = before.dom.anchor! - 1;
+    await page.keyboard.press("Shift+End");
+    await page.keyboard.type("X");
+    const after = await snapshot(page);
+    const expected = structuredClone(before.json) as JSONContent;
+    const node = expected.content![0].content![0];
+    node.text = node.text!.slice(0, offset) + "X" + node.text!.slice(offset);
+    expect(after.json).toEqual(expected);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await snapshot(page)).json).toEqual(before.json);
+  });
+}
+
+test("a failed native line probe leaves no destructive selection", async ({ page }) => {
+  await mount(page, false, false);
+  await clickBoundary(page, 1);
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  await page.evaluate(() => {
+    const selection = document.getSelection()!;
+    if (!selection.anchorNode) throw new Error("Missing native selection");
+    const view = window.__semloRequireFixture("headingEndBoundary").controller.editor.view;
+    const pos = view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+    view.dispatch(
+      view.state.tr.setSelection(
+        (view.state.selection.constructor as typeof import("@tiptap/pm/state").TextSelection).create(
+          view.state.doc,
+          pos + 1,
+        ),
+      ),
+    );
+    view.dispatch(
+      view.state.tr.setSelection(
+        (view.state.selection.constructor as typeof import("@tiptap/pm/state").TextSelection).create(
+          view.state.doc,
+          pos,
+        ),
+      ),
+    );
+    const original = selection.modify.bind(selection);
+    selection.modify = (...args) => {
+      original(...args);
+      throw new Error("fixture: line probe failed");
+    };
+  });
+  const before = await snapshot(page);
+  await page.keyboard.press("Shift+End");
+  const after = await snapshot(page);
+  expect(after.prevented).toBe(true);
+  expect(after.json).toEqual(before.json);
+  expect(after.dom).toMatchObject({ anchor: before.dom.anchor, focus: before.dom.focus, collapsed: true });
+  expect(after.text).toBe("");
+});
+
+test("a host write during the native probe owns the final document and selection", async ({ page }) => {
+  await mount(page, false, false);
+  await clickBoundary(page, 1);
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  await page.evaluate(() => {
+    const fixture = window.__semloRequireFixture("headingEndBoundary");
+    const editor = fixture.controller.editor;
+    const selection = document.getSelection()!;
+    if (!selection.anchorNode) throw new Error("Missing native selection");
+    const pos = editor.view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+    editor.commands.setTextSelection(pos + 1);
+    editor.commands.setTextSelection(pos);
+    const original = selection.modify.bind(selection);
+    selection.modify = (...args) => {
+      original(...args);
+      editor.commands.insertContentAt(editor.state.doc.content.size - 1, "HOST");
+    };
+  });
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.prevented).toBe(true);
+  expect((after.json as JSONContent).content?.[1].content?.[0].text).toBe("NEXTHOST");
+  expect(after.pm).toMatchObject({ anchor: after.dom.anchor, head: after.dom.focus });
+});
+
+test("Backspace after upper-boundary Shift+End deletes only the preceding character", async ({ page }) => {
+  await mount(page, true, false);
+  await clickBoundary(page, 0);
+  const before = await snapshot(page);
+  const offset = before.dom.anchor! - 1;
+  await page.keyboard.press("Shift+End");
+  expect((await snapshot(page)).text).toBe("");
+  await page.keyboard.press("Backspace");
+  const expected = structuredClone(before.json) as JSONContent;
+  const node = expected.content![0].content![0];
+  node.text = node.text!.slice(0, offset - 1) + node.text!.slice(offset);
+  expect((await snapshot(page)).json).toEqual(expected);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await snapshot(page)).json).toEqual(before.json);
+});

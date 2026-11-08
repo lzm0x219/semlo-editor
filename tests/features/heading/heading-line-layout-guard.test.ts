@@ -1,20 +1,13 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-line-interior-fixture";
 let origin = "",
   stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-line-interior-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
+  const r = await createFixtureRsbuild("./tests/fixtures/heading/heading-line-interior-fixture.ts");
   const server = await r.startDevServer();
   origin = `http://127.0.0.1:${server.port}`;
   stop = () => server.server.close();
@@ -81,6 +74,15 @@ for (const sample of samples)
       };
     });
     await page.mouse.click(before.point.x, before.point.y);
+    await page.evaluate(() => window.__semloRequireFixture("lineInterior").settle());
+    const selectionBefore = await page.evaluate(() => {
+      const editor = window.__semloRequireFixture("lineInterior").controller.editor;
+      return {
+        anchor: editor.state.selection.anchor,
+        head: editor.state.selection.head,
+        text: document.getSelection()?.toString() ?? null,
+      };
+    });
     await page.keyboard.press("Shift+End");
     await page.keyboard.press("Backspace");
     await page.evaluate(() => window.__semloRequireFixture("lineInterior").settle());
@@ -101,10 +103,9 @@ for (const sample of samples)
     expect(after.focused).toBe(true);
     expect(after.events).toHaveLength(1);
     expect(after.events[0].trusted).toBe(true);
-    if (after.events[0].prevented) {
-      const selection = after.keys.find((key) => key.key === "Backspace")!;
-      expect(selection.text).toBe("B");
-      expect(after.json.content?.at(-1)?.type).toBe("paragraph");
-    }
+    expect(after.events[0].prevented).toBe(true);
+    const selection = after.keys.find((key) => key.key === "Backspace")!;
+    expect({ anchor: selection.anchor, head: selection.head, text: selection.text }).toEqual(selectionBefore);
+    expect(after.json.content?.at(-1)).toEqual(before.json.content?.at(-1));
     expect(undone).toEqual(before.json);
   });

@@ -249,8 +249,8 @@ test("cross-item indentation retains the observed ordered values and marker leve
   await select(page, "甲项", 1, "乙项", 1);
   await page.keyboard.press("Tab");
   expect(await markers()).toEqual([
-    { value: "7", marker: "lower-roman" },
-    { value: "8", marker: "lower-roman" },
+    { value: "7", marker: "semlo-mixed-roman" },
+    { value: "8", marker: "semlo-mixed-roman" },
     { value: "1", marker: "lower-alpha" },
   ]);
   expect((await selection(page)).text).toBe("项\n乙");

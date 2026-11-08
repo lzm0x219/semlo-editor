@@ -1,0 +1,56 @@
+.semlo-editor-prose .semlo-editor-heading-linkable {
+  position: relative;
+}
+.semlo-editor-prose .semlo-editor-heading-link {
+  position: absolute;
+  top: calc((1lh - 20px) / 2);
+  left: -80px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #a3aaa6;
+  font: 11px/1 sans-serif;
+  cursor: pointer;
+  opacity: 0;
+}
+.semlo-editor-prose .semlo-editor-heading-linkable:hover > .semlo-editor-heading-link,
+.semlo-editor-prose .semlo-editor-heading-link:focus-visible {
+  opacity: 1;
+}
+.semlo-editor-prose .semlo-editor-heading-link::before {
+  content: attr(data-label);
+}
+.semlo-editor-prose .semlo-editor-heading-link:hover {
+  background: #f0f2f1;
+  color: #56615b;
+}
+.semlo-editor-prose .semlo-editor-heading-link:focus-visible {
+  outline: 2px solid #52b881;
+  outline-offset: 1px;
+}
+.semlo-editor-heading-link-status {
+  position: fixed;
+  z-index: 1400;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #303633;
+  color: #fff;
+  font-size: 13px;
+  pointer-events: none;
+}
+.semlo-editor-heading-link-status[hidden] {
+  display: none;
+}
+@media (hover: none) {
+  .semlo-editor-prose .semlo-editor-heading-link {
+    opacity: 1;
+  }
+}

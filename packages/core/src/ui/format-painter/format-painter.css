@@ -6,3 +6,8 @@
 .semlo-editor-format-painter-active * {
   cursor: copy;
 }
+
+/* 浮动菜单使用内联可见性，格式刷启用时需让目标文字保持可拖选。 */
+.semlo-editor-format-painter-active ~ .semlo-editor-bubble {
+  visibility: hidden !important;
+}

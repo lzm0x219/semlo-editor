@@ -290,7 +290,7 @@ test("real keyboard copy places numbered heading text and marked HTML on the bro
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await mount(page);
   await selectHeadings(page);
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   const clipboard = await page.evaluate(async () => {
     const text = await navigator.clipboard.readText();
     const items = await navigator.clipboard.read();
@@ -306,7 +306,7 @@ test("real keyboard cut copies numbered headings and a single undo restores them
   await mount(page);
   await selectHeadings(page);
   const original = await page.evaluate(() => window.__semloRequireFixture("headingTableCopyEditor").getSnapshot().json);
-  await page.keyboard.press("Meta+x");
+  await page.keyboard.press("ControlOrMeta+x");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("丙丁\n戊己");
   expect(await page.evaluate(() => window.__semloRequireFixture("headingTableCopyEditor").editor.commands.undo())).toBe(
     true,
@@ -354,7 +354,7 @@ for (const type of ["copy", "cut"] as const) {
       () => window.__semloRequireFixture("headingTableCopyEditor").getSnapshot().json,
     );
     await observeExternalSerializations(page, type, true);
-    await page.keyboard.press(type === "copy" ? "Meta+c" : "Meta+x");
+    await page.keyboard.press(type === "copy" ? "ControlOrMeta+c" : "ControlOrMeta+x");
     await expect.poll(() => page.evaluate(() => window.headingTableCopyTrace?.length)).toBe(2);
     const trace = await page.evaluate(() => window.headingTableCopyTrace!);
     expect(trace.map((entry) => entry.phase)).toEqual(["capture", "capture-microtask"]);
@@ -376,7 +376,7 @@ test("unrelated native copy-time, microtask and later serializations do not acqu
   await mount(page);
   await selectHeadings(page);
   await observeExternalSerializations(page, "copy", false);
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("丙丁\n戊己");
   await expect.poll(() => page.evaluate(() => window.headingTableCopyTrace?.length)).toBe(4);
   const trace = await page.evaluate(() => window.headingTableCopyTrace!);
@@ -426,7 +426,7 @@ for (const type of ["copy", "cut"] as const) {
       const original = await page.evaluate(
         () => window.__semloRequireFixture("headingTableCopyEditor").getSnapshot().json,
       );
-      await page.keyboard.press(type === "copy" ? "Meta+c" : "Meta+x");
+      await page.keyboard.press(type === "copy" ? "ControlOrMeta+c" : "ControlOrMeta+x");
       await expect.poll(() => page.evaluate(() => window.headingTableCopyTrace?.length)).toBe(2);
       const trace = await page.evaluate(() => window.headingTableCopyTrace!);
       expect(trace.map((entry) => entry.phase)).toEqual(["host", "host-microtask"]);

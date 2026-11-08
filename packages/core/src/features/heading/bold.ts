@@ -1,22 +1,24 @@
 import type { Editor } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
+import type { MarkType } from "@tiptap/pm/model";
+import type { EditorState } from "@tiptap/pm/state";
 
 import { dispatchFormattingWithHistory } from "../../runtime/format-history";
 import { getHeadingSelection } from "./selection";
 
-/** 混合选区只切换非标题内容；返回 false 时交给普通加粗命令。 */
-export function toggleBoldOutsideHeadings(editor: Editor): boolean {
-  if (editor.isDestroyed || !editor.isEditable) return false;
-  const { state } = editor;
+type BoldRun = { from: number; to: number; isBold: boolean };
+type MixedBoldSelection = { bold: MarkType; runs: BoldRun[]; active: boolean };
+
+/** 混合选区的状态与命令都只计算允许加粗的非标题内容。 */
+export function getMixedHeadingBold(state: EditorState): MixedBoldSelection | null {
   const { selection } = state;
-  if (getHeadingSelection(state).headingsOnly) return true;
   const bold = state.schema.marks.bold;
-  if (selection.empty || !bold) return false;
+  if (selection.empty || !bold) return null;
   let hasHeading = false;
   let total = 0;
   let marked = 0;
   let excluded = 0;
-  const runs: Array<{ from: number; to: number; isBold: boolean }> = [];
+  const runs: BoldRun[] = [];
   for (const { $from, $to } of selection.ranges) {
     state.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
       if (node.type.name === "heading") {
@@ -37,9 +39,17 @@ export function toggleBoldOutsideHeadings(editor: Editor): boolean {
       return true;
     });
   }
-  if (!hasHeading) return false;
-  if (!total) return true;
-  const remove = marked > 0 && marked + excluded >= total;
+  return hasHeading ? { bold, runs, active: marked > 0 && marked + excluded >= total } : null;
+}
+
+/** 混合选区只切换非标题内容；返回 false 时交给普通加粗命令。 */
+export function toggleBoldOutsideHeadings(editor: Editor): boolean {
+  if (editor.isDestroyed || !editor.isEditable) return false;
+  const { state } = editor;
+  if (getHeadingSelection(state).headingsOnly) return true;
+  const mixed = getMixedHeadingBold(state);
+  if (!mixed) return false;
+  const { bold, runs, active: remove } = mixed;
   const transaction = closeHistory(state.tr);
   for (const run of runs) {
     if (remove && run.isBold) transaction.removeMark(run.from, run.to, bold);

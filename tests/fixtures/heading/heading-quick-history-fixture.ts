@@ -38,10 +38,10 @@ type HistoryFixture = {
 };
 type HostOptions = {
   rejectHeading?: boolean;
-  append?: "metadata" | "history" | "nohistory" | "paragraph" | "number";
+  append?: "metadata" | "history" | "nohistory" | "nohistory-attr" | "paragraph" | "number";
   dispatch?: "metadata" | "nohistory";
   replaceHistoryInAppend?: boolean;
-  rootNoHistoryAppend?: boolean;
+  rootNoHistoryAppend?: boolean | "attribute";
   normalizeNoHistory?: boolean;
   appendOnRedo?: boolean;
   appendSelectionThenDocument?: boolean;
@@ -181,6 +181,8 @@ window.mountQuickHistoryFixture = (content, options) => {
             if (options.rootNoHistoryAppend && transactions.some((tr) => tr.getMeta("quickNoHistoryRoot"))) {
               const heading = headingIn(newState.doc);
               if (!heading) return null;
+              if (options.rootNoHistoryAppend === "attribute")
+                return newState.tr.setNodeAttribute(heading.pos, "textAlign", "center");
               return newState.tr.setNodeMarkup(heading.pos, undefined, { ...heading.node.attrs, textAlign: "center" });
             }
             if ((!options.append && !options.appendOnRedo) || !transactions.some((tr) => tr.docChanged)) return null;
@@ -211,8 +213,12 @@ window.mountQuickHistoryFixture = (content, options) => {
                 .setMeta("quickHistoryHost", true);
             }
             if (after.node.attrs.textAlign === "center") return null;
-            const tr = newState.tr.setNodeMarkup(after.pos, undefined, { ...after.node.attrs, textAlign: "center" });
-            if (options.append === "nohistory") tr.setMeta("addToHistory", false);
+            const tr =
+              options.append === "nohistory-attr"
+                ? newState.tr.setNodeAttribute(after.pos, "textAlign", "center")
+                : newState.tr.setNodeMarkup(after.pos, undefined, { ...after.node.attrs, textAlign: "center" });
+            if (options.append === "nohistory" || options.append === "nohistory-attr")
+              tr.setMeta("addToHistory", false);
             return tr.setMeta("quickHistoryHost", true);
           },
         }),

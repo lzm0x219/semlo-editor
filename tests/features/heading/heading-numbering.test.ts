@@ -918,6 +918,45 @@ for (const [style, expected] of [
   });
 }
 
+test("中文编号标题超过九十九后继续使用中文并可保存恢复", async ({ page }) => {
+  const headings = (level: number) =>
+    Array.from(
+      { length: 101 },
+      (_, index) => `<h${level} data-semlo-editor-heading-numbering="chinese">标题${level}-${index + 1}</h${level}>`,
+    ).join("");
+  const host = await mount(page, `${headings(1)}${headings(2)}`);
+  const primary = host.locator(".semlo-editor-prose > h1 .semlo-editor-heading-number");
+  const secondary = host.locator(".semlo-editor-prose > h2 .semlo-editor-heading-number");
+  for (const [index, first, second] of [
+    [98, "九十九、 ", "(九十九) "],
+    [99, "一百、 ", "(一百) "],
+    [100, "一百零一、 ", "(一百零一) "],
+  ] as const) {
+    await expect(primary.nth(index)).toHaveText(first);
+    await expect(secondary.nth(index)).toHaveText(second);
+  }
+  const snapshot = await page.evaluate(() => window.__semloRequireFixture("numberedHeadingEditor").getSnapshot());
+  const exported = await page.evaluate((html) => {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    return [
+      template.content.querySelectorAll("h1")[99].textContent,
+      template.content.querySelectorAll("h2")[99].textContent,
+    ];
+  }, snapshot.html);
+  expect(exported).toEqual(["一百、 标题1-100", "(一百) 标题2-100"]);
+  const restored = await page.evaluate((html) => {
+    const controller = window.__semloRequireFixture("numberedHeadingEditor");
+    controller.setContent("<p>临时内容</p>");
+    controller.setContent(html);
+    return controller.getSnapshot();
+  }, snapshot.html);
+  expect(restored.json).toEqual(snapshot.json);
+  expect(restored.text).toBe(snapshot.text);
+  await expect(primary.nth(99)).toHaveText("一百、 ");
+  await expect(secondary.nth(99)).toHaveText("(一百) ");
+});
+
 test("numbered HTML is standalone-visible and JSON/HTML imports do not duplicate text", async ({ page }) => {
   const host = await mount(page, '<h3 data-semlo-editor-heading-numbering="mixed">标题文字</h3>');
   const snapshot = await page.evaluate(() => window.__semloRequireFixture("numberedHeadingEditor").getSnapshot());

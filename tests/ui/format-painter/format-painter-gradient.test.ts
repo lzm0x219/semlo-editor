@@ -415,7 +415,7 @@ test("a click paints a nonempty paragraph and consumes single-use format painter
   await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").destroy());
 });
 
-test("clicking an empty paragraph exits the single-use painter without changing typing style", async ({ page }) => {
+test("clicking an empty paragraph applies the source typing style", async ({ page }) => {
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -441,7 +441,7 @@ test("clicking an empty paragraph exits the single-use painter without changing 
   await page.keyboard.type("new");
   const after = await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").getSnapshot().json);
   const marks = after.content?.[1]?.content?.[0]?.marks ?? [];
-  expect(marks.some((mark) => mark.type === "bold")).toBe(false);
+  expect(marks.some((mark) => mark.type === "bold")).toBe(true);
   await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").destroy());
 });
 

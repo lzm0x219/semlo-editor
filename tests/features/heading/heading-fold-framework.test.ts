@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 
@@ -10,6 +12,7 @@ beforeAll(async () => {
     cwd: process.cwd(),
     rsbuildConfig: {
       source: {
+        tsconfigPath: "./tsconfig.browser-fixtures.json",
         entry: { index: "./tests/fixtures/heading/heading-fold-framework-fixture.ts" },
         define: {
           "process.env.NODE_ENV": JSON.stringify("production"),
@@ -18,6 +21,7 @@ beforeAll(async () => {
           __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
         },
       },
+      resolve: { alias: { "@semlo-editor/core$": path.resolve("packages/core/dist/index.js") } },
       server: { host: "127.0.0.1", port: 0, strictPort: true },
       dev: { hmr: false, liveReload: false },
     },
@@ -39,19 +43,25 @@ for (const framework of ["core", "react", "vue", "solid"]) {
       throw new Error(`Fixture did not initialize: ${errors.join("; ") || "no browser error"}`);
     }
     await page.evaluate(async (name) => {
-      let value: unknown = null;
+      const values = new Map<string, unknown>();
       const adapter = {
         documentId: "doc",
         revision: "r1",
-        load: () => value,
-        save: (_id: string, _rev: string, state: unknown) => {
-          value = structuredClone(state);
+        load: (_id: string, revision: string) => values.get(revision),
+        save: (_id: string, revision: string, state: unknown) => {
+          values.set(revision, structuredClone(state));
         },
       };
       const first = await window.__semloRequireFixture("mountFoldFramework")(name, adapter);
       (window as unknown as { remountFold: () => Promise<void> }).remountFold = async () => {
+        const editor = first.controller.editor;
+        editor.view.dispatch(editor.state.tr.insertText("新", 1));
+        const capture = window.__semloRequireFixture("captureFoldFramework")();
+        if (!capture) throw new Error("无法捕获折叠状态");
+        if (!capture.commit("r2")) throw new Error("折叠状态迁移失败");
         first.destroy();
-        await window.__semloRequireFixture("mountFoldFramework")(name, adapter);
+        adapter.revision = "r2";
+        await window.__semloRequireFixture("mountFoldFramework")(name, adapter, capture.snapshot.json);
       };
     }, framework);
     const host = page.locator("#fold-framework");
@@ -59,6 +69,7 @@ for (const framework of ["core", "react", "vue", "solid"]) {
     await expect(host.locator(".semlo-editor-prose p")).toBeHidden();
     await page.evaluate(() => (window as unknown as { remountFold: () => Promise<void> }).remountFold());
     await expect(host.locator(".semlo-editor-prose p")).toBeHidden();
+    await expect(host.getByRole("button", { name: "展开标题：新标题" })).toBeVisible();
     await page.evaluate(() => window.__semloRequireFixture("foldFramework").destroy());
   });
 }

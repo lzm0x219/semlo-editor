@@ -6,7 +6,7 @@ type Mode = "deletion" | "history";
 type ControlledHistoryProbe = {
   closeInitialHistory(): void;
   rejectNext(mode: Mode): void;
-  changeHeadingOutsideHistory(): void;
+  changeHeadingOutsideHistory(mode?: "markup" | "attribute"): void;
   rejections(): number;
   depths(): { undo: number; redo: number };
 };
@@ -40,15 +40,15 @@ window.controlledHistoryProbe = {
       }),
     );
   },
-  changeHeadingOutsideHistory() {
+  changeHeadingOutsideHistory(mode = "markup") {
     const editor = window.__semloRequireFixture("restartControlledFixture").controller.editor;
     const heading = editor.state.doc.firstChild;
     if (!heading || heading.type.name !== "heading") throw new Error("Expected a root heading");
-    editor.view.dispatch(
-      editor.state.tr
-        .setNodeMarkup(0, undefined, { ...heading.attrs, textAlign: "center" })
-        .setMeta("addToHistory", false),
-    );
+    const tr =
+      mode === "attribute"
+        ? editor.state.tr.setNodeAttribute(0, "textAlign", "center")
+        : editor.state.tr.setNodeMarkup(0, undefined, { ...heading.attrs, textAlign: "center" });
+    editor.view.dispatch(tr.setMeta("addToHistory", false));
   },
   rejections: () => rejections,
   depths: () => {

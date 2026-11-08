@@ -1,20 +1,13 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { createFixtureRsbuild } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-line-interior-fixture";
 let origin = "",
   stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const r = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/heading/heading-line-interior-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
+  const r = await createFixtureRsbuild("./tests/fixtures/heading/heading-line-interior-fixture.ts");
   const s = await r.startDevServer();
   origin = `http://127.0.0.1:${s.port}`;
   stop = () => s.server.close();

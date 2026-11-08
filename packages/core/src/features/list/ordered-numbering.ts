@@ -6,6 +6,24 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import { trackPopupPosition } from "../../platform/dom/dropdown";
 import { linkPopup } from "../../platform/dom/popup-owner";
+import {
+  sequenceConversionHintAttribute,
+  sequenceConversionHintHTMLAttribute,
+} from "./numbering-sequence-conversion-hint";
+import {
+  hasNumberingSequences,
+  numberingSequenceInput,
+  resolveListNumbering,
+  parseSequenceRegistryAttribute,
+  sequenceRegistryAttribute,
+  sequenceMemberAttribute,
+  sequenceRegistryHTMLAttribute,
+  sequenceMemberHTMLAttribute,
+  sequenceLinkAttribute,
+  sequenceLinkHTMLAttribute,
+} from "./numbering-sequence-document";
+import { applySequencePlan, numberingSequencePolicy } from "./numbering-sequence-transactions";
+import { changeNumberingSequence } from "./numbering-sequences";
 import { orderedListSuffixAttrs } from "./ordered-fragment";
 import { setOrderedListStyle } from "./ordered-style";
 import { openOrderedListStyleMenu, type OrderedListStyleChoice } from "./ordered-style-menu";
@@ -20,6 +38,7 @@ type Target = {
   multilevel: boolean;
   hasRestarts: boolean;
   taskChain: TaskNumberChain | null;
+  sequence?: { restart: boolean; continue: boolean };
   quoteChain: { previous: ProseMirrorNode; following: ProseMirrorNode; followingPos: number } | null;
 };
 type ListShape = {
@@ -106,6 +125,29 @@ function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Targe
     quoteChain = { previous: previous!, following: following!, followingPos };
   } else if ($pos.depth !== 1) return null;
   const listPos = $pos.before($pos.depth);
+  if (hasNumberingSequences(list)) {
+    const resolved = resolveListNumbering(list);
+    // 原生菜单证据只覆盖直接子项，保留根级首项及深层结构的旧保护。
+    if (
+      $pos.depth !== 1 ||
+      Number(item.attrs.semloEditorListIndent ?? 0) !== 1 ||
+      !resolved.ok ||
+      resolved.value.kind !== "v1"
+    )
+      return null;
+    return {
+      list,
+      listPos,
+      index: $pos.index(),
+      previous: null,
+      previousPos: listPos,
+      multilevel: true,
+      hasRestarts: true,
+      quoteChain: null,
+      taskChain: null,
+      sequence: resolved.value.controls[$pos.index()],
+    };
+  }
   const taskChain =
     list.childCount === 1 && typeof list.attrs.semloEditorListTaskChain === "string"
       ? taskNumberChainAt(doc, listPos)
@@ -155,7 +197,7 @@ function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Targe
   const $list = doc.resolve(listPos),
     previous = $list.nodeBefore;
   let compatible = false;
-  if (previous?.type === list.type && listShape(previous, cache?.shapes).flat) {
+  if (previous?.type === list.type && !hasNumberingSequences(previous) && listShape(previous, cache?.shapes).flat) {
     const cached = cache?.compatible.get(list)?.get(previous);
     if (cached !== undefined) compatible = cached;
     else {
@@ -186,11 +228,21 @@ function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Targe
   };
 }
 
+function changeSequence(editor: Editor, target: Target, kind: "restart" | "continue"): boolean {
+  if (!target.sequence?.[kind]) return false;
+  const result = changeNumberingSequence(numberingSequenceInput(target.list), { kind, index: target.index });
+  if (!result.ok) return false;
+  editor.view.dispatch(closeHistory(applySequencePlan(editor.state.tr, target.listPos, result.value)));
+  if (!editor.isDestroyed) editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+  return true;
+}
+
 function restart(editor: Editor, pos: number): boolean {
   const state = editor.state,
     target = targetAt(state.doc, pos);
   if (!editor.isEditable || !target) return false;
   const { list, listPos, index } = target;
+  if (target.sequence) return changeSequence(editor, target, "restart");
   if (target.taskChain) {
     if (state.doc.nodeAt(pos)?.attrs.semloEditorListRestart === true) return false;
     editor.view.dispatch(
@@ -265,6 +317,7 @@ function restart(editor: Editor, pos: number): boolean {
 function continueNumbering(editor: Editor, pos: number): boolean {
   const state = editor.state,
     target = targetAt(state.doc, pos);
+  if (target?.sequence) return editor.isEditable && changeSequence(editor, target, "continue");
   if (editor.isEditable && target?.taskChain && state.doc.nodeAt(pos)?.attrs.semloEditorListRestart === true) {
     const item = state.doc.nodeAt(pos)!;
     const tr = closeHistory(state.tr)
@@ -399,16 +452,18 @@ function openMenu(editor: Editor, pos: number, anchor: HTMLButtonElement, focusO
   for (const [label, disabled, action] of [
     [
       "重新编号",
-      isRestart ||
-        unsupportedRestart ||
-        (!!target &&
-          target.index === 0 &&
-          Number(target.list.attrs.start ?? 1) === 1 &&
-          !target.previous &&
-          !supportsFirstMode(target.list)),
+      target?.sequence
+        ? !target.sequence.restart
+        : isRestart ||
+          unsupportedRestart ||
+          (!!target &&
+            target.index === 0 &&
+            Number(target.list.attrs.start ?? 1) === 1 &&
+            !target.previous &&
+            !supportsFirstMode(target.list)),
       restart,
     ],
-    ["继续编号", !isRestart, continueNumbering],
+    ["继续编号", target?.sequence ? !target.sequence.continue : !isRestart, continueNumbering],
   ] as const) {
     const button = doc.createElement("button");
     button.type = "button";
@@ -468,6 +523,22 @@ export const OrderedListNumbering = Extension.create({
       {
         types: ["orderedList"],
         attributes: {
+          [sequenceRegistryAttribute]: {
+            default: null,
+            parseHTML: parseSequenceRegistryAttribute,
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes[sequenceRegistryAttribute] == null
+                ? {}
+                : { [sequenceRegistryHTMLAttribute]: JSON.stringify(attributes[sequenceRegistryAttribute]) },
+          },
+          [sequenceLinkAttribute]: {
+            default: null,
+            parseHTML: (element: HTMLElement) => element.getAttribute(sequenceLinkHTMLAttribute),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes[sequenceLinkAttribute] == null
+                ? {}
+                : { [sequenceLinkHTMLAttribute]: attributes[sequenceLinkAttribute] },
+          },
           semloEditorListQuoteChain: {
             default: null,
             parseHTML: (element: HTMLElement) => element.getAttribute("data-semlo-editor-list-quote-chain"),
@@ -501,8 +572,31 @@ export const OrderedListNumbering = Extension.create({
         },
       },
       {
+        types: ["listItem", "taskItem", "paragraph", "heading"],
+        attributes: {
+          [sequenceConversionHintAttribute]: {
+            default: null,
+            keepOnSplit: true,
+            parseHTML: (element: HTMLElement) => element.getAttribute(sequenceConversionHintHTMLAttribute),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes[sequenceConversionHintAttribute] == null
+                ? {}
+                : { [sequenceConversionHintHTMLAttribute]: attributes[sequenceConversionHintAttribute] },
+          },
+        },
+      },
+      {
         types: ["listItem"],
         attributes: {
+          [sequenceMemberAttribute]: {
+            default: null,
+            keepOnSplit: true,
+            parseHTML: (element: HTMLElement) => element.getAttribute(sequenceMemberHTMLAttribute),
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes[sequenceMemberAttribute] == null
+                ? {}
+                : { [sequenceMemberHTMLAttribute]: attributes[sequenceMemberAttribute] },
+          },
           semloEditorListRestart: {
             default: false,
             keepOnSplit: false,
@@ -518,6 +612,7 @@ export const OrderedListNumbering = Extension.create({
     const editor = this.editor;
     let close: (() => void) | undefined;
     return [
+      numberingSequencePolicy(),
       new Plugin({
         appendTransaction(transactions, _old, state) {
           if (!transactions.some((transaction) => transaction.docChanged)) return null;
