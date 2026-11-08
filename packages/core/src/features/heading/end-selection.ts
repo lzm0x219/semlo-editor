@@ -96,7 +96,10 @@ function supportedHeadingWidget(
   if (child.parentElement !== heading || child.getAttribute("contenteditable") !== "false") return null;
   const style = getStyle(child);
   if (child.classList.contains("semlo-editor-heading-number")) return hasSupportedInlineLayout(style);
-  if (child.classList.contains("semlo-editor-heading-fold-toggle"))
+  if (
+    child.classList.contains("semlo-editor-heading-fold-toggle") ||
+    child.classList.contains("semlo-editor-heading-link")
+  )
     return style.position === "absolute" && style.cssFloat === "none" && !hasCoordinateTransform(style);
   return null;
 }
@@ -141,9 +144,11 @@ function singleVisualTextHeading(
   const win = view.dom.ownerDocument.defaultView;
   const element = view.nodeDOM(pos);
   if (!win || !(element instanceof win.HTMLElement)) return false;
+  const headingElement: HTMLElement = element;
   const getStyle = win.getComputedStyle.bind(win);
   const headingStyle = win.getComputedStyle(element);
   if (
+    !hasSupportedHeadingLayout(element, win) ||
     headingStyle.writingMode !== "horizontal-tb" ||
     headingStyle.direction !== direction ||
     (mixedLTR && headingStyle.display !== "block") ||
@@ -193,6 +198,9 @@ function singleVisualTextHeading(
     }
     if (node.nodeType !== 1) return false;
     const child = node as HTMLElement;
+    // 标题链接是位于文字流之外的编辑器控件，不应使整行定位失效。
+    if (child.classList.contains("semlo-editor-heading-link"))
+      return supportedHeadingWidget(child, headingElement, getStyle) === true;
     if (
       child.parentElement === element &&
       child.getAttribute("contenteditable") === "false" &&
@@ -245,7 +253,7 @@ function singleVisualTextHeading(
     }
     if (!textElements.has(child.tagName) || child.hasAttribute("contenteditable")) return false;
     const style = getStyle(child);
-    if (style.direction !== "ltr" || style.unicodeBidi !== "normal") return false;
+    if (!hasSupportedInlineLayout(style)) return false;
     for (const next of child.childNodes) if (!visit(next)) return false;
     return true;
   }

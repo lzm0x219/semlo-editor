@@ -154,6 +154,7 @@ for (const item of cases) {
 }
 
 for (const item of [
+  { name: "LTR with heading link", text: "标题内容", dir: "ltr" as const },
   { name: "LTR mixed", text: "abc אבג def", dir: "ltr" as const },
   { name: "numbered LTR mixed", text: "abc אבג def", dir: "ltr" as const, numbered: true },
   { name: "RTL mixed", text: "אבג abc דהו", dir: "rtl" as const },
@@ -177,6 +178,8 @@ for (const item of [
 ]) {
   test(`single-line ${item.name} selects only title and preserves following paragraph`, async ({ page }) => {
     await mount(page, item, false);
+    if (item.name === "LTR with heading link")
+      await expect(page.locator("#heading-end-boundary h3 > .semlo-editor-heading-link")).toHaveCount(1);
     const before = await snapshot(page);
     await page.keyboard.press("Home");
     await page.keyboard.press("Shift+End");
@@ -194,3 +197,75 @@ for (const item of [
     expect((await snapshot(page)).json).toEqual(before.json);
   });
 }
+
+test("标题链接进入文字流时保留选区，避免误选后文", async ({ page }) => {
+  await mount(page, { name: "in-flow link", text: "标题内容", dir: "ltr" }, false);
+  await page.addStyleTag({
+    content: "#heading-end-boundary h3 > .semlo-editor-heading-link { position: static !important; }",
+  });
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.json).toEqual(before.json);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("行内文字发生位移时保留标题选区", async ({ page }) => {
+  await mount(page, { name: "positioned text", text: "标题内容", dir: "ltr", mark: "bold" }, false);
+  await page.addStyleTag({ content: "#heading-end-boundary h3 strong { position: relative; left: 40px; }" });
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
+  expect(after.json).toEqual(before.json);
+  expect(after.homePrevented).toBe(true);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("宿主重排标题文字时保留选区，避免误删未选内容", async ({ page }) => {
+  await page.goto(origin);
+  await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
+  await page.evaluate(() => {
+    window.__semloRequireFixture("mountHeadingEndBoundary")({
+      type: "doc",
+      content: [
+        {
+          type: "heading",
+          attrs: { level: 3 },
+          content: [
+            { type: "text", text: "AB", marks: [{ type: "bold" }] },
+            { type: "text", text: "CD", marks: [{ type: "italic" }] },
+          ],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "NEXT" }] },
+      ],
+    });
+    const events: Record<string, KeyboardEvent> = {};
+    window.headingBidiEvents = events;
+    window
+      .__semloRequireFixture("headingEndBoundary")
+      .controller.editor.view.dom.addEventListener("keydown", (event) => {
+        events[event.key] = event;
+      });
+  });
+  await page.addStyleTag({
+    content:
+      "#heading-end-boundary h3 { display: flex; } #heading-end-boundary h3 strong { order: 2; } #heading-end-boundary h3 em { order: 1; }",
+  });
+  await page.locator("#heading-end-boundary h3 strong").click();
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.json).toEqual(before.json);
+  expect(after.endPrevented).toBe(true);
+});

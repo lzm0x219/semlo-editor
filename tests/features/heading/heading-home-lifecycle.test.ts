@@ -53,6 +53,7 @@ async function home(page: Page, id: string) {
 test("listeners exist only while a Home hint is live, then are removed on consume, blur and destroy", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1280, height: 2400 });
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountHomeLifecycle === "function");
   await page.evaluate(() => window.__semloRequireFixture("mountHomeLifecycle")());
@@ -71,8 +72,9 @@ test("listeners exist only while a Home hint is live, then are removed on consum
   expect(consumed.scroll).toBe(before.scroll);
   await home(page, "heading-home-life-a");
   expect((await metrics(page)).headObservers).toBe(1);
-  await page.locator("#heading-home-life-b").scrollIntoViewIfNeeded();
+  await page.locator("#heading-home-life-b h3").scrollIntoViewIfNeeded();
   const b = await point(page, "heading-home-life-b");
+  expect((await metrics(page)).headObservers).toBe(1);
   await page.mouse.click(b.x, b.y);
   await page.evaluate(() => window.__semloRequireFixture("homeLifecycle").settle());
   expect((await metrics(page)).headObservers).toBe(0);
