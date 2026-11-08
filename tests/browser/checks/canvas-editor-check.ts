@@ -89,7 +89,8 @@ try {
       await node.getByRole("button", { name: "折叠分支" }).click();
       assert.equal(await node.getByRole("button", { name: "展开分支" }).textContent(), "1");
     } else if (kind === "board") {
-      await node.getByRole("button", { name: "矩形", exact: true }).click();
+      await node.getByRole("button", { name: "更多形状", exact: true }).click();
+      await node.getByRole("dialog", { name: "图形库" }).locator('[data-shape-tool="rectangle"]').first().click();
       await node.locator(".semlo-editor-canvas-stage").click({ position: { x: 200, y: 100 } });
       assert.equal(await node.locator(".semlo-editor-canvas-shape").count(), 1);
       await node.getByRole("button", { name: "画笔", exact: true }).click();
@@ -154,12 +155,12 @@ try {
       assert.equal(await node.getByLabel("编辑节点").count(), 0);
       assert.equal(await node.getByLabel("添加下级节点").count(), 0);
     } else {
-      assert.equal(await node.getByRole("button", { name: "矩形", exact: true }).isDisabled(), true);
+      assert.equal(await node.getByRole("button", { name: "更多形状", exact: true }).isDisabled(), true);
       assert.equal(await node.getByRole("button", { name: "放大画布" }).isEnabled(), true);
     }
     await page.evaluate(() => window.__semloRequireFixture("canvasEditor").setEditable(true));
     if (kind !== "mindmap")
-      assert.equal(await node.getByRole("button", { name: "矩形", exact: true }).isEnabled(), true);
+      assert.equal(await node.getByRole("button", { name: "更多形状", exact: true }).isEnabled(), true);
     console.log(`${kind}: menu insertion, editing, undo/redo, reload JSON/HTML restore, read-only passed`);
   }
   for (const kind of ["board", "mindmap"] as const) {

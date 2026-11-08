@@ -1,3 +1,5 @@
+import { libraryShapeNames, shapeGraphic, type LibraryShape } from "./shape-library";
+
 type Kind = "board" | "flowchart" | "uml";
 type PolygonShape =
   | "triangle"
@@ -27,27 +29,52 @@ export type Shape =
   | "image"
   | "swimlaneVertical"
   | "swimlaneHorizontal"
-  | PolygonShape;
+  | PolygonShape
+  | LibraryShape;
 export type Marker =
   | "triangle"
   | "open"
+  | "oneSideUp"
+  | "oneSideDown"
   | "hollowTriangle"
   | "diamond"
   | "hollowDiamond"
   | "circle"
   | "hollowCircle"
   | "square"
-  | "hollowSquare";
+  | "hollowSquare"
+  | "crossCircle"
+  | "halfCircle"
+  | "endBar"
+  | "middleBar"
+  | "doubleBar"
+  | "slash"
+  | "crowFoot"
+  | "crowFootBar"
+  | "crowFootCircle"
+  | "circleBar";
 export const markerOptions: Array<[Marker, string]> = [
-  ["triangle", "实心箭头"],
   ["open", "线箭头"],
+  ["oneSideUp", "上侧单线箭头"],
+  ["oneSideDown", "下侧单线箭头"],
+  ["triangle", "实心箭头"],
   ["hollowTriangle", "空心箭头"],
   ["diamond", "实心菱形"],
   ["hollowDiamond", "空心菱形"],
-  ["circle", "实心圆"],
-  ["hollowCircle", "空心圆"],
   ["square", "实心方块"],
   ["hollowSquare", "空心方块"],
+  ["circle", "实心圆"],
+  ["hollowCircle", "空心圆"],
+  ["crossCircle", "十字圆"],
+  ["halfCircle", "半圆"],
+  ["endBar", "端点竖线"],
+  ["middleBar", "中部竖线"],
+  ["doubleBar", "双竖线"],
+  ["slash", "斜线"],
+  ["crowFoot", "三叉线"],
+  ["crowFootBar", "三叉线与竖线"],
+  ["crowFootCircle", "三叉线与圆圈"],
+  ["circleBar", "圆圈与竖线"],
 ];
 export interface CanvasShape {
   id: string;
@@ -158,9 +185,12 @@ const shapeTypes: Shape[] = [
   "swimlaneVertical",
   "swimlaneHorizontal",
   ...polygonShapes.map(([shape]) => shape),
+  ...libraryShapeNames,
 ];
 export const polygonPoints = (shape: Shape) =>
-  shape === "diamond" ? "50,0 100,50 50,100 0,50" : polygonShapes.find(([value]) => value === shape)?.[2];
+  shape === "diamond"
+    ? "50,0 100,50 50,100 0,50"
+    : (polygonShapes.find(([value]) => value === shape)?.[2] ?? shapeGraphic(shape)?.boundary);
 export const kindFrom = (value: unknown): Kind => (value === "flowchart" || value === "uml" ? value : "board");
 const shape = (id: string, type: Shape, x: number, y: number, text: string): CanvasShape => ({
   id,

@@ -1,9 +1,9 @@
-import { createRsbuild } from "@rsbuild/core";
 import { afterAll, beforeAll, expect, test } from "@rstest/playwright";
 
 import type { renderDiagram } from "../../../packages/core/src/features/drawing/diagram/render";
 import type { diagramTemplates } from "../../../packages/core/src/features/drawing/diagram/templates";
 import type { createEditor } from "../../../packages/core/src/index";
+import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 
 declare global {
   interface Window {
@@ -16,17 +16,9 @@ declare global {
 let origin: string;
 let closeServer: (() => Promise<void>) | undefined;
 beforeAll(async () => {
-  const build = await createRsbuild({
-    cwd: process.cwd(),
-    rsbuildConfig: {
-      source: { entry: { index: "./tests/fixtures/drawing/diagram-global-guard-fixture.ts" } },
-      server: { host: "127.0.0.1", port: 0, strictPort: true },
-      dev: { hmr: false, liveReload: false },
-    },
-  });
-  const { port, server } = await build.startDevServer();
-  origin = `http://127.0.0.1:${port}`;
-  closeServer = () => server.close();
+  ({ origin, stop: closeServer } = await startFixtureServer(
+    "./tests/fixtures/drawing/diagram-global-guard-fixture.ts",
+  ));
 });
 afterAll(async () => closeServer?.());
 

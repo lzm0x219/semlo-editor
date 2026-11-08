@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/core";
 
-import { polygonShapes, type Shape } from "./model";
+import { shapeCatalog } from "./shape-catalog";
+import { createShapePicker } from "./shape-picker";
 import type { CanvasTool } from "./state";
 
 interface CanvasToolbarState {
@@ -48,43 +49,41 @@ export function renderCanvasToolbar({
 }: CanvasToolbarContext) {
   const tools: Array<[typeof state.tool, string]> = [
     ["select", "选择"],
-    ["pan", "平移"],
-    ["rectangle", "矩形"],
-    ["roundedRect", "圆角矩形"],
-    ["ellipse", "圆形"],
-    ["diamond", "菱形"],
-    ["text", "文本"],
-    ["connect", "连线"],
     ["pen", "画笔"],
     ["eraser", "橡皮"],
+    ["text", "文本"],
+    ["connect", "连线"],
+    ["pan", "平移"],
   ];
   const toolRail = doc.createElement("div");
   toolRail.className = "semlo-editor-canvas-tool-rail";
   toolbar.append(toolRail);
+  const viewControls = doc.createElement("div");
+  viewControls.className = "semlo-editor-canvas-view-controls";
   const icons: Record<string, string> = {
     select: "M5 3l13 9-6 1-3 6z",
     pan: "M7 11V6a2 2 0 0 1 4 0v4-6a2 2 0 0 1 4 0v6-4a2 2 0 0 1 4 0v8c0 5-3 7-7 7-3 0-5-2-7-5l-2-3a2 2 0 0 1 3-2l1 1",
-    rectangle: "M4 5h16v14H4z",
-    roundedRect: "M7 5h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z",
-    ellipse: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z",
-    diamond: "M12 3l9 9-9 9-9-9z",
     text: "M4 5h16M12 5v14M8 19h8",
     connect: "M4 19L19 4M13 4h6v6",
     pen: "M4 20l4-1 11-11-3-3L5 16zM14 7l3 3",
     eraser: "M4 15l9-9a2 2 0 0 1 3 0l4 4-9 9H7zM10 19h10",
   };
+  const icon = (pathData: string) => {
+    const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", pathData);
+    svg.append(path);
+    return svg;
+  };
+  let connectButton: HTMLButtonElement | undefined;
   for (const [value, label] of tools) {
     const button = doc.createElement("button");
     button.type = "button";
     button.setAttribute("aria-label", label);
     button.title = label;
-    const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("aria-hidden", "true");
-    const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", icons[value]);
-    svg.append(path);
-    button.append(svg);
+    button.append(icon(icons[value]));
     button.disabled = !editor.isEditable && value !== "pan";
     button.setAttribute("aria-pressed", String(state.tool === value));
     button.addEventListener("click", () => {
@@ -96,7 +95,8 @@ export function renderCanvasToolbar({
       }
       paint();
     });
-    toolRail.append(button);
+    if (value === "connect") connectButton = button;
+    (value === "pan" ? viewControls : toolRail).append(button);
   }
   const imageInput = doc.createElement("input");
   imageInput.type = "file";
@@ -107,8 +107,9 @@ export function renderCanvasToolbar({
   let imageEpoch = state.documentEpoch;
   const imageButton = doc.createElement("button");
   imageButton.type = "button";
-  imageButton.textContent = "图片";
+  imageButton.append(icon("M4 4h16v16H4z M6 17l4-4 2 2 3-4 3 4 M9 8h.01"));
   imageButton.setAttribute("aria-label", "插入画布图片");
+  imageButton.title = "插入画布图片";
   imageButton.disabled = !editor.isEditable;
   imageButton.addEventListener("click", () => {
     imageEpoch = state.documentEpoch;
@@ -122,42 +123,28 @@ export function renderCanvasToolbar({
     insertImageFile(file, imageEpoch);
   });
   toolRail.append(imageButton, imageInput);
-  const moreShapes = doc.createElement("select");
-  moreShapes.setAttribute("aria-label", "更多形状");
-  moreShapes.disabled = !editor.isEditable;
-  const placeholder = doc.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "更多形状";
-  moreShapes.append(placeholder);
-  const moreShapeOptions: Array<[Shape, string]> = [
-    ...polygonShapes.map(([value, label]) => [value, label] as [Shape, string]),
-    ["swimlaneVertical", "泳道垂直"],
-    ["swimlaneHorizontal", "泳道水平"],
-  ];
-  for (const [shape, label] of moreShapeOptions) {
-    const option = doc.createElement("option");
-    option.value = shape;
-    option.textContent = label;
-    option.selected = state.tool === shape;
-    moreShapes.append(option);
-  }
-  moreShapes.addEventListener("change", () => {
-    const shape = moreShapeOptions.find(([value]) => value === moreShapes.value)?.[0];
-    if (shape) {
-      state.tool = shape;
+  const disposePicker = createShapePicker({
+    doc,
+    toolbar,
+    parent: toolRail,
+    // 重挂创建新节点视图时，isDestroyed 仍可能暂时指向旧视图；释放由本视图的 disposer 管理。
+    enabled: () => editor.isEditable,
+    choose(entry) {
+      state.tool = entry.tool;
       state.connecting = null;
       state.selectedEdge = null;
       selectedEdgeIds.clear();
       paint();
-    }
+      if (!editor.isDestroyed) stage.focus();
+    },
   });
-  const moreWrap = doc.createElement("div");
-  moreWrap.className = "semlo-editor-canvas-more-shapes";
-  const moreIcon = doc.createElement("span");
-  moreIcon.textContent = "◇+";
-  moreIcon.setAttribute("aria-hidden", "true");
-  moreWrap.append(moreIcon, moreShapes);
-  toolRail.append(moreWrap);
+  const shapeButton = toolRail.querySelector<HTMLButtonElement>(".semlo-editor-canvas-more-shapes")!;
+  shapeButton.replaceChildren(icon("M4 4h11v11H4z M14 8a6 6 0 1 1-6 6 6 6 0 0 1 6-6z"));
+  shapeButton.setAttribute(
+    "aria-pressed",
+    String(shapeCatalog.some((category) => category.entries.some((entry) => entry.tool === state.tool))),
+  );
+  toolRail.insertBefore(shapeButton, connectButton ?? null);
   if (state.tool === "pen") {
     const color = doc.createElement("input");
     color.type = "color";
@@ -250,8 +237,7 @@ export function renderCanvasToolbar({
     commitViewport();
     paint();
   });
-  const viewControls = doc.createElement("div");
-  viewControls.className = "semlo-editor-canvas-view-controls";
   viewControls.append(fit, zoomOut, zoomValue, zoomIn);
   toolbar.append(viewControls);
+  return disposePicker;
 }

@@ -51,6 +51,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   await installFixtureGuards(page);
   await page.goto(`http://127.0.0.1:${address.port}/`);
+  const chooseShape = async (shape: string) => {
+    await page.getByRole("button", { name: "更多形状", exact: true }).click();
+    await page.getByRole("dialog", { name: "图形库" }).locator(`[data-shape-tool="${shape}"]`).first().click();
+  };
   const setKind = (kind: string) =>
     page.evaluate(
       (value) =>
@@ -393,7 +397,7 @@ try {
   await page.getByRole("button", { name: "放大画布" }).click();
   const viewportBounds = await page.locator(".semlo-editor-canvas-viewport").boundingBox();
   assert.ok(viewportBounds);
-  await page.getByRole("button", { name: "矩形", exact: true }).click();
+  await chooseShape("rectangle");
   await page.mouse.click(viewportBounds.x + 10, viewportBounds.y + 80);
   const addedOutside = await page.evaluate(() =>
     window
@@ -561,7 +565,7 @@ try {
     }),
     true,
   );
-  await page.locator(".semlo-editor-canvas-stage").press("Meta+a");
+  await page.locator(".semlo-editor-canvas-stage").press("ControlOrMeta+a");
   assert.equal(await page.locator('.semlo-editor-canvas-shape[aria-pressed="true"]').count(), 2);
   assert.equal(await page.locator('.semlo-editor-canvas-edge-hit[aria-pressed="true"]').count(), 1);
   assert.equal(await page.locator('.semlo-editor-canvas-stroke-hit[aria-pressed="true"]').count(), 1);
@@ -1929,7 +1933,7 @@ try {
     detachedSnapshot.json,
   );
   await setKind("board");
-  await page.getByRole("button", { name: "圆角矩形", exact: true }).click();
+  await chooseShape("roundedRect");
   await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 150, y: 100 } });
   assert.equal(await page.locator(".semlo-editor-canvas-shape-roundedRect").count(), 1);
   const roundedRadius = await page.evaluate(() => {
@@ -1953,7 +1957,7 @@ try {
     "flowArrow",
   ]) {
     await setKind("board");
-    await page.getByLabel("更多形状").selectOption(shape);
+    await chooseShape(shape);
     await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 180, y: 90 } });
     const polygon = page.locator(".semlo-editor-canvas-shape-polygon polygon");
     assert.equal(await polygon.count(), 1, shape);
@@ -1997,7 +2001,7 @@ try {
     );
   }
   await setKind("board");
-  await page.getByLabel("更多形状").selectOption("cloud");
+  await chooseShape("cloud");
   await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 180, y: 90 } });
   const cloud = page.locator(".semlo-editor-canvas-shape-polygon path");
   assert.equal(await cloud.count(), 1);
@@ -2020,7 +2024,7 @@ try {
       cloudSnapshot.json,
     );
   }
-  await page.getByRole("button", { name: "矩形", exact: true }).click();
+  await chooseShape("rectangle");
   await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 440, y: 90 } });
   await page.getByRole("button", { name: "连线", exact: true }).click();
   const cloudShape = page.locator(".semlo-editor-canvas-shape-cloud");
@@ -2039,7 +2043,7 @@ try {
   assert.ok(await page.locator(".semlo-editor-canvas-edge").getAttribute("d"));
   for (const bracket of ["leftBracket", "rightBracket"]) {
     await setKind("board");
-    await page.getByLabel("更多形状").selectOption(bracket);
+    await chooseShape(bracket);
     await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 180, y: 90 } });
     const curve = page.locator(".semlo-editor-canvas-shape-polygon path");
     assert.equal(await curve.getAttribute("fill"), "none");
@@ -2186,7 +2190,7 @@ try {
   assert.equal(await page.locator(".semlo-editor-canvas-zoom").textContent(), "110%");
   await page.getByLabel("缩小画布").click();
   assert.equal(await page.locator(".semlo-editor-canvas-zoom").textContent(), "100%");
-  await page.getByRole("button", { name: "矩形", exact: true }).click();
+  await chooseShape("rectangle");
   await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 200, y: 120 } });
   assert.equal(await page.locator(".semlo-editor-canvas-shape").count(), 1);
   const first = page.getByRole("button", { name: "图形：空白" });
@@ -2224,7 +2228,7 @@ try {
   assert.equal(await page.evaluate(() => window.__semloRequireFixture("mindmapTest").undo()), true);
   assert.equal(await named.evaluate((element) => getComputedStyle(element).borderStyle), "solid");
   assert.equal(await page.evaluate(() => window.__semloRequireFixture("mindmapTest").redo()), true);
-  await named.press("Meta+z");
+  await named.press("ControlOrMeta+z");
   const afterKeyboardUndo = await page.evaluate(
     () =>
       window.__semloRequireValue(
@@ -2242,7 +2246,7 @@ try {
   });
   assert.equal(strokeExport.width, "6");
   assert.equal(strokeExport.dashed, "5 4");
-  await page.getByRole("button", { name: "圆形", exact: true }).click();
+  await chooseShape("ellipse");
   await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 420, y: 220 } });
   assert.equal(await page.locator(".semlo-editor-canvas-shape").count(), 2);
   await page.getByRole("button", { name: "连线", exact: true }).click();
@@ -2446,9 +2450,9 @@ try {
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").count(), 1);
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").getAttribute("stroke"), "#cc3355");
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").getAttribute("stroke-width"), "7");
-  await page.locator(".semlo-editor-canvas-stage").press("Meta+z");
+  await page.locator(".semlo-editor-canvas-stage").press("ControlOrMeta+z");
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").count(), 0);
-  await page.locator(".semlo-editor-canvas-stage").press("Meta+Shift+z");
+  await page.locator(".semlo-editor-canvas-stage").press("ControlOrMeta+Shift+z");
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").count(), 1);
   await page.getByRole("button", { name: "橡皮", exact: true }).click();
   await page.mouse.move(stageBox.x + 105, stageBox.y + 191);
@@ -2456,7 +2460,7 @@ try {
   await page.mouse.move(stageBox.x + 130, stageBox.y + 202, { steps: 4 });
   await page.mouse.up();
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").count(), 0);
-  await page.locator(".semlo-editor-canvas-stage").press("Meta+z");
+  await page.locator(".semlo-editor-canvas-stage").press("ControlOrMeta+z");
   assert.equal(await page.locator(".semlo-editor-canvas-stroke").count(), 1);
   await page.getByRole("button", { name: "选择", exact: true }).click();
   const strokeHit = page.getByRole("button", { name: "笔迹" });
@@ -2816,12 +2820,12 @@ try {
   await page.evaluate(() => window.__semloRequireFixture("mindmapTest").editor.setEditable(false));
   await named.dblclick();
   assert.equal(await page.getByLabel("编辑图形文字").count(), 0);
-  assert.equal(await page.getByRole("button", { name: "矩形", exact: true }).isDisabled(), true);
-  await page.locator(".semlo-editor-canvas-stage").press("Meta+a");
+  assert.equal(await page.getByRole("button", { name: "更多形状", exact: true }).isDisabled(), true);
+  await page.locator(".semlo-editor-canvas-stage").press("ControlOrMeta+a");
   assert.equal(await page.locator('.semlo-editor-canvas-shape[aria-pressed="true"]').count(), 2);
   assert.equal(await page.locator('.semlo-editor-canvas-edge-hit[aria-pressed="true"]').count(), 1);
   await page.evaluate(() => window.__semloRequireFixture("mindmapTest").editor.setEditable(true));
-  assert.equal(await page.getByRole("button", { name: "矩形", exact: true }).isEnabled(), true);
+  assert.equal(await page.getByRole("button", { name: "更多形状", exact: true }).isEnabled(), true);
   const futureData = { shapes: [], edges: [], futureFeature: { value: 42 } };
   await page.evaluate(
     (data) =>
@@ -2832,7 +2836,7 @@ try {
     futureData,
   );
   assert.equal(await page.getByRole("status").textContent(), "画布数据格式不受支持，暂无法编辑。");
-  assert.equal(await page.getByRole("button", { name: "矩形", exact: true }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "更多形状", exact: true }).count(), 0);
   const unsupportedHtml = await page.evaluate(() => window.__semloRequireFixture("mindmapTest").editor.getHTML());
   assert.match(unsupportedHtml, /画布数据格式不受支持/);
   await page.evaluate(
@@ -2970,7 +2974,7 @@ try {
   await wrappingEditor.press("Escape");
   for (const kind of ["swimlaneVertical", "swimlaneHorizontal"]) {
     await setKind("board");
-    await page.getByLabel("更多形状").selectOption(kind);
+    await chooseShape(kind);
     await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 20, y: 20 } });
     assert.deepEqual(await page.locator(".semlo-editor-canvas-lane-title").allTextContents(), [
       "Lane 1",
@@ -3112,7 +3116,7 @@ try {
         laneSnapshot.json,
       );
     }
-    await page.getByRole("button", { name: "矩形", exact: true }).click();
+    await chooseShape("rectangle");
     await page.locator(".semlo-editor-canvas-stage").click({ position: { x: 150, y: 180 } });
     const innerShape = page.locator(".semlo-editor-canvas-shape-rectangle").first();
     assert.equal(await innerShape.count(), 1);

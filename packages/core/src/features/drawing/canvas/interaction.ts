@@ -4,6 +4,8 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { edgeGeometry, shapeContains, strokeTouched, updateLaneMembership } from "./geometry";
 import { pruneGroups, type CanvasData, type CanvasPoint } from "./model";
+import { shapeGraphic } from "./shape-library";
+import { createSmartTemplate, isSmartTemplate } from "./smart-templates";
 import type { CanvasTool } from "./state";
 
 interface CanvasInteractionState {
@@ -131,6 +133,14 @@ export function createCanvasInteraction({
   const mountStage = () => {
     stage.addEventListener("keydown", (event) => {
       if (event.defaultPrevented) return;
+      if (event.key === "Escape" && isSmartTemplate(state.tool)) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.tool = "select";
+        paint();
+        stage.focus();
+        return;
+      }
       if (
         (event.key === "Backspace" || event.key === "Delete") &&
         (!editor.isEditable ||
@@ -458,14 +468,31 @@ export function createCanvasInteraction({
       }
       const point = coordinates(event);
       const data = getData();
+      if (isSmartTemplate(state.tool)) {
+        const template = createSmartTemplate(state.tool, point, newId);
+        data.shapes.push(...template.shapes);
+        data.groups = [...(data.groups ?? []), template.group];
+        selectOnly(null);
+        for (const shape of template.shapes) selectedIds.add(shape.id);
+        selectedEdgeIds.clear();
+        selectedStrokeIds.clear();
+        state.selected = template.shapes[0].id;
+        state.selectedEdge = null;
+        state.tool = "select";
+        updateLaneMembership(data, selectedIds);
+        if (commit(data)) stage.focus();
+        else paint();
+        return;
+      }
       const id = newId();
       const textTool = state.tool === "text";
       const laneTool = state.tool === "swimlaneVertical" || state.tool === "swimlaneHorizontal";
       const parentLane = laneTool
         ? undefined
         : [...data.shapes].reverse().find((candidate) => candidate.lanes && shapeContains(candidate, point, 0))?.id;
-      const width = laneTool ? (state.tool === "swimlaneVertical" ? 450 : 600) : textTool ? 80 : 120,
-        height = laneTool ? 400 : textTool ? 36 : state.tool === "cloud" ? 80 : 60;
+      const size = shapeGraphic(state.tool)?.size;
+      const width = laneTool ? (state.tool === "swimlaneVertical" ? 450 : 600) : textTool ? 80 : (size?.[0] ?? 120),
+        height = laneTool ? 400 : textTool ? 36 : state.tool === "cloud" ? 80 : (size?.[1] ?? 60);
       data.shapes.push({
         id,
         shape: state.tool,

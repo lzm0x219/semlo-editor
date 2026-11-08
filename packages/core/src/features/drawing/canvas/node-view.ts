@@ -455,7 +455,10 @@ export function createCanvasNodeView(): NodeViewRenderer {
       };
       reader.readAsDataURL(file);
     };
+    let disposeToolbar = () => {};
     const paint = () => {
+      disposeToolbar();
+      disposeToolbar = () => {};
       const previousHeightHandle = dom.querySelector(".semlo-editor-canvas-height-handle");
       const restoreHeightFocus = previousHeightHandle !== null && previousHeightHandle === doc.activeElement;
       dom.querySelector(".semlo-editor-canvas-height-handle")?.remove();
@@ -468,7 +471,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
         stage.append(message);
         return;
       }
-      renderCanvasToolbar({
+      disposeToolbar = renderCanvasToolbar({
         doc,
         toolbar,
         stage,
@@ -654,6 +657,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
       ignoreMutation: () => true,
       destroy() {
         canvasState.destroyed = true;
+        disposeToolbar();
         editor.off("update", refreshEditable);
         editor.off("transaction", resetAfterDocumentReplacement);
         view.dom.removeEventListener("semlo-editor:editable", refreshEditable);

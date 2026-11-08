@@ -4,6 +4,7 @@ import type { CanvasData } from "./model";
 import { polygonPoints, specialShapePath } from "./model";
 import type { CanvasPathInteractions } from "./path-interactions";
 import type { CanvasShapeInteractions } from "./shape-interactions";
+import { graphicPaths, shapeGraphic } from "./shape-library";
 import type { CanvasShapeTextEditing } from "./shape-text-editing";
 import type { CanvasShapeTransforms } from "./shape-transforms";
 
@@ -134,6 +135,7 @@ export function renderCanvasObjects({
   }
   stage.append(svg);
   for (const item of data.shapes) {
+    const graphic = shapeGraphic(item.shape);
     const button = doc.createElement("button");
     button.type = "button";
     button.className = `semlo-editor-canvas-shape semlo-editor-canvas-shape-${item.shape}`;
@@ -143,12 +145,19 @@ export function renderCanvasObjects({
     button.style.width = `${item.width / 8}%`;
     button.style.height = `${item.height / 4.4}%`;
     button.style.transform = shapeTransform(item);
-    if (item.shape !== "text" && item.shape !== "actor" && item.shape !== "image" && !polygonPoints(item.shape)) {
+    if (
+      !graphic &&
+      item.shape !== "text" &&
+      item.shape !== "actor" &&
+      item.shape !== "image" &&
+      !polygonPoints(item.shape)
+    ) {
       button.style.borderWidth = `${(item.strokeWidth ?? 2) / 8}cqw`;
       button.style.borderStyle = item.strokeDashed ? "dashed" : "solid";
     }
     if (
       item.fill !== undefined &&
+      !graphic &&
       item.shape !== "text" &&
       item.shape !== "actor" &&
       item.shape !== "image" &&
@@ -160,7 +169,26 @@ export function renderCanvasObjects({
       if (item.shape === "text" || item.shape === "actor") button.style.color = item.stroke;
     }
     const points = polygonPoints(item.shape);
-    if (points) {
+    if (graphic) {
+      button.classList.add("semlo-editor-canvas-shape-polygon");
+      const graphicSvg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+      graphicSvg.classList.add("semlo-editor-canvas-polygon");
+      graphicSvg.setAttribute("viewBox", "0 0 100 100");
+      graphicSvg.setAttribute("preserveAspectRatio", "none");
+      graphicSvg.setAttribute("aria-hidden", "true");
+      for (const attrs of graphicPaths(item.shape, {
+        fill: item.fill === "transparent" ? "none" : (item.fill ?? graphic.defaultFill ?? "#ffffff"),
+        stroke: item.stroke ?? "#555555",
+        width: item.strokeWidth ?? 2,
+        dashed: item.strokeDashed,
+      })) {
+        const path = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+        for (const [name, value] of Object.entries(attrs)) path.setAttribute(name, String(value));
+        path.style.strokeWidth = `${(item.strokeWidth ?? 2) / 8}cqw`;
+        graphicSvg.append(path);
+      }
+      button.append(graphicSvg);
+    } else if (points) {
       button.classList.add("semlo-editor-canvas-shape-polygon");
       const polygonSvg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
       polygonSvg.classList.add("semlo-editor-canvas-polygon");

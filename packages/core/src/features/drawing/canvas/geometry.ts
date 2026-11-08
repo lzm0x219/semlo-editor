@@ -7,6 +7,7 @@ import {
   type CanvasStroke,
   type Marker,
 } from "./model";
+import { shapeGraphic } from "./shape-library";
 
 function distanceToSegment(point: CanvasPoint, start: CanvasPoint, end: CanvasPoint): number {
   const dx = end.x - start.x,
@@ -32,7 +33,7 @@ export function shapeContains(shape: CanvasShape, point: CanvasPoint, padding = 
   };
   if (local.x < -padding || local.x > shape.width + padding || local.y < -padding || local.y > shape.height + padding)
     return false;
-  if (shape.shape === "ellipse") {
+  if (shape.shape === "ellipse" || shapeGraphic(shape.shape)?.ellipse) {
     const x = (local.x - shape.width / 2) / (shape.width / 2 + padding);
     const y = (local.y - shape.height / 2) / (shape.height / 2 + padding);
     return x * x + y * y <= 1;
@@ -115,7 +116,8 @@ function boundaryDistance(box: GeometryBox, directionX: number, directionY: numb
   const y = -directionX * Math.sin(angle) + directionY * Math.cos(angle);
   const halfWidth = box.width / 2,
     halfHeight = box.height / 2;
-  if (box.shape === "ellipse") return 1 / Math.hypot(x / halfWidth, y / halfHeight);
+  if (box.shape === "ellipse" || (box.shape && shapeGraphic(box.shape)?.ellipse))
+    return 1 / Math.hypot(x / halfWidth, y / halfHeight);
   if (box.shape === "rounded" || box.shape === "roundedRect") {
     const radius = Math.min(halfWidth, halfHeight, box.shape === "rounded" ? Infinity : 8);
     const t = Math.min(x ? halfWidth / Math.abs(x) : Infinity, y ? halfHeight / Math.abs(y) : Infinity);
@@ -159,8 +161,17 @@ function markerGeometry(x: number, y: number, angle: number, marker: Marker) {
     const py = y - back * Math.sin(angle) + side * Math.cos(angle);
     return `${px} ${py}`;
   };
-  const hollow = marker === "open" || marker.startsWith("hollow");
+  const circle = (back: number, radius: number) => {
+    const k = radius * 0.55228475;
+    return `M ${point(back, -radius)} C ${point(back + k, -radius)} ${point(back + radius, -k)} ${point(back + radius, 0)} C ${point(back + radius, k)} ${point(back + k, radius)} ${point(back, radius)} C ${point(back - k, radius)} ${point(back - radius, k)} ${point(back - radius, 0)} C ${point(back - radius, -k)} ${point(back - k, -radius)} ${point(back, -radius)} Z`;
+  };
+  const line = (fromBack: number, fromSide: number, toBack: number, toSide: number) =>
+    `M ${point(fromBack, fromSide)} L ${point(toBack, toSide)}`;
+  const bar = (back: number) => line(back, -5, back, 5);
+  const fork = `${line(9, 0, 0, -5)} ${line(9, 0, 0, 5)}`;
+  const hollow = marker.startsWith("hollow") || ["crossCircle", "crowFootCircle", "circleBar"].includes(marker);
   let path: string;
+  let fill = hollow ? "#fff" : "currentColor";
   if (marker === "circle" || marker === "hollowCircle") {
     const cx = x - 5 * Math.cos(angle),
       cy = y - 5 * Math.sin(angle);
@@ -169,10 +180,32 @@ function markerGeometry(x: number, y: number, angle: number, marker: Marker) {
     path = `M ${point(0, 0)} L ${point(6, -4)} L ${point(12, 0)} L ${point(6, 4)} Z`;
   } else if (marker === "square" || marker === "hollowSquare") {
     path = `M ${point(0, -4)} L ${point(8, -4)} L ${point(8, 4)} L ${point(0, 4)} Z`;
+  } else if (marker === "crossCircle") {
+    path = `${circle(5, 4)} ${line(5, -4, 5, 4)} ${line(1, 0, 9, 0)}`;
+  } else if (marker === "crowFootCircle") {
+    path = `${circle(14, 4)} ${fork}`;
+  } else if (marker === "circleBar") {
+    path = `${circle(10, 4)} ${bar(0)}`;
+  } else if (marker === "halfCircle") {
+    path = `M ${point(0, -5)} C ${point(7, -5)} ${point(7, 5)} ${point(0, 5)}`;
+    fill = "none";
+  } else if (marker === "endBar" || marker === "middleBar" || marker === "doubleBar") {
+    path = marker === "endBar" ? bar(0) : marker === "middleBar" ? bar(5) : `${bar(2)} ${bar(8)}`;
+    fill = "none";
+  } else if (marker === "slash") {
+    path = line(2, -5, 8, 5);
+    fill = "none";
+  } else if (marker === "crowFoot" || marker === "crowFootBar") {
+    path = marker === "crowFoot" ? fork : `${fork} ${bar(0)}`;
+    fill = "none";
+  } else if (marker === "oneSideUp" || marker === "oneSideDown") {
+    path = line(10, marker === "oneSideUp" ? -4.35 : 4.35, 0, 0);
+    fill = "none";
   } else {
     path = `M ${point(10, -4.35)} L ${point(0, 0)} L ${point(10, 4.35)}${marker === "open" ? "" : " Z"}`;
+    if (marker === "open") fill = "none";
   }
-  return { path, fill: marker === "open" ? "none" : hollow ? "#fff" : "currentColor" };
+  return { path, fill };
 }
 export function edgeGeometry(
   a: GeometryBox,

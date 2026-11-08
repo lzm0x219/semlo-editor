@@ -1,15 +1,736 @@
 .semlo-editor-mindmap {
   position: relative;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: safe center;
   min-height: 80px;
-  padding: 32px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid #e2e4e6;
   border-radius: 4px;
   background: white;
+}
+.semlo-editor-mindmap.is-maximized {
+  position: fixed;
+  z-index: 2100;
+  inset: 0;
+  width: 100vw;
+  height: 100vh !important;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.semlo-editor-mindmap-return-bar {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  height: 54px;
+  padding: 0 20px;
+  border-bottom: 1px solid #f0f1f1;
+  background: #fff;
+}
+.semlo-editor-mindmap-return-bar button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-return-bar button:hover,
+.semlo-editor-mindmap-return-bar button:focus-visible {
+  background: #f4f5f4;
+}
+.semlo-editor-mindmap-history {
+  position: absolute;
+  z-index: 5;
+  top: 66px;
+  left: 16px;
+  display: flex;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-history button,
+.semlo-editor-mindmap-expand {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  padding: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-history button:disabled {
+  color: #b8babb;
+  cursor: default;
+}
+.semlo-editor-mindmap-expand {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  right: 10px;
+}
+.semlo-editor-mindmap-expand svg {
+  width: 18px;
+  height: 18px;
+}
+.semlo-editor-mindmap-expand:hover,
+.semlo-editor-mindmap-expand:focus-visible,
+.semlo-editor-mindmap-history button:not(:disabled):hover {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap.is-maximized .semlo-editor-mindmap-viewport {
+  height: calc(100% - 54px);
+  margin-top: 54px;
+}
+.semlo-editor-mindmap.is-maximized .semlo-editor-mindmap-view-controls {
+  top: 66px;
+  right: 12px;
+}
+.semlo-editor-mindmap.is-maximized .semlo-editor-canvas-height-handle {
+  display: none;
+}
+.semlo-editor-mindmap-viewport {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: safe center;
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+  overflow: auto;
+}
+.semlo-editor-mindmap-viewport:focus {
+  outline: none;
+}
+.semlo-editor-mindmap-viewport:focus-visible {
+  outline: 1px solid #a8b9d8;
+  outline-offset: -1px;
+}
+.semlo-editor-mindmap-viewport.is-panning {
+  cursor: grab;
+  touch-action: none;
+}
+.semlo-editor-mindmap-viewport.is-dragging {
+  cursor: grabbing;
+}
+.semlo-editor-mindmap-viewport.is-drawing {
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.semlo-editor-mindmap-tools {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  transform: translateY(-50%);
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-tools button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-tools button:hover,
+.semlo-editor-mindmap-tools button[aria-pressed="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-tools svg {
+  width: 20px;
+  height: 20px;
+}
+.semlo-editor-mindmap-tool-menu {
+  position: absolute;
+  top: 36px;
+  left: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-tool-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-line-control {
+  position: relative;
+}
+.semlo-editor-mindmap-line-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-line-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-tool-menu > input {
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #eceeef;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-annotation {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+}
+.semlo-editor-mindmap-annotation.is-selected {
+  z-index: 4;
+}
+.semlo-editor-mindmap-annotation-label,
+.semlo-editor-mindmap-annotation-input {
+  box-sizing: border-box;
+  display: block;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  line-height: 1.4;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.semlo-editor-mindmap-annotation-label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.semlo-editor-mindmap-annotation-label > span {
+  width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+button.semlo-editor-mindmap-annotation-label {
+  cursor: grab;
+  touch-action: none;
+}
+.semlo-editor-mindmap-annotation.is-selected .semlo-editor-mindmap-annotation-label,
+.semlo-editor-mindmap-annotation-input {
+  border-color: #a8b9d8;
+  outline: none;
+}
+.semlo-editor-mindmap-annotation-input {
+  overflow: hidden;
+  resize: none;
+}
+.semlo-editor-mindmap-annotation-toolbar {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 24px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-annotation-toolbar > button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-annotation-toolbar > button:hover,
+.semlo-editor-mindmap-annotation-toolbar > button[aria-pressed="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-annotation-toolbar > button > svg {
+  width: 16px;
+  height: 16px;
+}
+.semlo-editor-mindmap-annotation-open-link {
+  position: absolute;
+  bottom: -20px;
+  display: none;
+  color: #1677ff;
+  font: 13px/18px sans-serif;
+  text-decoration: none;
+}
+.semlo-editor-mindmap-annotation.is-selected .semlo-editor-mindmap-annotation-open-link {
+  display: block;
+}
+.semlo-editor-mindmap-annotation-size {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 4px;
+  font: 13px/1 sans-serif;
+}
+.semlo-editor-mindmap-annotation-size::after {
+  content: "px";
+}
+.semlo-editor-mindmap-annotation-size > input {
+  box-sizing: border-box;
+  width: 24px;
+  height: 30px;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+}
+.semlo-editor-mindmap-annotation-size > input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.semlo-editor-mindmap-annotation-toolbar > select {
+  width: 46px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-annotation-resize {
+  position: absolute;
+  z-index: 4;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid #8fa8d1;
+  border-radius: 50%;
+  background: #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.semlo-editor-mindmap-annotation-resize[data-corner="ne"],
+.semlo-editor-mindmap-annotation-resize[data-corner="sw"] {
+  cursor: nesw-resize;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-color-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-color-trigger::before {
+  content: "A";
+  color: #303233;
+  font: 15px/1 sans-serif;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-color-trigger span {
+  position: absolute;
+  bottom: 3px;
+  width: 14px;
+  height: 2px;
+  display: block;
+  border: 0;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-color-panel button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-color-panel .semlo-editor-mindmap-color-swatch {
+  border: 1px solid #e5e7e6;
+  border-radius: 50%;
+}
+.semlo-editor-mindmap-canvas-shape {
+  position: absolute;
+  z-index: 2;
+}
+.semlo-editor-mindmap-edges {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.semlo-editor-mindmap-line-hit {
+  outline: none;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-line-hit:focus-visible {
+  stroke: #8fa8d1;
+  stroke-width: 3;
+}
+.semlo-editor-mindmap-line-handle {
+  fill: white;
+  stroke: #8fa8d1;
+  stroke-width: 1;
+  pointer-events: all;
+  cursor: move;
+}
+.semlo-editor-mindmap-line-label {
+  pointer-events: none;
+}
+.semlo-editor-mindmap-line-toolbar {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  transform: translate(-50%, calc(-100% - 24px));
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-line-toolbar > button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-line-toolbar > button:hover,
+.semlo-editor-mindmap-line-toolbar > button[aria-pressed="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-line-marker {
+  position: relative;
+}
+.semlo-editor-mindmap-line-marker > button,
+.semlo-editor-mindmap-line-marker-menu button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: 14px sans-serif;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-line-marker button svg {
+  display: block;
+  width: 26px;
+  height: 18px;
+  margin: auto;
+}
+.semlo-editor-mindmap-line-marker > button:hover,
+.semlo-editor-mindmap-line-marker > button[aria-expanded="true"],
+.semlo-editor-mindmap-line-marker-menu button:hover,
+.semlo-editor-mindmap-line-marker-menu button[aria-pressed="true"],
+.semlo-editor-mindmap-line-marker-menu button[aria-checked="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-line-marker-menu {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 30px);
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-line-marker-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-line-route-menu {
+  grid-template-columns: 30px;
+}
+.semlo-editor-mindmap-line-toolbar > input {
+  width: 36px;
+  height: 30px;
+  box-sizing: border-box;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+}
+.semlo-editor-mindmap-line-toolbar > input.semlo-editor-mindmap-line-input {
+  width: 112px;
+  padding: 0 6px;
+  border: 1px solid #eceeef;
+  border-radius: 4px;
+}
+.semlo-editor-mindmap-line-toolbar .semlo-editor-mindmap-color-trigger,
+.semlo-editor-mindmap-line-toolbar .semlo-editor-mindmap-color-panel button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-line-toolbar .semlo-editor-mindmap-color-trigger span {
+  display: block;
+}
+.semlo-editor-mindmap-line-toolbar .semlo-editor-mindmap-color-panel .semlo-editor-mindmap-color-swatch {
+  border: 1px solid #e5e7e6;
+  border-radius: 50%;
+}
+.semlo-editor-mindmap-canvas-shape.is-selected {
+  z-index: 4;
+  outline: 1px solid #a8b9d8;
+}
+.semlo-editor-mindmap-shape-group {
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  outline: 1px solid #a8b9d8;
+  pointer-events: none;
+}
+.semlo-editor-mindmap-shape-group .semlo-editor-mindmap-shape-toolbar,
+.semlo-editor-mindmap-shape-group .semlo-editor-mindmap-shape-resize,
+.semlo-editor-mindmap-shape-group .semlo-editor-mindmap-shape-rotate {
+  pointer-events: auto;
+}
+.semlo-editor-mindmap-shape-group .semlo-editor-mindmap-shape-toolbar > button {
+  width: auto;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.semlo-editor-mindmap-canvas-shape-label {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+button.semlo-editor-mindmap-canvas-shape-label {
+  cursor: grab;
+  touch-action: none;
+}
+.semlo-editor-mindmap-canvas-shape-label svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.semlo-editor-mindmap-shape-toolbar {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 24px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  transform: translateX(-50%);
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-shape-toolbar > button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-shape-toolbar > input {
+  box-sizing: border-box;
+  width: 36px;
+  height: 30px;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+}
+.semlo-editor-mindmap-shape-toolbar .semlo-editor-mindmap-color-trigger,
+.semlo-editor-mindmap-shape-toolbar .semlo-editor-mindmap-color-panel button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-shape-toolbar .semlo-editor-mindmap-color-trigger span {
+  display: block;
+}
+.semlo-editor-mindmap-shape-toolbar .semlo-editor-mindmap-color-panel .semlo-editor-mindmap-color-swatch {
+  border: 1px solid #e5e7e6;
+  border-radius: 50%;
+}
+.semlo-editor-mindmap-shape-resize {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1px solid #8fa8d1;
+  border-radius: 50%;
+  background: white;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.semlo-editor-mindmap-shape-rotate,
+.semlo-editor-mindmap-annotation-rotate {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid #8fa8d1;
+  border-radius: 50%;
+  background: #fff;
+  color: #667c9e;
+  font: 14px/18px sans-serif;
+  cursor: grab;
+  touch-action: none;
+}
+.semlo-editor-mindmap-shape-input {
+  position: absolute;
+  inset: 10%;
+  box-sizing: border-box;
+  width: 80%;
+  height: 80%;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: rgb(255 255 255 / 85%);
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+}
+.semlo-editor-mindmap .semlo-editor-canvas-shape-picker button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap .semlo-editor-canvas-shape-picker button:hover {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap .semlo-editor-canvas-shape-categories button[aria-current] {
+  border-bottom: 2px solid #333;
+}
+.semlo-editor-mindmap-drawing-status {
+  position: absolute;
+  z-index: 6;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #303233;
+  color: white;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-drawing-status[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-frame {
+  position: relative;
+  flex: none;
+}
+.semlo-editor-mindmap-view-controls {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  right: 52px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-view-controls button {
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-view-controls button:hover,
+.semlo-editor-mindmap-view-controls button[aria-pressed="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-view-controls button:disabled {
+  color: #b8babb;
+  cursor: default;
+}
+.semlo-editor-mindmap-view-controls button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: auto;
+}
+.semlo-editor-mindmap-view-controls output {
+  min-width: 38px;
+  color: #303233;
+  font-size: 12px;
+  text-align: center;
 }
 .semlo-editor-mindmap-branch {
   display: flex;
@@ -22,11 +743,119 @@
   gap: 20px;
   padding-left: 48px;
 }
+.semlo-editor-mindmap-children.has-group-summary {
+  position: relative;
+}
+.semlo-editor-mindmap-children.has-group-summary > .is-group-summary {
+  position: absolute;
+}
+.semlo-editor-mindmap-branch.is-left {
+  flex-direction: row-reverse;
+}
+.semlo-editor-mindmap-children.is-left {
+  padding-right: 48px;
+  padding-left: 0;
+}
+.semlo-editor-mindmap-branch.is-vertical {
+  flex-direction: column;
+}
+.semlo-editor-mindmap-branch.is-vertical.is-up {
+  flex-direction: column-reverse;
+}
+.semlo-editor-mindmap-children.is-vertical {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 32px;
+  padding: 48px 0 0;
+}
+.semlo-editor-mindmap-children.is-vertical.is-up {
+  align-items: flex-end;
+  padding: 0 0 48px;
+}
+.semlo-editor-mindmap-branch.is-tree {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.semlo-editor-mindmap-branch.is-tree.is-tree-left {
+  align-items: flex-end;
+}
+.semlo-editor-mindmap-branch.is-tree.is-tree-up {
+  flex-direction: column-reverse;
+}
+.semlo-editor-mindmap-children.is-tree {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 24px 0 0;
+}
+.semlo-editor-mindmap-children.is-tree.is-tree-left {
+  align-items: flex-end;
+}
+.semlo-editor-mindmap-children.is-tree.is-tree-up {
+  flex-direction: column-reverse;
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+.semlo-editor-mindmap-branch.is-timeline {
+  flex-direction: row;
+  align-items: flex-end;
+}
+.semlo-editor-mindmap-branch.is-timeline.is-timeline-left {
+  flex-direction: row-reverse;
+}
+.semlo-editor-mindmap-children.is-timeline {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 0 0 0 20px;
+}
+.semlo-editor-mindmap-children.is-timeline.is-timeline-left {
+  flex-direction: row-reverse;
+  padding: 0 20px 0 0;
+}
+.semlo-editor-mindmap-children.has-group-summary.has-only-group-summary {
+  padding: 0;
+}
+.semlo-editor-mindmap-branch.is-timeline > .semlo-editor-mindmap-label-wrap.is-timeline-box {
+  transform: translateY(50%);
+}
+.semlo-editor-mindmap-branch.is-vertical > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-label {
+  border-bottom-color: transparent;
+}
 .semlo-editor-mindmap-label-wrap {
   position: relative;
   display: flex;
   align-items: center;
   flex: none;
+}
+.semlo-editor-mindmap-open-link {
+  margin-left: 3px;
+  color: #1677ff;
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+}
+.semlo-editor-mindmap-link-text {
+  color: #1677ff;
+}
+.semlo-editor-mindmap-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-right: 3px;
+  border-radius: 50%;
+  color: white;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+.semlo-editor-mindmap-open-link:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }
 .semlo-editor-mindmap-label,
 .semlo-editor-mindmap-input {
@@ -82,6 +911,450 @@
 .semlo-editor-mindmap-label-wrap.has-children .semlo-editor-mindmap-add {
   left: calc(100% + 20px);
 }
+.semlo-editor-mindmap-branch.is-left > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-add,
+.semlo-editor-mindmap-branch.is-left > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-collapse {
+  right: 100%;
+  left: auto;
+}
+.semlo-editor-mindmap-branch.is-left > .semlo-editor-mindmap-label-wrap.has-children .semlo-editor-mindmap-add {
+  right: calc(100% + 20px);
+}
+.semlo-editor-mindmap-branch.is-vertical > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-add,
+.semlo-editor-mindmap-branch.is-vertical > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-collapse {
+  top: 100%;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.semlo-editor-mindmap-branch.is-vertical > .semlo-editor-mindmap-label-wrap.has-children .semlo-editor-mindmap-add {
+  top: calc(100% + 20px);
+}
+.semlo-editor-mindmap-branch.is-vertical.is-up > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-add,
+.semlo-editor-mindmap-branch.is-vertical.is-up > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-collapse {
+  top: auto;
+  bottom: 100%;
+}
+.semlo-editor-mindmap-branch.is-vertical.is-up
+  > .semlo-editor-mindmap-label-wrap.has-children
+  .semlo-editor-mindmap-add {
+  top: auto;
+  bottom: calc(100% + 20px);
+}
+
+.semlo-editor-mindmap-structure {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(100% + 28px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-branch.is-tree-up > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-structure,
+.semlo-editor-mindmap-branch.is-vertical.is-up > .semlo-editor-mindmap-label-wrap .semlo-editor-mindmap-structure {
+  top: calc(100% + 28px);
+  bottom: auto;
+}
+.semlo-editor-mindmap-structure button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #303233;
+  cursor: pointer;
+}
+.semlo-editor-mindmap-structure button:hover,
+.semlo-editor-mindmap-structure button[aria-pressed="true"] {
+  background: #f0f1f1;
+}
+.semlo-editor-mindmap-structure svg {
+  width: 20px;
+  height: 20px;
+}
+.semlo-editor-mindmap-structure-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  padding: 6px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-structure-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-branch-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 30px;
+  width: 110px;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-branch-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-branch-options,
+.semlo-editor-mindmap-branch-settings {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.semlo-editor-mindmap-branch-settings {
+  padding-top: 4px;
+  border-top: 1px solid #eceeef;
+}
+.semlo-editor-mindmap-branch-settings input {
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 0;
+  border: 1px solid #eceeef;
+  border-radius: 4px;
+  background: #fff;
+  color: #303233;
+  font: inherit;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-branch-settings input[type="number"] {
+  flex: 1;
+  width: 56px;
+  padding: 0 6px;
+}
+.semlo-editor-mindmap-branch-settings input[type="color"] {
+  width: 30px;
+  padding: 2px;
+}
+.semlo-editor-mindmap-shape-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  width: 110px;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-shape-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-shape-settings {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-top: 4px;
+  border-top: 1px solid #eceeef;
+}
+.semlo-editor-mindmap-shape-settings input {
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  min-width: 0;
+  padding: 2px;
+  border: 1px solid #eceeef;
+  border-radius: 4px;
+  background: #fff;
+  color: #303233;
+  font: inherit;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-shape-settings input[type="number"] {
+  flex: 1;
+  width: 38px;
+  padding: 0 3px;
+}
+.semlo-editor-mindmap-color-control {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+:is(
+    .semlo-editor-mindmap-structure,
+    .semlo-editor-mindmap-tools,
+    .semlo-editor-mindmap-annotation-toolbar,
+    .semlo-editor-mindmap-shape-toolbar,
+    .semlo-editor-mindmap-line-toolbar
+  )
+  .semlo-editor-mindmap-color-trigger {
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid #eceeef;
+}
+.semlo-editor-mindmap-color-trigger span {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #d8dade;
+  border-radius: 3px;
+}
+.semlo-editor-mindmap-color-panel {
+  position: absolute;
+  z-index: 20;
+  box-sizing: border-box;
+  width: 220px;
+  padding: 12px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-color-panel[hidden],
+.semlo-editor-mindmap-color-panel [hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-color-tabs {
+  display: flex;
+  margin-bottom: 10px;
+  padding: 2px;
+  border-radius: 5px;
+  background: #f3f4f3;
+}
+:is(
+    .semlo-editor-mindmap-structure,
+    .semlo-editor-mindmap-tools,
+    .semlo-editor-mindmap-annotation-toolbar,
+    .semlo-editor-mindmap-shape-toolbar,
+    .semlo-editor-mindmap-line-toolbar
+  )
+  .semlo-editor-mindmap-color-tabs
+  button {
+  flex: 1;
+  width: auto;
+  height: 26px;
+  padding: 0 5px;
+  font-size: 12px;
+}
+:is(
+    .semlo-editor-mindmap-structure,
+    .semlo-editor-mindmap-tools,
+    .semlo-editor-mindmap-annotation-toolbar,
+    .semlo-editor-mindmap-shape-toolbar,
+    .semlo-editor-mindmap-line-toolbar
+  )
+  .semlo-editor-mindmap-color-tabs
+  button[aria-pressed="true"] {
+  background: white;
+}
+.semlo-editor-mindmap-color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+:is(
+    .semlo-editor-mindmap-structure,
+    .semlo-editor-mindmap-tools,
+    .semlo-editor-mindmap-annotation-toolbar,
+    .semlo-editor-mindmap-shape-toolbar,
+    .semlo-editor-mindmap-line-toolbar
+  )
+  .semlo-editor-mindmap-color-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #e5e7e6;
+  border-radius: 50%;
+}
+:is(
+    .semlo-editor-mindmap-structure,
+    .semlo-editor-mindmap-tools,
+    .semlo-editor-mindmap-annotation-toolbar,
+    .semlo-editor-mindmap-shape-toolbar,
+    .semlo-editor-mindmap-line-toolbar
+  )
+  .semlo-editor-mindmap-color-swatch[aria-pressed="true"] {
+  outline: 2px solid #b9c2c0;
+  outline-offset: 1px;
+}
+.semlo-editor-mindmap-color-title,
+.semlo-editor-mindmap-color-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: #555b59;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-color-title {
+  margin-bottom: 8px;
+}
+.semlo-editor-mindmap-color-custom input {
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid #eceeef;
+  background: white;
+}
+.semlo-editor-mindmap-marker-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  width: 220px;
+  padding: 12px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-marker-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-marker-group + .semlo-editor-mindmap-marker-group {
+  margin-top: 12px;
+}
+.semlo-editor-mindmap-marker-group > div:first-child {
+  margin-bottom: 5px;
+  color: #7d8180;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-marker-choices {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.semlo-editor-mindmap-structure .semlo-editor-mindmap-marker-choice {
+  flex: none;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border-radius: 50%;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+.semlo-editor-mindmap-structure .semlo-editor-mindmap-marker-choice[aria-pressed="true"] {
+  outline: 2px solid #bfc2c4;
+  outline-offset: 2px;
+}
+.semlo-editor-mindmap-structure .semlo-editor-mindmap-marker-clear {
+  width: 20px;
+  height: 21px;
+  padding: 0;
+  font-size: 16px;
+}
+.semlo-editor-mindmap-marker-clear:disabled {
+  color: #c6c8c8;
+  cursor: default;
+}
+.semlo-editor-mindmap-text-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  right: 0;
+  width: 184px;
+  padding: 4px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-text-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-text-buttons,
+.semlo-editor-mindmap-text-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.semlo-editor-mindmap-text-buttons {
+  padding-bottom: 3px;
+  border-bottom: 1px solid #eceeef;
+}
+.semlo-editor-mindmap-text-settings {
+  gap: 4px;
+  padding-top: 4px;
+}
+.semlo-editor-mindmap-text-settings select,
+.semlo-editor-mindmap-text-settings input {
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #fff;
+  color: #303233;
+  font: inherit;
+  font-size: 12px;
+}
+.semlo-editor-mindmap-text-settings select:first-child {
+  width: 55px;
+}
+.semlo-editor-mindmap-text-settings select:last-child {
+  flex: 1;
+}
+.semlo-editor-mindmap-text-settings input {
+  width: 28px;
+  padding: 3px;
+}
+.semlo-editor-mindmap-link-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  right: 0;
+  width: 240px;
+  padding: 12px;
+  border: 1px solid #eceeef;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 10px #00000012;
+}
+.semlo-editor-mindmap-link-menu[hidden] {
+  display: none;
+}
+.semlo-editor-mindmap-link-menu label {
+  display: block;
+  margin-bottom: 10px;
+  color: #303233;
+  font-size: 13px;
+}
+.semlo-editor-mindmap-link-menu input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin-top: 5px;
+  padding: 0 8px;
+  border: 1px solid #d8dade;
+  border-radius: 4px;
+  color: #303233;
+  font: inherit;
+}
+.semlo-editor-mindmap-link-actions {
+  display: flex;
+  gap: 8px;
+}
+.semlo-editor-mindmap-structure .semlo-editor-mindmap-link-actions button {
+  width: auto;
+  padding: 0 10px;
+  border: 1px solid #e2e4e6;
+  font-size: 13px;
+}
+.semlo-editor-mindmap-annotation-toolbar .semlo-editor-mindmap-link-actions button {
+  width: auto;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #e2e4e6;
+  border-radius: 4px;
+  background: #fff;
+  color: #303233;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
 
 .semlo-editor-canvas-height-handle {
   position: absolute;
@@ -102,7 +1375,8 @@
 
 .semlo-editor-mindmap-content {
   position: relative;
-  flex: none;
+  width: max-content;
+  transform-origin: top left;
 }
 .semlo-editor-mindmap-lines {
   position: absolute;
@@ -113,4 +1387,7 @@
 }
 .semlo-editor-mindmap-label-wrap {
   z-index: 1;
+}
+.semlo-editor-mindmap-label-wrap.is-selected {
+  z-index: 4;
 }

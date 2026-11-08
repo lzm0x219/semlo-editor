@@ -1,8 +1,9 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 
 import type { CanvasPoint, Shape } from "./model";
+import type { SmartTemplate } from "./smart-templates";
 
-export type CanvasTool = "select" | Shape | "connect" | "pen" | "eraser" | "pan";
+export type CanvasTool = "select" | Shape | SmartTemplate | "connect" | "pen" | "eraser" | "pan";
 
 export interface CanvasViewState {
   zoom: number;

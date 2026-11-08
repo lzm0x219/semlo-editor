@@ -2,6 +2,7 @@ import type { DOMOutputSpec } from "@tiptap/pm/model";
 
 import { edgeGeometry, endpointBox, textBaseline } from "./geometry";
 import { polygonPoints, specialShapePath, type CanvasData } from "./model";
+import { graphicPaths, shapeGraphic } from "./shape-library";
 
 export function exportCanvas(data: CanvasData): DOMOutputSpec {
   const parts: DOMOutputSpec[] = [];
@@ -141,12 +142,26 @@ export function exportCanvas(data: CanvasData): DOMOutputSpec {
   for (const item of data.shapes) {
     const partStart = parts.length;
     const style = {
-      fill: item.fill === "transparent" || (item.lanes && item.fill === undefined) ? "none" : (item.fill ?? "#fff"),
+      fill:
+        item.fill === "transparent" || (item.lanes && item.fill === undefined)
+          ? "none"
+          : (item.fill ?? shapeGraphic(item.shape)?.defaultFill ?? "#fff"),
       stroke: item.stroke ?? "#555",
       "stroke-width": item.strokeWidth ?? 2,
       ...(item.strokeDashed ? { "stroke-dasharray": "5 4" } : {}),
     };
-    if (item.shape === "image") {
+    if (shapeGraphic(item.shape)) {
+      parts.push([
+        "g",
+        { transform: `translate(${item.x} ${item.y}) scale(${item.width / 100} ${item.height / 100})` },
+        ...graphicPaths(item.shape, {
+          fill: style.fill,
+          stroke: style.stroke,
+          width: style["stroke-width"],
+          dashed: item.strokeDashed,
+        }).map((attrs): DOMOutputSpec => ["path", attrs]),
+      ]);
+    } else if (item.shape === "image") {
       parts.push([
         "image",
         {
