@@ -14,7 +14,7 @@ import {
   normalizeExternalQuoteHTML,
   QuotePaste,
 } from "../../../packages/core/src/features/text/quote-paste";
-import { nativeYuqueQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
+import { nativeYuqueQuoteHTML, yuqueCrossBlockQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
 
 const schema = getSchema([createStarterKitWithCodeFonts([])]);
 const windows: Window[] = [];
@@ -312,4 +312,22 @@ test("DOM 解析失败时交回原 HTML，不输出部分处理结果", () => {
     },
   } as unknown as Document;
   expect(normalizeExternalQuoteHTML(samples[0]!.html, document)).toBe(samples[0]!.html);
+});
+
+test("语雀引用边界修正不改写带额外语义或复杂结构的片段", () => {
+  const document = createDocument();
+  const samples = [
+    yuqueCrossBlockQuoteHTML.replace('id="u00000001"', 'id="saved-id"'),
+    yuqueCrossBlockQuoteHTML.replace("min-height: 24px", "min-height: 24px; text-align: center"),
+    yuqueCrossBlockQuoteHTML.replace('class="ne-text"></span>', 'class="ne-text" data-note="keep"></span>'),
+    yuqueCrossBlockQuoteHTML.replace('id="u00000001"', 'data-pm-slice="1 1 []" id="u00000001"'),
+    yuqueCrossBlockQuoteHTML.replace('<p id="u00000002"', '前缀<p id="u00000002"'),
+    yuqueCrossBlockQuoteHTML.replace("</p></div></div>", '</p><p class="ne-p">第二段</p></div></div>'),
+    yuqueCrossBlockQuoteHTML.replace("www.yuque.com", "example.com"),
+  ];
+  for (const html of samples) {
+    const baseline = normalizeExternalQuoteHTML(html, document);
+    expect(normalizeExternalQuoteHTML(html, document, false, "empty")).toBe(baseline);
+    expect(normalizeExternalQuoteHTML(html, document, false, "interior")).toBe(baseline);
+  }
 });
