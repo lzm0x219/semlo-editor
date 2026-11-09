@@ -440,7 +440,11 @@ test("line backspace across a fold follows the visible line boundary", async ({ 
   await expect.poll(position).toBe(32);
   await page.keyboard.press("ArrowLeft");
   await expect.poll(position).toBe(31);
-  await page.keyboard.press("Meta+Backspace");
+  if (process.platform === "darwin") await page.keyboard.press("Meta+Backspace");
+  else {
+    await page.keyboard.press("Control+Shift+Home");
+    await page.keyboard.press("Backspace");
+  }
   const text = () =>
     page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.doc.firstChild?.textContent);
   try {
@@ -556,4 +560,40 @@ test("shift delete at the folded end removes the closing line", async ({ page })
   expect(await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.commands.undo())).toBe(true);
   await expect.poll(text).toBe("function test() {\n  return 1;\n}");
   await expect(card.locator(".semlo-editor-code-fold-placeholder")).toBeVisible();
+});
+
+test("shift delete at a folded end is handled without a platform default", async ({ page }) => {
+  await installFixtureGuards(page);
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import {createEditor} from '/dist/index.js';
+      const host = document.createElement('div'); document.body.prepend(host);
+      window.foldLanguage = createEditor({ element: host, outline: false, content: {type:'doc',content:[{type:'codeBlock',attrs:{language:'javascript',folds:[{from:17,to:30}]},content:[{type:'text',text:'function test() {\\n  return 1;\\n}'}]}]} });
+    `,
+  });
+  await page.waitForFunction(() => Boolean(window.foldLanguage));
+  const result = await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("foldLanguage").editor;
+    editor.view.focus();
+    editor.commands.setTextSelection(31);
+    const event = new KeyboardEvent("keydown", { key: "Delete", shiftKey: true, bubbles: true, cancelable: true });
+    editor.view.dom.dispatchEvent(event);
+    const text = editor.state.doc.firstChild?.textContent;
+    const undo = editor.commands.undo();
+    const restored = editor.state.doc.firstChild?.textContent;
+    const redo = editor.commands.redo();
+    const redone = editor.state.doc.firstChild?.textContent;
+    return { prevented: event.defaultPrevented, text, undo, restored, redo, redone };
+  });
+  expect(result).toEqual({
+    prevented: true,
+    text: "function test() {\n  return 1;\n",
+    undo: true,
+    restored: "function test() {\n  return 1;\n}",
+    redo: true,
+    redone: "function test() {\n  return 1;\n",
+  });
+  await expect(page.locator(".semlo-editor-code-fold-placeholder")).toBeVisible();
 });
