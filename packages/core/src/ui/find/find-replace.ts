@@ -14,7 +14,7 @@ import {
 } from "../../features/database/find-database-matches";
 import { normalizeDatabaseData, visibleDatabaseRecords, type DatabaseView } from "../../features/database/model";
 import { getDatabaseViewProjection } from "../../features/database/view-projection";
-import { isHeadingFolded, setHeadingFolded } from "../../features/heading/fold";
+import { expandHeadingPositions, isHeadingFolded } from "../../features/heading/fold";
 import { linkPopup } from "../../platform/dom/popup-owner";
 
 type TextRange = { from: number; to: number };
@@ -147,9 +147,9 @@ function uniqueNodePosition(doc: ProseMirrorNode, target: ProseMirrorNode): numb
   return count === 1 ? position : null;
 }
 
-/** Reveal folded heading sections that contain a match without editing the document. */
+/** 展开包含查找结果的标题，正文命中时记录展开历史。 */
 function revealHeadingOwners(editor: Editor, position: number) {
-  if (editor.isDestroyed) return;
+  if (editor.isDestroyed) return null;
   const doc = editor.state.doc;
   const owners: Array<{ pos: number; node: ProseMirrorNode }> = [];
   doc.descendants((node, pos) => {
@@ -174,12 +174,12 @@ function revealHeadingOwners(editor: Editor, position: number) {
     if (position < end) owners.push({ pos, node });
     return false;
   });
-  for (const owner of owners) {
-    if (editor.isDestroyed) return;
-    const position = editor.state.doc === doc ? owner.pos : uniqueNodePosition(editor.state.doc, owner.node);
-    if (position === null) return;
-    setHeadingFolded(editor, position, false);
-  }
+  const inHeading = doc.resolve(position).parent.type.name === "heading";
+  return expandHeadingPositions(
+    editor,
+    owners.map((owner) => owner.pos),
+    !inHeading,
+  );
 }
 
 /** Body matches create an undo step; title matches open without one. */
@@ -435,10 +435,10 @@ export function mountFindReplace(
     const resolved = current.kind === "text" ? doc.resolve(current.from) : null;
     const target = resolved ? resolved.parent : doc.nodeAt(current.from);
     const targetPosition = resolved ? resolved.before() : current.from;
-    revealHeadingOwners(editor, current.from);
+    const revealedDoc = revealHeadingOwners(editor, current.from);
     if (editor.isDestroyed || destroyed) return;
     let position = current.from;
-    if (editor.state.doc !== doc) {
+    if (editor.state.doc !== doc && (!revealedDoc || !editor.state.doc.eq(revealedDoc))) {
       if (!target) return;
       const moved = uniqueNodePosition(editor.state.doc, target);
       if (moved === null) return;

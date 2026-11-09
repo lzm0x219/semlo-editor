@@ -131,7 +131,10 @@ test("search expands a folded parent and replacement undo keeps the child visibl
   const initial = await page.evaluate(() => window.longWritingEditor!.getSnapshot());
   await page.getByRole("button", { name: "折叠标题：主章节" }).click();
   await expect(prose.locator(":scope > h3")).toBeHidden();
-  expect(await page.evaluate(() => window.longWritingEditor!.getSnapshot())).toEqual(initial);
+  expect(
+    (await page.evaluate(() => window.longWritingEditor!.getSnapshot())).json.content![0].attrs!
+      .semloEditorHeadingFolded,
+  ).toBe(true);
   await page.keyboard.press("ControlOrMeta+f");
   await page.getByRole("textbox", { name: "查找内容" }).fill("云杉树");
   await expect(page.getByText("1/1", { exact: true })).toBeVisible();
@@ -140,8 +143,17 @@ test("search expands a folded parent and replacement undo keeps the child visibl
   await page.getByRole("textbox", { name: "替换为" }).fill("红枫树");
   await page.getByRole("button", { name: "替换", exact: true }).click();
   await expect(prose).toContainText("红枫树");
+  await page.getByRole("button", { name: "关闭查找替换" }).click();
   await prose.locator(":scope > p").filter({ hasText: "红枫树" }).click();
   await page.keyboard.press("ControlOrMeta+z");
   expect(await page.evaluate(() => window.longWritingEditor!.getSnapshot())).toEqual(initial);
+  await expect(prose.locator(":scope > h3")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(prose.locator(":scope > h3")).toBeHidden();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(prose.locator(":scope > h3")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(prose.locator(":scope > h3")).toBeHidden();
+  await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(prose.locator(":scope > h3")).toBeVisible();
 });
