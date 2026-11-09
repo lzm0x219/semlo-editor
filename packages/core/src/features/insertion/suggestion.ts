@@ -349,7 +349,13 @@ export function slashCommands(
                   const direction = { ArrowDown: "down", ArrowUp: "up", ArrowLeft: "left", ArrowRight: "right" }[
                     event.key
                   ] as "up" | "down" | "left" | "right";
-                  selected = nextCommand(enabled, selected, direction);
+                  const next = nextCommand(enabled, selected, direction);
+                  selected =
+                    next === selected && event.key === "ArrowUp"
+                      ? enabled.length - 1
+                      : next === selected && event.key === "ArrowDown"
+                        ? 0
+                        : next;
                   selectedByNavigation = true;
                   highlightCommand(enabled, selected, true);
                   return true;

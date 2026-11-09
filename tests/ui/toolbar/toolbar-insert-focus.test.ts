@@ -60,3 +60,46 @@ test("keyboard opening focuses search; mouse opening from overflow retains the e
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(text);
   await expect(overflow).toBeVisible();
 });
+
+test("searching and inserting a quote preserves a multi-paragraph selection and supports undo", async ({ page }) => {
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div')
+      host.id = 'insert-quote-selection-test'
+      document.body.prepend(host)
+      createEditor({ element: host, content: '<p>第一段</p><p>第二段</p><p>第三段</p>' })
+    `,
+  });
+
+  const host = page.locator("#insert-quote-selection-test");
+  const prose = host.locator(".semlo-editor-prose");
+  const first = prose.locator("p").first();
+  await first.click();
+  await page.keyboard.press("Home");
+  await page.keyboard.down("Shift");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.up("Shift");
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("第一段\n\n第二段");
+  await host.getByRole("button", { name: "插入内容" }).click();
+  const panel = page.getByRole("dialog", { name: "插入内容" });
+  await panel.getByRole("textbox", { name: "搜索插入内容" }).fill("引用");
+  await page.keyboard.press("Enter");
+
+  await expect(panel).toHaveCount(0);
+  await expect(prose).toBeFocused();
+  await expect(prose.locator(":scope > blockquote > p")).toHaveText(["第一段", "第二段"]);
+  await expect(prose.locator(":scope > p")).toHaveText(["第三段"]);
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(prose.locator(":scope > blockquote")).toHaveCount(0);
+  await expect(prose.locator(":scope > p")).toHaveText(["第一段", "第二段", "第三段"]);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(prose.locator(":scope > blockquote > p")).toHaveText(["第一段", "第二段"]);
+  await expect(prose.locator(":scope > p")).toHaveText(["第三段"]);
+});
