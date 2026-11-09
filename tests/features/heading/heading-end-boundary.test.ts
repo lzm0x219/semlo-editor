@@ -672,6 +672,22 @@ for (const sample of cases) {
       const undone = await inspect(page);
       expect(undone.json).toEqual(before.json);
       expect(undone.selection).toEqual(after.selection);
+    } else if (sample.name === "ordinary-paragraph") {
+      const { before, after } = await exercise(page, sample, false);
+      expect(after.selection).toMatchObject({
+        anchorType: "paragraph",
+        anchorOffset: 0,
+        headType: "paragraph",
+        headOffset: 4,
+        text: "test",
+        focused: true,
+      });
+      await page.keyboard.press("Backspace");
+      const expected = structuredClone(before.json);
+      delete expected.content![0].content;
+      expect((await inspect(page)).json).toEqual(expected);
+      await page.keyboard.press("ControlOrMeta+z");
+      expect((await inspect(page)).json).toEqual(before.json);
     } else if (!sample.targeted) {
       // Disable only this plugin in a fresh instance and compare real browser
       // behavior, so untouched scenarios do not depend on a specific OS keymap.
@@ -722,7 +738,7 @@ for (const sample of cases) {
 }
 
 for (const direction of ["forward", "reverse"] as const) {
-  test(`explicit ${direction} cross-block selection retains the native key path`, async ({ page }) => {
+  test(`explicit ${direction} cross-block selection stays on the verified line`, async ({ page }) => {
     const run = async (native: boolean) => {
       await page.goto(origin);
       await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
@@ -769,6 +785,6 @@ for (const direction of ["forward", "reverse"] as const) {
     const candidate = await run(false);
     expect(candidate.before).toEqual(original.before);
     expect(candidate.after).toEqual(original.after);
-    expect(candidate.prevented).toBe(false);
+    expect(candidate.prevented).toBe(true);
   });
 }

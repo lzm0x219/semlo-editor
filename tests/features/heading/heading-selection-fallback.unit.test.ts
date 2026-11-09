@@ -27,6 +27,7 @@ type Layout = "unverified" | "single" | "wrapped";
 // 只提供生产处理器读取的几何接口；未模拟浏览器的排版、输入或选区同步。
 class HeadingElement {
   readonly nodeType = 1;
+  readonly currentCSSZoom = 1;
   parentElement: HeadingElement | null = null;
   childNodes: object[] = [];
   classList = { contains: () => false };
@@ -38,6 +39,9 @@ class HeadingElement {
   }
   getBoundingClientRect() {
     return { left: 0, top: 0, right: 100, bottom: 40 };
+  }
+  getClientRects() {
+    return [this.getBoundingClientRect()];
   }
 }
 
@@ -147,18 +151,33 @@ function createHarness(
     hasFocus: () => focused,
     dom: {
       contains: (node: unknown) => node === text || node === paragraphText,
+      getRootNode() {
+        return this.ownerDocument;
+      },
       ownerDocument: {
         getSelection: native,
         defaultView: { HTMLElement: HeadingElement, Element: HeadingElement, getComputedStyle: () => style },
         createRange: () => ({
           selectNodeContents: () => {},
+          setStart: () => {},
+          setEnd: () => {},
           getClientRects: () => [
-            { top: 0, bottom: 20, height: 20 },
-            ...(layout === "wrapped" ? [{ top: 20, bottom: 40, height: 20 }] : []),
+            { left: 0, right: 100, top: 0, bottom: 20, width: 100, height: 20 },
+            ...(layout === "wrapped" ? [{ left: 0, right: 100, top: 20, bottom: 40, width: 100, height: 20 }] : []),
           ],
+          cloneRange: () => {
+            let atStart = false;
+            return {
+              collapse: (value: boolean) => {
+                atStart = value;
+              },
+              getBoundingClientRect: () => ({ left: atStart ? 0 : 100, top: 0, width: 0, height: 20 }),
+            };
+          },
         }),
       },
     },
+    domAtPos: (position: number) => ({ node: text, offset: position - headingStart }),
     posAtDOM: (node: unknown, offset: number) => {
       if (failMapping) throw new Error("选区映射已失效");
       return (node === text ? headingStart : paragraphStart) + offset;
@@ -338,12 +357,24 @@ test.each(["Home", "End"])("已提交的跨块选区与旧 DOM 光标不同时�
   expect(h.dispatchCount()).toBe(0);
 });
 
-test("回退保护读取当前 DOM 光标，保留正文和有意的跨块选择", () => {
+test("无法核实的正文和跨块行选区保留当前范围", () => {
   const h = createHarness();
   h.nativeSelect(h.paragraphStart + 1);
-  expect(h.press("End", true)).toEqual({ handled: false, prevented: false });
+  expect(h.press("End", true)).toEqual({ handled: true, prevented: true });
   h.select(2, h.paragraphStart + 2);
-  expect(h.press("End", true)).toEqual({ handled: false, prevented: false });
+  const before = h.view.state;
+  expect(h.press("End", true)).toEqual({ handled: true, prevented: true });
+  expect(h.view.state).toBe(before);
+  expect(h.dispatchCount()).toBe(0);
+});
+
+test("无法核实跨标题选区的 Shift+Home 时保留原范围", () => {
+  const h = createHarness();
+  h.select(2, h.paragraphStart + 2);
+  const before = h.view.state;
+  expect(h.press("Home", true)).toEqual({ handled: true, prevented: true });
+  expect(h.view.state).toBe(before);
+  expect(h.dispatchCount()).toBe(0);
 });
 
 test.each([

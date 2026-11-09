@@ -12,16 +12,16 @@ interface Probe {
 }
 declare global {
   interface Window {
-    mountHeadingEndBoundary?(content: EditorContent, width?: number, native?: boolean): void;
+    mountHeadingEndBoundary?(content: EditorContent, width?: number, native?: boolean, container?: ParentNode): void;
     headingEndBoundary?: Probe;
   }
 }
 
-window.mountHeadingEndBoundary = (content, width = 850, native = false) => {
+window.mountHeadingEndBoundary = (content, width = 850, native = false, container = document.body) => {
   const host = document.createElement("div");
   host.id = "heading-end-boundary";
   host.style.width = `${width}px`;
-  document.body.replaceChildren(host);
+  container.replaceChildren(host);
   const controller = createEditor({ element: host, content, toolbar: false, outline: false });
   if (native) {
     const plugin = controller.editor.state.plugins.find((item) =>

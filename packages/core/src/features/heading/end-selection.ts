@@ -38,7 +38,7 @@ const numberedStyles = new Set(["mixed", "decimal", "chinese"]);
 // Script=Common includes characters with right-to-left bidi classes. Only
 // accept a bounded subset of common characters for this geometry shortcut.
 const simpleLTR =
-  /^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Inherited}\x20-\x7e\u2000-\u2065\u2600-\u27bf\u3000-\u303f\uff01-\uff60\u{1f000}-\u{1faff}]*$/u;
+  /^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Inherited}\u0400-\u052f\x20-\x7e\u2000-\u2065\u2600-\u27bf\u3000-\u303f\uff01-\uff60\u{1f000}-\u{1faff}]*$/u;
 // 西里尔基本与补充区的字符双向类别为 L 或 NSM，仅扩展已验证的单行路径。
 const singleLineLTR =
   /^[\p{Script=Latin}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Inherited}\u0400-\u052f\x20-\x7e\u2000-\u2065\u2600-\u27bf\u3000-\u303f\uff01-\uff60\u{1f000}-\u{1faff}]*$/u;
@@ -347,13 +347,14 @@ function singleVisualTextHeading(
   return commonBottom > commonTop && Math.max(...centers) - Math.min(...centers) <= minHeight / 2;
 }
 
-/** Resolve a visual line end in a validated horizontal LTR heading. */
+/** 在已核实的横向从左至右文字中定位视觉行末。 */
 function multiVisualLineEnd(
   view: EditorView,
   heading: ProseMirrorNode,
   pos: number,
   cursor: number,
   allowInterior = false,
+  allowVerifiedLineOverlap = false,
 ): number | null {
   if (heading.content.size > 4096 || heading.childCount > 256 || typeof Intl.Segmenter !== "function") return null;
   let supported = heading.childCount > 0;
@@ -471,7 +472,9 @@ function multiVisualLineEnd(
   for (const child of element.childNodes) if (!visit(child)) return null;
   if (
     domText !== content ||
-    (heights.length > 0 && (Math.max(...heights) > lineHeight + 1 || Math.max(...heights) - Math.min(...heights) > 1))
+    (heights.length > 0 &&
+      ((!allowVerifiedLineOverlap && Math.max(...heights) > lineHeight + 1) ||
+        Math.max(...heights) - Math.min(...heights) > 1))
   )
     return null;
 
@@ -525,6 +528,170 @@ function previousGraphemeBoundary(text: string, offset: number): number | null {
     previous = segment.index;
   }
   return offset === text.length ? previous : null;
+}
+
+function hasStableTextLineRange(
+  view: EditorView,
+  blockPos: number,
+  start: number,
+  end: number,
+  allowWrappedEnd = false,
+): boolean {
+  const doc = view.dom.ownerDocument;
+  const win = doc.defaultView;
+  const heading = view.nodeDOM(blockPos);
+  if (
+    !win ||
+    !(heading instanceof win.HTMLElement) ||
+    Reflect.get(heading, "currentCSSZoom") !== 1 ||
+    heading.getClientRects().length !== 1
+  )
+    return false;
+  const lineHeight = Number.parseFloat(win.getComputedStyle(heading).lineHeight);
+  if (!Number.isFinite(lineHeight) || lineHeight <= 0 || start >= end) return false;
+  const before = view.coordsAtPos(end, -1);
+  const after = view.coordsAtPos(end, 1);
+  if (![before.top, before.bottom, after.top, after.bottom].every(Number.isFinite)) return false;
+  const wrappedEnd = before.top !== after.top || before.bottom !== after.bottom;
+  if (wrappedEnd && !allowWrappedEnd) return false;
+  const from = view.domAtPos(start, 1);
+  const to = view.domAtPos(end, -1);
+  const range = doc.createRange();
+  range.setStart(from.node, from.offset);
+  range.setEnd(to.node, to.offset);
+  const rects = Array.from(range.getClientRects());
+  if (!rects.length || rects.length > 256) return false;
+  const top = rects[0].top;
+  const fromCaret = range.cloneRange();
+  fromCaret.collapse(true);
+  const toCaret = range.cloneRange();
+  toCaret.collapse(false);
+  const left = fromCaret.getBoundingClientRect();
+  const right = toCaret.getBoundingClientRect();
+  if (
+    ![left.left, left.top, left.width, left.height, right.left, right.top, right.width, right.height].every(
+      Number.isFinite,
+    ) ||
+    left.height < 1 ||
+    right.height < 1 ||
+    left.width > 0.5 ||
+    right.width > 0.5 ||
+    left.top !== right.top ||
+    left.left >= right.left
+  )
+    return false;
+  if (wrappedEnd) {
+    const resolved = view.state.doc.resolve(end);
+    const content = resolved.parent.textBetween(0, resolved.parent.content.size, "", "\n");
+    const previous = previousGraphemeBoundary(content, resolved.parentOffset);
+    if (resolved.before() !== blockPos || previous === null || resolved.start() + previous < start) return false;
+    const lastFrom = view.domAtPos(resolved.start() + previous, 1);
+    const lastRange = doc.createRange();
+    lastRange.setStart(lastFrom.node, lastFrom.offset);
+    lastRange.setEnd(to.node, to.offset);
+    const lastRects = Array.from(lastRange.getClientRects());
+    if (!lastRects.length || lastRects.some((box) => box.top !== top || box.width <= 0 || box.height < 1)) return false;
+  }
+  // 文字块未分片、范围内各格式矩形处于同一行时，才使用逻辑行端点。
+  return rects.every(
+    (box) =>
+      [box.left, box.right, box.top, box.bottom, box.width, box.height].every(Number.isFinite) &&
+      box.width > 0 &&
+      box.height >= 1 &&
+      box.height <= lineHeight * 1.25 + 0.5 &&
+      box.top === top,
+  );
+}
+
+function selectTextLineBoundary(view: EditorView, event: KeyboardEvent, home: boolean): boolean {
+  if (
+    !event.isTrusted ||
+    event.defaultPrevented ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.getModifierState("AltGraph") ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    view.composing ||
+    view.isDestroyed ||
+    !view.editable ||
+    !view.hasFocus() ||
+    !(view.state.selection instanceof TextSelection)
+  )
+    return false;
+  const native = view.dom.ownerDocument.getSelection();
+  if (
+    !native?.anchorNode ||
+    !native.focusNode ||
+    !view.dom.contains(native.anchorNode) ||
+    !view.dom.contains(native.focusNode)
+  )
+    return false;
+  const state = view.state;
+  let selected: TextSelection;
+  try {
+    const anchor = state.doc.resolve(view.posAtDOM(native.anchorNode, native.anchorOffset));
+    const head = state.doc.resolve(view.posAtDOM(native.focusNode, native.focusOffset));
+    if (state.selection.anchor !== anchor.pos || state.selection.head !== head.pos) return false;
+    const collapsed = state.selection.empty && native.isCollapsed;
+    if (anchor.sameParent(head) && anchor.parent.type.name !== "paragraph") return false;
+    if (state.selection.empty !== native.isCollapsed) return false;
+    const forward = anchor.pos < head.pos;
+    const edge = home ? (forward ? anchor : head) : forward ? head : anchor;
+    const block = edge.parent;
+    if (
+      !["heading", "paragraph"].includes(block.type.name) ||
+      (home && block.type.name !== "paragraph") ||
+      !(
+        edge.depth === 1 ||
+        (edge.depth === 2 && edge.node(1).type.name === "blockquote") ||
+        (edge.depth === 3 && edge.node(1).type.name === "details" && edge.node(2).type.name === "detailsContent") ||
+        (edge.depth === 3 &&
+          ((["bulletList", "orderedList"].includes(edge.node(1).type.name) && edge.node(2).type.name === "listItem") ||
+            (edge.node(1).type.name === "taskList" && edge.node(2).type.name === "taskItem")))
+      )
+    )
+      return false;
+    let target: number;
+    if (home) {
+      let start = edge.start();
+      block.forEach((node, offset) => {
+        if (node.type.name === "hardBreak" && offset < edge.parentOffset) start = edge.start() + offset + node.nodeSize;
+      });
+      const content = block.textBetween(0, block.content.size, "", "\n");
+      if (
+        content.length !== block.content.size ||
+        (edge.pos > start &&
+          (previousGraphemeBoundary(content, edge.parentOffset) === null ||
+            !hasStableTextLineRange(view, edge.before(), start, edge.pos)))
+      )
+        return false;
+      const firstEnd = multiVisualLineEnd(view, block, edge.before(), start, false, true);
+      if (firstEnd === null || edge.pos > firstEnd) return false;
+      target = start;
+    } else {
+      if (edge.parentOffset > 0 && edge.nodeBefore?.type.name !== "hardBreak") {
+        const before = view.coordsAtPos(edge.pos, -1);
+        const after = view.coordsAtPos(edge.pos, 1);
+        if (before.top !== after.top || before.bottom !== after.bottom) return false;
+      }
+      const end = multiVisualLineEnd(view, block, edge.before(), edge.pos, true, true);
+      if (end === null || end < edge.pos) return false;
+      if (end > edge.pos && !hasStableTextLineRange(view, edge.before(), edge.pos, end, true)) return false;
+      target = end;
+    }
+    selected = collapsed
+      ? TextSelection.create(state.doc, anchor.pos, target)
+      : home
+        ? TextSelection.create(state.doc, forward ? target : anchor.pos, forward ? head.pos : target)
+        : TextSelection.create(state.doc, forward ? anchor.pos : target, forward ? target : head.pos);
+  } catch {
+    return false;
+  }
+  event.preventDefault();
+  if (!state.selection.eq(selected)) view.dispatch(state.tr.setSelection(selected).setMeta("addToHistory", false));
+  return true;
 }
 
 /** Extend an existing selection only within a validated heading visual line. */
@@ -713,21 +880,30 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
   let transaction: Transaction | undefined;
   let syncNativeSelection = false;
   try {
-    const position = view.posAtDOM(native.focusNode, native.focusOffset);
+    const nativeHead = view.state.doc.resolve(view.posAtDOM(native.focusNode, native.focusOffset));
     const nativeAnchor = view.state.doc.resolve(view.posAtDOM(native.anchorNode, native.anchorOffset));
     if (
       !view.state.selection.empty &&
-      (view.state.selection.anchor !== nativeAnchor.pos || view.state.selection.head !== position)
+      (view.state.selection.anchor !== nativeAnchor.pos || view.state.selection.head !== nativeHead.pos)
     )
       return false;
-    const cursor = view.state.doc.resolve(position);
+    const crossesBlock = !nativeAnchor.sameParent(nativeHead);
+    const forwardCrossHeading =
+      shiftHome && crossesBlock && nativeAnchor.pos < nativeHead.pos && nativeAnchor.parent.type.name === "heading";
+    const cursor = forwardCrossHeading ? nativeAnchor : nativeHead;
+    const position = cursor.pos;
     const heading = cursor.parent;
     if (
       heading.type.name !== "heading" ||
       !Number.isInteger(heading.attrs.level) ||
       heading.attrs.level < 1 ||
       heading.attrs.level > 6 ||
-      !nativeAnchor.sameParent(cursor) ||
+      (crossesBlock &&
+        (!shiftHome ||
+          event.getModifierState("AltGraph") ||
+          view.state.selection.empty ||
+          native.isCollapsed ||
+          (!forwardCrossHeading && nativeHead.pos > nativeAnchor.pos))) ||
       ((home || shiftHome) &&
         heading.attrs.semloEditorHeadingNumbering != null &&
         !numberedStyles.has(heading.attrs.semloEditorHeadingNumbering))
@@ -752,10 +928,24 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
     let anchor = cursor.start();
     let head = home ? cursor.start() : cursor.end();
     if (shiftHome) {
-      // 已确认的单行可直接定位行首；多行继续使用上层的视觉行证据。
-      if (!singleLine) return false;
-      anchor = nativeAnchor.pos;
-      head = cursor.start();
+      if (singleLine) {
+        if (position > cursor.start()) {
+          const content = heading.textBetween(0, heading.content.size, "", "\n");
+          // 不能仅凭重叠矩形认定标题为单行，也不能在字素内部扩选。
+          if (
+            content.length !== heading.content.size ||
+            previousGraphemeBoundary(content, cursor.parentOffset) === null ||
+            !hasStableTextLineRange(view, cursor.before(), cursor.start(), position)
+          )
+            return false;
+        }
+        anchor = forwardCrossHeading ? cursor.start() : nativeAnchor.pos;
+        head = forwardCrossHeading ? nativeHead.pos : cursor.start();
+      } else if (
+        event.getModifierState("AltGraph") ||
+        (!crossesBlock && (!view.state.selection.empty || !native.isCollapsed))
+      )
+        return false;
     }
     if (singleLine && shiftEnd && cursor.parentOffset !== 0) {
       if (event.getModifierState("AltGraph")) return false;
@@ -766,7 +956,7 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
       anchor = position;
     }
     if (!singleLine) {
-      if (home) {
+      if (home || shiftHome) {
         // 明确的 hardBreak 给出下一逻辑行的起点；仍验证完整布局及其第一视觉行，
         // 不能把同一逻辑行的后续自动换行误当作该起点。
         if (heading.content.size > 4096 || heading.childCount > 256) return false;
@@ -775,9 +965,22 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
           if (node.type.name === "hardBreak" && offset < cursor.parentOffset)
             start = cursor.start() + offset + node.nodeSize;
         });
-        const firstEnd = multiVisualLineEnd(view, heading, cursor.before(), start);
+        if (shiftHome) {
+          const content = heading.textBetween(0, heading.content.size, "", "\n");
+          // 只扩展明确换行之后已核对的视觉行，且不能把光标拆在字素内部。
+          if (
+            start === cursor.start() ||
+            content.length !== heading.content.size ||
+            previousGraphemeBoundary(content, cursor.parentOffset) === null ||
+            !hasStableTextLineRange(view, cursor.before(), start, position)
+          )
+            return false;
+        }
+        // Shift+Home 已逐项核对光标和文字范围，可接受默认 H1 字形略高于行距。
+        const firstEnd = multiVisualLineEnd(view, heading, cursor.before(), start, false, shiftHome);
         if (firstEnd === null || position > firstEnd) return false;
-        anchor = head = start;
+        anchor = shiftHome && !forwardCrossHeading ? nativeAnchor.pos : start;
+        head = forwardCrossHeading ? nativeHead.pos : start;
         if (position === firstEnd && position > start) {
           // A wrapped boundary can represent a caret on either adjacent line;
           // only handle it when both position affinities remain on one line.
@@ -955,7 +1158,11 @@ export const HeadingEndSelection = Extension.create({
                   view.dispatch(view.state.tr.setSelection(selected).setMeta("addToHistory", false));
                 return true;
               }
-              return selectHeadingEnd(view, event) || stopUnverifiedHeadingLineSelection(view, event);
+              return (
+                selectTextLineBoundary(view, event, true) ||
+                selectHeadingEnd(view, event) ||
+                stopUnverifiedHeadingLineSelection(view, event)
+              );
             }
             if (event.key === "Home" && !event.shiftKey) {
               clickLine = null;
@@ -975,6 +1182,12 @@ export const HeadingEndSelection = Extension.create({
               !event.isComposing &&
               event.keyCode !== 229 &&
               !view.composing;
+            if (eligible && selectTextLineBoundary(view, event, false)) {
+              clickLine = null;
+              repeatedEnd = null;
+              home.clear();
+              return true;
+            }
             if (
               eligible &&
               !event.getModifierState("AltGraph") &&
