@@ -54,6 +54,136 @@ async function applyLink(page: Page, entry: Entry, href: string, text: string) {
   }
 }
 
+for (const mode of ["default", "custom", "custom-floating"] as const) {
+  for (const reverse of [false, true]) {
+    test(`${mode} ${reverse ? "反向" : "正向"}跨段落选区禁用链接并保留内容、选区和历史`, async ({ page }) => {
+      const content = "<p><strong>alpha</strong></p><p><em>beta</em></p><p>tail</p>";
+      await page.evaluate(({ content, mode }) => window.linkCommandFixture.mount("A", content, mode), {
+        content,
+        mode,
+      });
+      const host = page.locator("#link-command-A");
+      const prose = host.locator(".semlo-editor-prose");
+      const original = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      await prose.locator("p").last().click();
+      await page.keyboard.press("End");
+      await page.keyboard.type("!");
+      await page.evaluate((reverse) => window.linkCommandFixture.select("A", "alpha", 1, 9, reverse), reverse);
+      const before = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      const selection = await page.evaluate(() => window.linkCommandFixture.selection("A"));
+      expect(selection).toEqual({ text: "lpha|be", backward: reverse, empty: false });
+      expect(await page.evaluate(() => window.linkCommandFixture.state("A"))).toEqual({
+        active: false,
+        enabled: false,
+      });
+      await expect(host.getByRole("button", { name: "链接", exact: true }).first()).toBeDisabled();
+      if (mode === "custom-floating")
+        await expect(
+          host.getByRole("toolbar", { name: "选中文字工具" }).getByRole("button", { name: "链接", exact: true }),
+        ).toBeDisabled();
+      await page.keyboard.press("ControlOrMeta+k");
+      await expect(page.getByRole("dialog", { name: "插入链接" })).toHaveCount(0);
+      expect(await page.evaluate(() => window.linkCommandFixture.start("A"))).toBe(false);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(before);
+      expect(await page.evaluate(() => window.linkCommandFixture.selection("A"))).toEqual(selection);
+      expect(await page.evaluate(() => window.linkCommandFixture.undo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(original);
+      expect(await page.evaluate(() => window.linkCommandFixture.redo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(before);
+      await page.evaluate(() => window.linkCommandFixture.destroy("A"));
+    });
+  }
+}
+
+test("窄屏跨段落链接禁用，收回单段选区后可从更多菜单打开", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.evaluate(() => {
+    window.linkCommandFixture.mount("A", "<p><strong>alpha</strong></p><p>beta</p>", "default");
+    window.linkCommandFixture.select("A", "alpha", 1, 9);
+  });
+  const host = page.locator("#link-command-A");
+  await host.getByRole("button", { name: "更多", exact: true }).click();
+  const link = page.getByRole("toolbar", { name: "更多工具" }).getByRole("button", { name: "链接", exact: true });
+  await expect(link).toBeVisible();
+  await expect(link).toBeDisabled();
+  await page.evaluate(() => window.linkCommandFixture.select("A", "alpha", 0, 5));
+  await expect(link).toBeEnabled();
+  await link.click();
+  await expect(page.getByRole("dialog", { name: "插入链接" }).getByLabel("文本")).toHaveValue("alpha");
+  await page.getByRole("dialog", { name: "插入链接" }).getByRole("button", { name: "取消" }).click();
+  await expect(host.locator(".semlo-editor-prose strong")).toHaveText("alpha");
+  await expect(host.locator(".semlo-editor-prose p").last()).toHaveText("beta");
+  await page.evaluate(() => window.linkCommandFixture.destroy("A"));
+});
+
+for (const entry of ["main", "api"] as const) {
+  for (const gradient of [null, "linear-gradient(90deg, #2abcbf, #3836dd)"]) {
+    test(`${entry} 新建${gradient ? "渐变" : "彩色"}链接恢复默认文字色并保留其他格式及两步历史`, async ({ page }) => {
+      await page.evaluate(
+        ({ entry, gradient }) => {
+          window.linkCommandFixture.mount(
+            "A",
+            {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "甲",
+                      marks: [
+                        { type: "bold" },
+                        { type: "italic" },
+                        { type: "underline" },
+                        { type: "strike" },
+                        { type: "highlight", attrs: { color: "#fbde28" } },
+                        {
+                          type: "textStyle",
+                          attrs: { color: "#df2a3f", fontSize: "24px", semloEditorGradient: gradient },
+                        },
+                      ],
+                    },
+                    { type: "text", text: "乙" },
+                  ],
+                },
+                { type: "paragraph", content: [{ type: "text", text: "TAIL" }] },
+              ],
+            },
+            entry === "api" ? "hidden" : "default",
+          );
+          window.linkCommandFixture.select("A", "甲", 0, 2);
+        },
+        { entry, gradient },
+      );
+      const before = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      await openLink(page, entry);
+      const pending = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      const marks = pending.content![0].content![0].marks!;
+      expect(marks.find((mark) => mark.type === "textStyle")?.attrs).toMatchObject({
+        color: null,
+        semloEditorGradient: null,
+        fontSize: "24px",
+      });
+      expect(marks.filter((mark) => !["link", "textStyle"].includes(mark.type))).toEqual(
+        before.content![0].content![0].marks!.filter((mark) => mark.type !== "textStyle"),
+      );
+      expect(pending.content![1]).toEqual(before.content![1]);
+      await applyLink(page, entry, "https://example.com/", "甲乙");
+      const after = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      expect(await page.evaluate(() => window.linkCommandFixture.undo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(pending);
+      expect(await page.evaluate(() => window.linkCommandFixture.undo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(before);
+      expect(await page.evaluate(() => window.linkCommandFixture.redo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(pending);
+      expect(await page.evaluate(() => window.linkCommandFixture.redo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(after);
+      await page.evaluate(() => window.linkCommandFixture.destroy("A"));
+    });
+  }
+}
+
 for (const entry of ["main", "custom-floating", "shortcut", "custom", "api"] as const) {
   test(`${entry} 新建链接保留格式、选区与两步撤销重做`, async ({ page }) => {
     const mode: "custom" | "hidden" | "default" | "custom-floating" =

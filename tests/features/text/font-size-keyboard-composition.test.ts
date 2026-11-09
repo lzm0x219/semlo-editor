@@ -128,7 +128,7 @@ for (const platform of ["Win32", "Linux x86_64"] as const) {
   });
 }
 
-for (const platform of ["MacIntel", "Win32"] as const) {
+for (const platform of ["MacIntel", "Win32", "Linux x86_64"] as const) {
   for (const [key, code, expected] of [
     ["=", "Equal", "16px"],
     ["-", "Minus", "14px"],
@@ -142,7 +142,7 @@ for (const platform of ["MacIntel", "Win32"] as const) {
             key,
             code,
             metaKey: platform === "MacIntel",
-            ctrlKey: platform === "Win32",
+            ctrlKey: platform !== "MacIntel",
             altKey: true,
             bubbles: true,
             cancelable: true,

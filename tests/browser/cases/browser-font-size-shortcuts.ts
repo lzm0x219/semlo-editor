@@ -19,7 +19,8 @@ async function _browserTest(page: import("playwright").Page) {
       FontSizeShortcuts,
     } = await import("/dist/index.js");
     const originalPlatform = Object.getOwnPropertyDescriptor(navigator, "platform");
-    let platform = "MacIntel";
+    // 首段使用真实平台，与 Playwright 的 ControlOrMeta 保持一致；后续再显式切换 Windows。
+    let platform = navigator.platform;
     Object.defineProperty(navigator, "platform", { configurable: true, get: () => platform });
     const editors = new Map<string, { editor: import("@tiptap/core").Editor; host: HTMLElement }>();
     window.fontShortcutEvents = [];

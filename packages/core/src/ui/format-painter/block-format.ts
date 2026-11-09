@@ -223,6 +223,90 @@ function updateContinuation(tr: Transaction, previous: ProseMirrorNode): boolean
   return true;
 }
 
+/** 二级无序叶项及其展平后的成员转正文时，保留两侧成员的视觉缩进。 */
+function paintBulletLeafParagraph(
+  tr: Transaction,
+  selection: TextSelection,
+  source: BlockFormat,
+): TextSelection | null {
+  const position = selection.$from;
+  if (
+    source.kind !== "paragraph" ||
+    (position.depth !== 3 && position.depth !== 5) ||
+    position.node(1).type.name !== "bulletList" ||
+    (position.depth === 5 && position.node(3).type.name !== "bulletList") ||
+    position.node(position.depth - 1).childCount !== 1
+  )
+    return null;
+  const list = position.node(1);
+  if (!defaultAttributes(list)) return null;
+  const updated = textblock(position.parent, tr.doc.type.schema.nodes.paragraph, source);
+  if (!updated) return null;
+  const listPos = position.before(1),
+    targetPos = position.before(position.depth - 1);
+  const items: ProseMirrorNode[] = [];
+  let selected = -1,
+    supported = true;
+  list.forEach((item, offset) => {
+    const indent = item.attrs.semloEditorListIndent;
+    if (
+      item.type.name !== "listItem" ||
+      !defaultAttributes(item, ["semloEditorListIndent"]) ||
+      !Number.isInteger(indent) ||
+      indent < 0 ||
+      indent > MAX_INDENT ||
+      item.firstChild?.type.name !== "paragraph" ||
+      item.childCount < 1 ||
+      item.childCount > 2 ||
+      (position.depth === 3 && item.childCount !== 1)
+    ) {
+      supported = false;
+      return;
+    }
+    if (listPos + 1 + offset === targetPos) selected = items.length;
+    items.push(item.type.createChecked(item.attrs, item.firstChild, item.marks));
+    if (item.childCount === 1) return;
+    const children = item.child(1);
+    if (children.type.name !== "bulletList" || !defaultAttributes(children)) {
+      supported = false;
+      return;
+    }
+    const childrenPos = listPos + 2 + offset + item.firstChild.nodeSize;
+    children.forEach((child, childOffset) => {
+      const childIndent = child.attrs.semloEditorListIndent;
+      if (
+        child.type.name !== "listItem" ||
+        child.childCount !== 1 ||
+        child.firstChild?.type.name !== "paragraph" ||
+        !defaultAttributes(child, ["semloEditorListIndent"]) ||
+        !Number.isInteger(childIndent) ||
+        childIndent < 0 ||
+        indent + childIndent + 1 > MAX_INDENT
+      ) {
+        supported = false;
+        return;
+      }
+      if (childrenPos + 1 + childOffset === targetPos) selected = items.length;
+      items.push(
+        child.type.createChecked({ ...child.attrs, semloEditorListIndent: indent + childIndent + 1 }, child.content),
+      );
+    });
+  });
+  if (!supported || selected < 0) return null;
+  const before = selected
+    ? list.type.createChecked(list.attrs, Fragment.fromArray(items.slice(0, selected)), list.marks)
+    : null;
+  const afterItems = items.slice(selected + 1);
+  const after = afterItems.length
+    ? list.type.createChecked(list.attrs, Fragment.fromArray(afterItems), list.marks)
+    : null;
+  const replacement = Fragment.fromArray([...(before ? [before] : []), updated, ...(after ? [after] : [])]);
+  const root = tr.doc.resolve(listPos);
+  if (!root.parent.canReplace(root.index(), root.index() + 1, replacement)) return null;
+  tr.replaceWith(listPos, listPos + list.nodeSize, replacement);
+  return selectionIn(tr, listPos + (before?.nodeSize ?? 0), updated);
+}
+
 /** 点击块时在一个事务内转换块类型与段落样式，复杂结构不作破坏性降级。 */
 export function paintBlock(tr: Transaction, selection: TextSelection, source: BlockFormat): TextSelection | null {
   const position = selection.$from;
@@ -234,6 +318,8 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
   if (!target && unresolvedList?.type.name === "orderedList" && unresolvedList.attrs[sequenceLinkAttribute] != null)
     return null;
   if (position.depth !== 1 && !target && !containedTextblock(position)) {
+    const nested = paintBulletLeafParagraph(tr, selection, source);
+    if (nested) return nested;
     if (source.kind && source.kind !== "paragraph") return null;
     const updated = textblock(node, node.type, source);
     if (!updated) return null;
