@@ -7,6 +7,7 @@ import { nativeYuqueQuoteHTML, yuqueCrossBlockQuoteHTML } from "../../fixtures/t
 declare global {
   interface Window {
     quotePasteEditor?: EditorController;
+    quotePasteOther?: EditorController;
   }
 }
 
@@ -234,6 +235,30 @@ for (const sample of [
     controlled: true,
   },
   {
+    name: "替换反向段内选区时保留两侧文字",
+    content: "<p>前中后</p>",
+    selection: { from: 3, to: 2 },
+    expected: "<p>前</p><blockquote><p>引用甲乙</p></blockquote><p>后</p>",
+  },
+  {
+    name: "替换段首选区时保留空前缀和独立后缀",
+    content: "<p>前中后</p>",
+    selection: { from: 1, to: 2 },
+    expected: "<p></p><blockquote><p>引用甲乙</p></blockquote><p>中后</p>",
+  },
+  {
+    name: "段首光标粘贴时保留空前缀和独立后缀",
+    content: "<p>前中后</p>",
+    selection: { from: 1, to: 1 },
+    expected: "<p></p><blockquote><p>引用甲乙</p></blockquote><p>前中后</p>",
+  },
+  {
+    name: "替换整段文字时合并前缀空段",
+    content: "<p>前中后</p>",
+    selection: { from: 1, to: 4 },
+    expected: "<blockquote><p>引用甲乙</p></blockquote>",
+  },
+  {
     name: "多个前缀空段只合并首个",
     content: "<p></p>",
     html: yuqueCrossBlockQuoteHTML.replace(
@@ -258,6 +283,12 @@ for (const sample of [
     expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
       before,
     );
+    if (sample.selection) {
+      const selection = await page.evaluate(() =>
+        window.__semloRequireFixture("quotePasteEditor").editor.state.selection.toJSON(),
+      );
+      expect(selection).toMatchObject({ anchor: sample.selection.from, head: sample.selection.to });
+    }
     await page.keyboard.press("ControlOrMeta+Shift+z");
     expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
       after.json,
@@ -272,3 +303,139 @@ for (const sample of [
     }
   });
 }
+
+test("语雀片段粘贴后可继续输入并分别撤销和重做", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>甲乙</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  const before = await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    controller.editor.commands.focus();
+    controller.editor.commands.setTextSelection(2);
+    return controller.getSnapshot().json;
+  });
+  await page.waitForFunction(() => {
+    const selection = document.getSelection();
+    return selection?.anchorNode?.textContent === "甲乙" && selection.anchorOffset === 1;
+  });
+  await page.keyboard.insertText("新");
+  await page.waitForFunction(
+    () => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html === "<p>甲新乙</p>",
+  );
+  const beforePaste = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json);
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    const selection = controller.editor.state.selection;
+    return {
+      json: controller.getSnapshot().json,
+      empty: selection.empty,
+      parent: selection.$from.parent.type.name,
+      suffix: selection.$from.parent.textContent,
+      offset: selection.$from.parentOffset,
+    };
+  });
+  expect({ empty: pasted.empty, parent: pasted.parent, suffix: pasted.suffix, offset: pasted.offset }).toEqual({
+    empty: true,
+    parent: "paragraph",
+    suffix: "乙",
+    offset: 0,
+  });
+  await page.keyboard.insertText("续");
+  const edited = await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    return { json: controller.getSnapshot().json, text: controller.editor.state.doc.textContent };
+  });
+  expect(edited.text).toBe("甲新引用甲乙续乙");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    beforePaste,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    before,
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    beforePaste,
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    edited.json,
+  );
+});
+
+test("段中开启粗体后粘贴语雀片段不会吞入后缀", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>甲乙</p>");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
+    editor.commands.focus();
+    editor.commands.setTextSelection(2);
+    editor.commands.setBold();
+  });
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const prose = page.locator("#quote-paste .semlo-editor-prose");
+  await expect(prose.locator(":scope > p")).toHaveText(["甲", "乙"]);
+  await expect(prose.locator(":scope > blockquote")).toHaveText("引用甲乙");
+});
+
+test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新挂载", async ({ page }) => {
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div')
+      host.id = 'quote-paste-other'
+      document.body.append(host)
+      window.quotePasteOther = createEditor({ element: host, outline: false, content: '<p>另一实例</p>' })
+    `,
+  });
+  await mountBoundaryEditor(page, "<p>甲乙</p>");
+  const before = await page.evaluate(() => {
+    const other = window.quotePasteOther!;
+    other.editor.commands.focus();
+    other.editor.commands.insertContent("一");
+    const first = window.__semloRequireFixture("quotePasteEditor");
+    first.editor.commands.focus();
+    first.editor.commands.setTextSelection(2);
+    return other.getSnapshot().json;
+  });
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const outcome = await page.evaluate(() => {
+    const other = window.quotePasteOther!;
+    other.editor.commands.focus();
+    other.editor.commands.insertContent("二");
+    const typed = other.getSnapshot().json;
+    const undo = other.editor.commands.undo();
+    const undone = other.getSnapshot().text;
+    const redo = other.editor.commands.redo();
+    const redone = other.getSnapshot().json;
+    other.destroy();
+    const first = window.__semloRequireFixture("quotePasteEditor");
+    first.destroy();
+    return { typed, undo, undone, redo, redone };
+  });
+  expect(outcome.undo).toBe(true);
+  expect(outcome.undone).toBe("另一实例");
+  expect(outcome.redo).toBe(true);
+  expect(outcome.redone).toEqual(outcome.typed);
+  expect(outcome.redone).not.toEqual(before);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      window.quotePasteEditor = createEditor({ element: document.querySelector('#quote-paste'), outline: false,
+        content: '<p>重新挂载</p>' })
+    `,
+  });
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().text)).toBe(
+    "重新挂载",
+  );
+});

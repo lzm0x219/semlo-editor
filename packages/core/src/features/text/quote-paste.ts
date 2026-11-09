@@ -1,5 +1,7 @@
 import { Extension } from "@tiptap/core";
-import { Plugin, TextSelection } from "@tiptap/pm/state";
+import { closeHistory } from "@tiptap/pm/history";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
 
@@ -48,7 +50,7 @@ function isYuqueEmptyParagraph(element: Element | undefined): element is HTMLEle
   });
 }
 
-type YuqueQuoteTarget = "empty" | "interior" | null;
+type YuqueQuoteTarget = "empty" | "suffix" | null;
 
 function hasOnlyElementsAndWhitespace(parent: ParentNode): boolean {
   return Array.from(parent.childNodes).every(
@@ -57,20 +59,19 @@ function hasOnlyElementsAndWhitespace(parent: ParentNode): boolean {
 }
 
 function yuqueQuoteTarget(view: EditorView): YuqueQuoteTarget {
-  const { selection, storedMarks } = view.state;
+  const { selection } = view.state;
   const paragraph = selection.$from.parent;
   if (
     !(selection instanceof TextSelection) ||
     selection.$from.depth !== 1 ||
     !selection.$from.sameParent(selection.$to) ||
-    paragraph.type.name !== "paragraph" ||
-    storedMarks?.length
+    paragraph.type.name !== "paragraph"
   )
     return null;
   try {
     if (!paragraph.sameMarkup(paragraph.type.create())) return null;
-    if (selection.empty && paragraph.content.size === 0) return "empty";
-    return selection.$from.parentOffset > 0 && selection.$to.parentOffset < paragraph.content.size ? "interior" : null;
+    if (selection.$from.parentOffset === 0 && selection.$to.parentOffset === paragraph.content.size) return "empty";
+    return selection.$to.parentOffset < paragraph.content.size ? "suffix" : null;
   } catch {
     // 自定义 schema 的默认属性不可用时，保留原始剪贴板内容。
     return null;
@@ -82,7 +83,10 @@ function adjustYuqueQuoteBoundary(fragment: DocumentFragment, target: YuqueQuote
   if (fragment.querySelector(`[data-pm-slice],[${clipboardSourceAttribute}="1"]`)) return;
   const roots = Array.from(fragment.children);
   const contents = roots.filter((element) => element.tagName === "DIV" && element.classList.contains("lake-content"));
-  if (contents.length !== 1 || roots.some((element) => element !== contents[0] && element.tagName !== "NE-CLIPBOARD"))
+  if (
+    contents.length !== 1 ||
+    roots.some((element) => element !== contents[0] && (element.tagName !== "NE-CLIPBOARD" || element.hasChildNodes()))
+  )
     return;
   if (!hasOnlyElementsAndWhitespace(fragment) || !hasOnlyElementsAndWhitespace(contents[0])) return;
   const blocks = Array.from(contents[0].children);
@@ -175,5 +179,64 @@ export const QuotePaste = Extension.create({
         },
       }),
     ];
+  },
+});
+
+/** 让其他粘贴处理器先处理，仅为所测引用片段划定撤销边界。 */
+export const QuotePasteHistory = Extension.create({
+  name: "semloEditorQuotePasteHistory",
+  priority: -1,
+  addProseMirrorPlugins() {
+    let pending: { before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
+    let plugin: Plugin;
+    plugin = new Plugin({
+      props: {
+        handlePaste(view, event, slice) {
+          const html = event.clipboardData?.getData("text/html");
+          if (!view.editable || event.defaultPrevented || !html || !slice.size || yuqueQuoteTarget(view) !== "suffix")
+            return false;
+          const index = view.state.plugins.indexOf(plugin);
+          if (index < 0 || view.state.plugins.slice(index + 1).some((other) => other.props.handlePaste)) return false;
+          const document = view.dom.ownerDocument;
+          if (
+            normalizeExternalQuoteHTML(html, document, false, "suffix") === normalizeExternalQuoteHTML(html, document)
+          )
+            return false;
+          let transaction: Transaction;
+          try {
+            transaction = closeHistory(view.state.tr).replaceSelection(slice);
+          } catch {
+            // 自定义 schema 无法安全构造粘贴事务时交回正常流程。
+            return false;
+          }
+          const input = { before: view.state.doc, expected: transaction.doc };
+          pending = input;
+          queueMicrotask(() => {
+            if (pending === input) pending = null;
+          });
+          view.dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+          return true;
+        },
+      },
+      appendTransaction(transactions, _oldState, newState) {
+        const input = pending;
+        if (!input) return null;
+        const pasted = transactions.some(
+          (transaction) =>
+            transaction.docChanged &&
+            transaction.before === input.before &&
+            transaction.doc.eq(input.expected) &&
+            transaction.getMeta("uiEvent") === "paste" &&
+            transaction.getMeta("paste") === true &&
+            transaction.getMeta("addToHistory") !== false &&
+            !transaction.getMeta("appendedTransaction"),
+        );
+        if (!pasted || !newState.doc.eq(input.expected)) return null;
+        pending = null;
+        // 所测粘贴与其后的输入分别撤销；宿主拒绝或替换事务时不修改历史。
+        return closeHistory(newState.tr).setMeta("addToHistory", false);
+      },
+    });
+    return [plugin];
   },
 });
