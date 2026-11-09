@@ -397,6 +397,37 @@ test("后续粘贴处理器存在时，引用历史处理器交回控制权", ()
   expect(dispatched).toBe(false);
 });
 
+test("宿主拒绝粘贴后的历史边界时，继续输入交回默认处理", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  let state = EditorState.create({
+    doc,
+    selection: TextSelection.create(doc, 2),
+    plugins: [new Plugin({ filterTransaction: (tr) => tr.getMeta("addToHistory") !== false }), history(), plugin!],
+  });
+  const view = {
+    dom: document.body,
+    editable: true,
+    composing: false,
+    get state() {
+      return state;
+    },
+    dispatch(transaction: Transaction) {
+      state = state.apply(transaction);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  const position = state.selection.from;
+  expect(plugin!.props.handleTextInput!.call(plugin!, view, position, position, "续", () => state.tr)).toBe(false);
+  expect(serialize(document, state)).toBe("<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>乙</p>");
+});
+
 test("语雀 HTML 搭配自定义纯文本片段时交回默认粘贴", () => {
   const document = createDocument();
   const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
