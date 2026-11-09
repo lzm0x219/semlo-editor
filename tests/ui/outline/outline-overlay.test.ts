@@ -36,6 +36,107 @@ async function mount(page: Page, width = 1200) {
   return page.locator("#outline-overlay-test");
 }
 
+test("outline navigation restores nested folded ancestors on undo after reload", async ({ page }) => {
+  const host = await mount(page);
+  await host.getByRole("button", { name: "折叠标题：子标题" }).click();
+  await host.getByRole("button", { name: "折叠标题：第一节" }).click();
+  const saved = await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].getSnapshot().html);
+  await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].destroy());
+  await page.addScriptTag({
+    type: "module",
+    content: `import { createEditor } from '/dist/index.js'; window.outlineOverlayEditors = [createEditor({ element: document.querySelector('#outline-overlay-test'), content: ${JSON.stringify(saved)} })];`,
+  });
+  const nav = host.getByRole("navigation", { name: "文档大纲" });
+  await expect(host.getByText("子标题", { exact: true }).first()).toBeHidden();
+  await nav.getByRole("button", { name: "展开大纲" }).focus();
+  await page.keyboard.press("Enter");
+  await nav.getByRole("button", { name: "三级标题", exact: true }).click();
+  await expect(host.locator(".semlo-editor-prose").getByText("三级标题", { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].editor.commands.undo()),
+  ).toBe(true);
+  await expect(host.locator(".semlo-editor-prose").getByText("子标题", { exact: true })).toBeHidden();
+  const undone = await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].getSnapshot().json);
+  expect(undone.content![0].attrs!.semloEditorHeadingFolded).toBe(true);
+  expect(undone.content![2].attrs!.semloEditorHeadingFolded).toBe(true);
+  expect(
+    await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].editor.commands.redo()),
+  ).toBe(true);
+  await expect(host.locator(".semlo-editor-prose").getByText("三级标题", { exact: true })).toBeVisible();
+  await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].destroy());
+});
+
+test("outline navigation stops when a host destroys the editor during expansion", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const host = await mount(page);
+  await host.getByRole("button", { name: "折叠标题：第一节" }).click();
+  const nav = host.getByRole("navigation", { name: "文档大纲" });
+  await nav.getByRole("button", { name: "展开大纲" }).focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("outlineOverlayEditors")[0];
+    controller.editor.on("transaction", ({ transaction }) => {
+      if (transaction.docChanged) controller.destroy();
+    });
+  });
+  await nav.getByRole("button", { name: "子标题", exact: true }).click();
+  await expect(nav).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("outline navigation follows the same heading after a host inserts content during expansion", async ({ page }) => {
+  const host = await mount(page);
+  await host.getByRole("button", { name: "折叠标题：第一节" }).click();
+  const nav = host.getByRole("navigation", { name: "文档大纲" });
+  await nav.getByRole("button", { name: "展开大纲" }).focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("outlineOverlayEditors")[0].editor;
+    let handled = false;
+    editor.on("transaction", ({ transaction }) => {
+      if (handled || !transaction.docChanged) return;
+      handled = true;
+      editor.view.dispatch(
+        editor.state.tr.insert(0, editor.schema.nodes.paragraph.create(null, editor.schema.text("前置"))),
+      );
+    });
+  });
+  await nav.getByRole("button", { name: "子标题", exact: true }).click();
+  await expect(host.locator(".semlo-editor-prose").getByText("前置", { exact: true })).toBeVisible();
+  await expect(host.locator(".semlo-editor-prose").getByText("子标题", { exact: true })).toBeVisible();
+  await expect(nav.getByRole("button", { name: "子标题", exact: true })).toHaveAttribute("aria-current", "location");
+  await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].destroy());
+});
+
+test("outline navigation does not guess when a host duplicates the target node", async ({ page }) => {
+  const host = await mount(page);
+  await host.getByRole("button", { name: "折叠标题：第一节" }).click();
+  const nav = host.getByRole("navigation", { name: "文档大纲" });
+  await nav.getByRole("button", { name: "展开大纲" }).focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("outlineOverlayEditors")[0].editor;
+    let handled = false;
+    editor.on("transaction", ({ transaction }) => {
+      if (handled || !transaction.docChanged) return;
+      handled = true;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "heading" && node.textContent === "子标题") {
+          editor.view.dispatch(editor.state.tr.insert(pos, node));
+          return false;
+        }
+      });
+    });
+  });
+  await nav.getByRole("button", { name: "子标题", exact: true }).click();
+  await expect(nav.getByRole("button", { name: "子标题", exact: true })).toHaveCount(2);
+  await expect(
+    nav.getByRole("button", { name: "子标题", exact: true }).and(nav.locator('[aria-current="location"]')),
+  ).toHaveCount(0);
+  await page.evaluate(() => window.__semloRequireFixture("outlineOverlayEditors")[0].destroy());
+});
+
 test("the outline rail expands on hover without reflowing the editor and closes on leaving", async ({ page }) => {
   const host = await mount(page);
   const nav = host.locator(".semlo-editor-outline");

@@ -281,7 +281,7 @@ export function setHeadingFolded(editor: Editor, pos: number, folded: boolean, h
   return true;
 }
 
-/** 查找正文时将同一次展开的标题放入同一撤销步骤。 */
+/** 将同一次展开的标题放入同一事务，并按入口决定是否记录历史。 */
 export function expandHeadingPositions(editor: Editor, positions: number[], history: boolean): ProseMirrorNode | null {
   if (editor.isDestroyed) return null;
   const state = headingFoldKey.getState(editor.state);
@@ -299,7 +299,7 @@ export function expandHeadingPositions(editor: Editor, positions: number[], hist
 }
 
 /** Expand folded headings whose hidden sections contain the target heading. */
-export function expandHeadingAncestors(editor: Editor, headingPos: number): boolean {
+export function expandHeadingAncestors(editor: Editor, headingPos: number, history = false): boolean {
   if (editor.isDestroyed || editor.state.doc.nodeAt(headingPos)?.type.name !== "heading") return false;
   const state = headingFoldKey.getState(editor.state);
   if (!state) return false;
@@ -308,12 +308,7 @@ export function expandHeadingAncestors(editor: Editor, headingPos: number): bool
     return section && headingPos >= section.from && headingPos < section.to;
   });
   if (!positions.length) return false;
-  const tr = editor.state.tr
-    .setMeta(headingFoldKey, { kind: "expand", positions } satisfies FoldAction)
-    .setMeta("addToHistory", false);
-  writeFolded(tr, editor, state, positions, false);
-  editor.view.dispatch(tr);
-  return true;
+  return expandHeadingPositions(editor, positions, history) !== null;
 }
 
 function foldButton(editor: Editor, doc: Document, section: Section, folded: boolean): HTMLButtonElement {
