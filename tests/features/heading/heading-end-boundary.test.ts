@@ -142,6 +142,39 @@ async function inspect(page: Page) {
   });
 }
 
+test("正文至标题的跨块删除保留未选文字并可撤销", async ({ page }) => {
+  const content: JSONContent = {
+    type: "doc",
+    content: [
+      paragraph([text("前文甲乙")]),
+      { type: "heading", attrs: { level: 3 }, content: [text("标题丙丁")] },
+      paragraph([text("后文甲乙")]),
+    ],
+  };
+  await page.goto(origin);
+  await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
+  await page.evaluate((value) => window.__semloRequireFixture("mountHeadingEndBoundary")(value), content);
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").select("前文甲乙", 2, 2));
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await inspect(page);
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowRight");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  expect((await inspect(page)).selection).toMatchObject({
+    anchorType: "paragraph",
+    anchorOffset: 2,
+    headType: "heading",
+    headOffset: 2,
+  });
+  await page.keyboard.press("Backspace");
+  const removed = await inspect(page);
+  expect(removed.json.content).toMatchObject([
+    { type: "paragraph", content: [{ type: "text", text: "前文丙丁" }] },
+    { type: "paragraph", content: [{ type: "text", text: "后文甲乙" }] },
+  ]);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await inspect(page)).json).toEqual(before.json);
+});
+
 const cases: Sample[] = [];
 for (const container of ["root", "quote", "details"] as const) {
   for (const before of [false, true]) {
