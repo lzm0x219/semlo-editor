@@ -43,17 +43,28 @@ test("changing a link label keeps the selected text formatting", async ({ page }
   await form.getByLabel("链接", { exact: true }).fill("https://example.com");
   await form.getByRole("button", { name: "确定" }).click();
 
-  const checkMarks = async (expectedText: string, expectedUrl: string) => {
+  const checkMarks = async (expectedText: string, expectedUrl: string, colored = true) => {
     const result = await page.evaluate(
       () => window.__semloRequireFixture("linkFormatTest").getSnapshot().json.content?.[0]?.content?.[0],
     );
     expect(result?.text).toBe(expectedText);
     expect(result?.marks?.some((mark) => mark.type === "bold")).toBe(true);
     expect(result?.marks?.some((mark) => mark.type === "italic")).toBe(true);
-    expect(result?.marks?.find((mark) => mark.type === "textStyle")?.attrs?.color).toMatch(/(ff0000|255,\s*0,\s*0)/i);
+    const color = result?.marks?.find((mark) => mark.type === "textStyle")?.attrs?.color;
+    if (colored) expect(color).toMatch(/(ff0000|255,\s*0,\s*0)/i);
+    else expect(color).toBeFalsy();
     expect(result?.marks?.find((mark) => mark.type === "link")?.attrs?.href).toBe(expectedUrl);
   };
-  await checkMarks("新名称", "https://example.com");
+  await checkMarks("新名称", "https://example.com", false);
+  // 新建时采用链接默认色；之后给已有链接设置的颜色应在编辑时保留。
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("linkFormatTest")
+      .editor.chain()
+      .setTextSelection({ from: 1, to: 4 })
+      .setMark("textStyle", { color: "#ff0000" })
+      .run(),
+  );
 
   await page.waitForTimeout(600);
   await prose.locator("a").click();

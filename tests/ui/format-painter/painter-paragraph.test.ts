@@ -227,6 +227,134 @@ async function setupBlocks(page: Page, blocks: JSONContent[], source: string) {
 const item = (text: string, styled = false): JSONContent => ({ type: "listItem", content: [paragraph(text, styled)] });
 const bullet = (...items: JSONContent[]): JSONContent => ({ type: "bulletList", content: items });
 
+for (const targetIndex of [0, 1, 2]) {
+  test(`正文格式刷将二级无序列表第 ${targetIndex + 1} 个叶项变为正文并保留其余层级`, async ({ page }) => {
+    const children = [item("CHILD A"), item("CHILD B"), item("CHILD C")];
+    for (const child of children)
+      child.content![0].content![0].marks = [
+        { type: "link", attrs: { href: "https://example.com/" } },
+        { type: "italic" },
+      ];
+    children[targetIndex] = item("TARGET");
+    await setupBlocks(
+      page,
+      [
+        paragraph("SOURCE", true),
+        bullet({ type: "listItem", content: [paragraph("PARENT", false), bullet(...children)] }, item("TAIL")),
+        paragraph("NEXT", false),
+      ],
+      "SOURCE",
+    );
+    const before = await snapshot(page);
+    await page.locator("#painter-paragraph .tiptap").getByText("TARGET", { exact: true }).click();
+    await expect(page.locator("#painter-paragraph .semlo-editor-format-painter")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await expect(page.locator("#painter-paragraph .tiptap > p").filter({ hasText: "TARGET" })).toHaveText("TARGET");
+    const after = await snapshot(page);
+    expect(after.text.split(/\n+/)).toEqual(before.text.split(/\n+/));
+    expect(findTextblock(after.json, "TARGET")?.attrs).toMatchObject({
+      textAlign: "center",
+      semloEditorIndent: 1,
+      semloEditorLineHeight: "2",
+    });
+    expect(findTextblock(after.json, "TARGET")?.content?.[0].marks).toContainEqual({ type: "bold" });
+    for (const retained of [
+      "PARENT",
+      "TAIL",
+      "NEXT",
+      ...["CHILD A", "CHILD B", "CHILD C"].filter((_, i) => i !== targetIndex),
+    ])
+      expect(findTextblock(after.json, retained)).toEqual(findTextblock(before.json, retained));
+    await expect(page.locator('#painter-paragraph li[data-semlo-editor-list-indent="1"]')).toHaveCount(2);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.state.selection.empty)).toBe(true);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(after.json);
+    await page.evaluate((html) => window.taskConversionEditor!.setContent(html), after.html);
+    expect((await snapshot(page)).json).toEqual(after.json);
+  });
+}
+
+test("连续正文格式刷可继续转换已展平的二级无序叶项，每次独立撤销", async ({ page }) => {
+  await setupBlocks(
+    page,
+    [
+      paragraph("SOURCE", true),
+      bullet(
+        { type: "listItem", content: [paragraph("PARENT", false), bullet(item("TARGET"), item("CHILD KEEP"))] },
+        item("TAIL"),
+      ),
+      paragraph("NEXT", false),
+    ],
+    "SOURCE",
+  );
+  const before = await snapshot(page);
+  const painter = page.locator("#painter-paragraph .semlo-editor-format-painter");
+  await painter.click();
+  await painter.dblclick();
+  await expect(painter).toHaveAttribute("data-semlo-editor-painter-continuous", "true");
+  const root = page.locator("#painter-paragraph .tiptap");
+  await root.getByText("TARGET", { exact: true }).click();
+  await expect(root.locator(":scope > p").filter({ hasText: "TARGET" })).toHaveText("TARGET");
+  const first = await snapshot(page);
+  await root.getByText("CHILD KEEP", { exact: true }).click();
+  await expect(root.locator(":scope > p").filter({ hasText: "CHILD KEEP" })).toHaveText("CHILD KEEP");
+  const second = await snapshot(page);
+  await expect(painter).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(painter).toHaveAttribute("aria-pressed", "false");
+  expect(findTextblock(second.json, "CHILD KEEP")?.content?.[0].marks).toContainEqual({ type: "bold" });
+  expect(findTextblock(second.json, "TAIL")).toEqual(findTextblock(before.json, "TAIL"));
+  expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+  expect((await snapshot(page)).json).toEqual(first.json);
+  expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+  expect((await snapshot(page)).json).toEqual(before.json);
+  expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+  expect((await snapshot(page)).json).toEqual(first.json);
+  expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+  expect((await snapshot(page)).json).toEqual(second.json);
+});
+
+for (const otherList of ["bulletList", "orderedList"] as const) {
+  test(`正文格式刷不展开包含额外 ${otherList} 子树的列表`, async ({ page }) => {
+    const nested: JSONContent = {
+      type: "listItem",
+      content: [paragraph("OTHER", false), { type: otherList, content: [item("DEEP KEEP")] }],
+    };
+    await setupBlocks(
+      page,
+      [
+        paragraph("SOURCE", true),
+        bullet({ type: "listItem", content: [paragraph("PARENT", false), bullet(item("TARGET"), nested)] }),
+        paragraph("NEXT", false),
+      ],
+      "SOURCE",
+    );
+    const before = await snapshot(page);
+    await page.locator("#painter-paragraph .tiptap").getByText("TARGET", { exact: true }).click();
+    await expect(page.locator("#painter-paragraph .semlo-editor-format-painter")).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await expect(page.locator("#painter-paragraph .tiptap > p").filter({ hasText: "TARGET" })).toHaveCount(0);
+    const after = await snapshot(page);
+    const beforeChildren = before.json.content![1].content![0].content![1].content!;
+    const afterChildren = after.json.content![1].content![0].content![1].content!;
+    expect(afterChildren[0].type).toBe("listItem");
+    expect(afterChildren[0].attrs).toEqual(beforeChildren[0].attrs);
+    expect(afterChildren[1]).toEqual(beforeChildren[1]);
+    expect(findTextblock(after.json, "TARGET")?.content?.[0].marks).toContainEqual({ type: "bold" });
+    expect(findTextblock(after.json, "PARENT")).toEqual(findTextblock(before.json, "PARENT"));
+    expect(findTextblock(after.json, "NEXT")).toEqual(findTextblock(before.json, "NEXT"));
+    expect(after.text).toBe(before.text);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+  });
+}
+
 function findTextblock(node: JSONContent, text: string): JSONContent | undefined {
   if (["paragraph", "heading"].includes(node.type ?? "") && node.content?.some((child) => child.text === text))
     return node;

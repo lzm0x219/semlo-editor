@@ -540,11 +540,13 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
             return false;
           },
           keydown: (view, event) => {
+            // 跳过下游快捷键，但不阻止浏览器默认行为，避免组合输入触发删除线等文字格式。
+            if (event.isComposing || event.keyCode === 229 || view.composing) return true;
             const listKind = view.editable && !event.defaultPrevented ? listShortcut(view, event) : null;
             if (view.editable && !event.defaultPrevented && (lineHeightShortcut(view, event) || listKind)) {
               const platform = view.dom.ownerDocument.defaultView?.navigator.platform ?? "";
               const altGraph = !/Mac|iPhone|iPad|iPod/i.test(platform) && event.getModifierState("AltGraph");
-              if (event.isComposing || event.keyCode === 229 || view.composing || altGraph) return true;
+              if (altGraph) return true;
               const synced = syncTextSelection();
               if (listKind && !synced) {
                 event.preventDefault();

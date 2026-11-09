@@ -552,6 +552,38 @@ for (const framework of ["react", "vue", "solid"] as const) {
       expect(await snapshot(page)).toEqual(after);
       expect(await page.evaluate(() => window.sequencePasteFramework.errors)).toEqual([]);
     });
+  test(`${framework} 格式刷将二级无序叶项变为正文并保留受控回写和撤销`, async ({ page }) => {
+    await mount(
+      page,
+      framework,
+      framework === "react" ? "json" : "html",
+      "<p><strong>SOURCE</strong></p><ul><li>PARENT<ul><li>TARGET</li><li>CHILD KEEP</li></ul></li><li>TAIL</li></ul><p>NEXT</p>",
+    );
+    const before = await snapshot(page);
+    await select(page, "SOURCE", 0, "SOURCE", 6);
+    const painter = page.locator("#paste-framework .semlo-editor-format-painter");
+    await painter.click();
+    await page.locator("#paste-framework .tiptap").getByText("TARGET", { exact: true }).click();
+    await expect(painter).toHaveAttribute("aria-pressed", "false");
+    await settle(page);
+    const after = await snapshot(page);
+    expect(after.json.content?.map((node) => node.type)).toEqual([
+      "paragraph",
+      "bulletList",
+      "paragraph",
+      "bulletList",
+      "paragraph",
+    ]);
+    expect(after.json.content![2].content?.[0]).toMatchObject({ text: "TARGET", marks: [{ type: "bold" }] });
+    expect(after.json.content![3].content?.map((node) => node.attrs?.semloEditorListIndent)).toEqual([1, 0]);
+    expect(after.json.content![0]).toEqual(before.json.content![0]);
+    expect(after.json.content!.at(-1)).toEqual(before.json.content!.at(-1));
+    await history(page, "undo");
+    expect((await snapshot(page)).json).toEqual(before.json);
+    await history(page, "redo");
+    expect((await snapshot(page)).json).toEqual(after.json);
+  });
+
   test(`${framework} 引用内编号列表格式刷接入正文并保留回写和撤销`, async ({ page }) => {
     await mount(page, framework, "html", {
       type: "doc",

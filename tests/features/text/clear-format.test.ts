@@ -68,6 +68,50 @@ const formats = [
   },
 ];
 
+for (const [label, mark, menu] of [
+  ["斜体", "italic", false],
+  ["下划线", "underline", false],
+  ["删除线", "strike", false],
+  ["上标", "superscript", true],
+  ["下标", "subscript", true],
+  ["行内代码", "code", true],
+] as const) {
+  test(`${label}默认入口应用到混合选区，保留链接、其他字形及后文并可撤销重做`, async ({ page }) => {
+    await page.evaluate(() => {
+      window.clearFormatFixture.mount(
+        "A",
+        '<p><a href="https://example.com/"><span style="color:#df2a3f;font-size:24px"><strong>甲</strong></span>乙</a>丙</p><p>TAIL</p>',
+        "html",
+      );
+      window.clearFormatFixture.select("A", 1, 3);
+    });
+    const before = await snapshot(page);
+    const toolbar = host(page).getByRole("toolbar", { name: "文本格式" });
+    if (menu) {
+      await toolbar.getByRole("button", { name: "上下标", exact: true }).click();
+      await page
+        .getByRole("menu", { name: "更多文本样式" })
+        .getByRole("menuitem", { name: label, exact: true })
+        .click();
+    } else await toolbar.getByRole("button", { name: label, exact: true }).click();
+    const after = await snapshot(page);
+    const nodes = after.json.content![0].content!;
+    for (const index of [0, 1]) {
+      expect(nodes[index].marks).toContainEqual({ type: mark });
+      expect(nodes[index].marks!.filter((value) => value.type !== mark)).toEqual(
+        before.json.content![0].content![index].marks,
+      );
+    }
+    expect(nodes[2]).toEqual(before.json.content![0].content![2]);
+    expect(after.json.content![1]).toEqual(before.json.content![1]);
+    expect(after.selection).toEqual(before.selection);
+    expect(await page.evaluate(() => window.clearFormatFixture.undo("A"))).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+    expect(await page.evaluate(() => window.clearFormatFixture.redo("A"))).toBe(true);
+    expect((await snapshot(page)).json).toEqual(after.json);
+  });
+}
+
 test("九种内置文字格式清理保留宿主语义、未选内容、块属性和文档字体，HTML精确回写不破坏历史", async ({ page }) => {
   const content: JSONContent = {
     type: "doc",
