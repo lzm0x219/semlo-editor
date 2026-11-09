@@ -442,24 +442,21 @@ test("line backspace across a fold follows the visible line boundary", async ({ 
   await expect.poll(position).toBe(31);
   if (process.platform === "darwin") await page.keyboard.press("Meta+Backspace");
   else {
-    await page.keyboard.press("Control+Shift+Home");
+    // 非 macOS 没有相同的删除到行首快捷键；构造同一范围后验证删除及撤销。
+    await page.evaluate(() =>
+      window.__semloRequireFixture("foldLanguage").editor.commands.setTextSelection({ from: 1, to: 31 }),
+    );
+    expect(
+      await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.selection.toJSON()),
+    ).toMatchObject({
+      anchor: 1,
+      head: 31,
+    });
     await page.keyboard.press("Backspace");
   }
   const text = () =>
     page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.doc.firstChild?.textContent);
-  try {
-    await expect.poll(text).toBe("}");
-  } catch (error) {
-    throw new Error(
-      "[DEBUG-fold-line] " +
-        JSON.stringify({
-          text: await text(),
-          position: await position(),
-          platform: await page.evaluate(() => navigator.platform),
-        }),
-      { cause: error },
-    );
-  }
+  await expect.poll(text).toBe("}");
   expect(await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.commands.undo())).toBe(true);
   await expect.poll(text).toBe("function test() {\n  return 1;\n}");
 });
@@ -541,21 +538,7 @@ test("shift delete at the folded end removes the closing line", async ({ page })
   await page.keyboard.press("Shift+Delete");
   const text = () =>
     page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.doc.firstChild?.textContent);
-  try {
-    await expect.poll(text).toBe("function test() {\n  return 1;\n");
-  } catch (error) {
-    throw new Error(
-      "[DEBUG-fold-shift] " +
-        JSON.stringify({
-          text: await text(),
-          selection: await page.evaluate(() =>
-            window.__semloRequireFixture("foldLanguage").editor.state.selection.toJSON(),
-          ),
-          platform: await page.evaluate(() => navigator.platform),
-        }),
-      { cause: error },
-    );
-  }
+  await expect.poll(text).toBe("function test() {\n  return 1;\n");
   await expect(card.locator(".semlo-editor-code-fold-placeholder")).toBeVisible();
   expect(await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.commands.undo())).toBe(true);
   await expect.poll(text).toBe("function test() {\n  return 1;\n}");

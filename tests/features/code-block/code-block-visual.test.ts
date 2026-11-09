@@ -122,23 +122,6 @@ test("narrow editors keep the code scrollable and header controls reachable with
     card.locator(".semlo-editor-code-copy").boundingBox(),
     header.boundingBox(),
   ]);
-  if (copy && headerBox && copy.x + copy.width > headerBox.x + headerBox.width) {
-    console.log(
-      "[DEBUG-code-header]",
-      JSON.stringify(
-        await header.evaluate((element) => ({
-          header: element.getBoundingClientRect().toJSON(),
-          children: Array.from(element.querySelectorAll<HTMLElement>("*")).map((child) => ({
-            tag: child.tagName,
-            class: child.className,
-            rect: child.getBoundingClientRect().toJSON(),
-            minWidth: getComputedStyle(child).minWidth,
-            font: getComputedStyle(child).font,
-          })),
-        })),
-      ),
-    );
-  }
   expect(copy!.x).toBeGreaterThanOrEqual(headerBox!.x);
   expect(copy!.x + copy!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
 });

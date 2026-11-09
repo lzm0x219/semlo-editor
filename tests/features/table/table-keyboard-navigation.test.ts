@@ -3259,40 +3259,11 @@ for (const axis of ["行", "列"] as const) {
       `,
       });
       await page.waitForFunction(() => Boolean(window.tableNavigationEditor));
-      await page.evaluate(() => {
-        const debug = window as unknown as { __debugPointer?: unknown[] };
-        debug.__debugPointer = [];
-        document.addEventListener(
-          "pointermove",
-          (event) => {
-            debug.__debugPointer!.push({
-              x: event.clientX,
-              y: event.clientY,
-              target: (event.target as Element | null)?.outerHTML?.slice(0, 180),
-            });
-            if (debug.__debugPointer!.length > 12) debug.__debugPointer!.shift();
-          },
-          true,
-        );
-      });
       await page.locator("#table-navigation-test td").first().hover();
       const handle = page.getByRole("button", { name: `选择第 1 ${axis}` });
       await expect(handle).toBeVisible();
       const box = await handle.boundingBox();
-      if (!box)
-        throw new Error(
-          "Missing selection handle: " +
-            JSON.stringify(
-              await page.evaluate(() => ({
-                active: document.activeElement?.outerHTML.slice(0, 300),
-                layer: document.querySelector(".semlo-editor-table-edges")?.outerHTML.slice(0, 2000),
-                table: document.querySelector("#table-navigation-test table")?.getBoundingClientRect().toJSON(),
-                viewport: [innerWidth, innerHeight],
-                pointer: (window as unknown as { __debugPointer?: unknown[] }).__debugPointer,
-                hide: (window as unknown as { __debugEdgeHide?: unknown[] }).__debugEdgeHide,
-              })),
-            ),
-        );
+      if (!box) throw new Error("Missing selection handle");
       await page.evaluate((mode) => {
         const controller = window.__semloRequireFixture("tableNavigationEditor");
         let done = false;

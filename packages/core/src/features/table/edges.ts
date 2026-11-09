@@ -340,15 +340,6 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
       };
 
       const hide = () => {
-        const debug = win as unknown as { __debugEdgeHide?: unknown[] };
-        (debug.__debugEdgeHide ??= []).push({
-          stack: new Error().stack,
-          focused: view.hasFocus(),
-          editable: view.editable,
-          destroyed,
-          target: target?.pos,
-        });
-        if (debug.__debugEdgeHide.length > 12) debug.__debugEdgeHide.shift();
         target = null;
         observer?.disconnect();
         observed = null;
