@@ -399,10 +399,8 @@ function followSidePanel(anchor: HTMLElement, panel: HTMLElement, onHidden: () =
 
 function retainSidePanelFocus(root: HTMLElement, panel: HTMLElement | undefined) {
   if (!root.isConnected || !panel?.contains(root.ownerDocument.activeElement)) return;
-  const previousTabIndex = root.getAttribute("tabindex");
-  if (previousTabIndex === null) root.tabIndex = -1;
+  if (!root.hasAttribute("tabindex")) root.tabIndex = -1;
   root.focus({ preventScroll: true });
-  if (previousTabIndex === null) root.removeAttribute("tabindex");
 }
 
 function retainOtherSidePanelFocus(root: HTMLElement, selector: string) {
