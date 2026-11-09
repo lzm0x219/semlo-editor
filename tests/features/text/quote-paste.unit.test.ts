@@ -637,7 +637,7 @@ test("宿主以相同文档的替代事务处理粘贴时，不追加历史边�
   expect(state.doc.textContent).toBe("甲引用甲乙乙");
 });
 
-test("后置宿主追加粘贴事务时，引用与追加内容保持同一撤销组", () => {
+test("后置宿主追加内容与粘贴同组，前后输入分别撤销", () => {
   const document = createDocument();
   const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
   const original = parse(document, "<p>甲乙</p>");
@@ -653,21 +653,323 @@ test("后置宿主追加粘贴事务时，引用与追加内容保持同一撤�
     selection: TextSelection.create(original, 2),
     plugins: [history(), plugin!, host],
   });
+  state = state.apply(state.tr.insertText("前"));
+  const before = state.doc;
   const html = yuqueCrossBlockQuoteHTML;
   const slice = DOMParser.fromSchema(schema).parseSlice(
     fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
   );
   const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
-  const view = { dom: document.body, editable: true, state, dispatch: () => {} } as unknown as EditorView;
-  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(false);
-  const applied = state.applyTransaction(
-    state.tr.replaceSelection(slice).setMeta("paste", true).setMeta("uiEvent", "paste"),
-  );
-  expect(applied.transactions).toHaveLength(2);
-  state = applied.state;
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
   expect(state.doc.textContent).toContain("宿主");
+  const pasted = state.doc;
+  state = state.apply(state.tr.insertText("续"));
+  expect(undo(state, (transaction) => (state = state.apply(transaction)))).toBe(true);
+  expect(state.doc.eq(pasted)).toBe(true);
+  expect(undo(state, (transaction) => (state = state.apply(transaction)))).toBe(true);
+  expect(state.doc.eq(before)).toBe(true);
   expect(undo(state, (transaction) => (state = state.apply(transaction)))).toBe(true);
   expect(state.doc.eq(original)).toBe(true);
+});
+
+test("后置追加器不因历史边界被额外触发", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  let calls = 0;
+  const host = new Plugin({
+    appendTransaction(_transactions, _old, next) {
+      calls++;
+      return next.tr.insertText("宿主");
+    },
+  });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  expect(calls).toBe(1);
+  expect(state.doc.textContent.match(/宿主/g)).toHaveLength(1);
+});
+
+test("后置追加器未修改时，拒绝的输入不消耗历史边界", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const reject = new Plugin({ filterTransaction: (tr) => !tr.getMeta("reject") });
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({
+    doc,
+    selection: TextSelection.create(doc, 2),
+    plugins: [history(), plugin!, reject, host],
+  });
+  state = state.apply(state.tr.insertText("前"));
+  const before = state.doc;
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  const pasted = state.doc;
+  expect(state.applyTransaction(state.tr.insertText("拒").setMeta("reject", true)).transactions).toHaveLength(0);
+  state = state.apply(state.tr.insertText("续"));
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(pasted)).toBe(true);
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(before)).toBe(true);
+});
+
+test("宿主拒绝粘贴且存在后置追加器时，不改变原输入历史", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const reject = new Plugin({ filterTransaction: (tr) => !tr.getMeta("paste") });
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({
+    doc,
+    selection: TextSelection.create(doc, 2),
+    plugins: [history(), reject, plugin!, host],
+  });
+  state = state.apply(state.tr.insertText("前"));
+  const before = state.doc;
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  expect(state.doc.eq(before)).toBe(true);
+  state = state.apply(state.tr.insertText("续"));
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(doc)).toBe(true);
+});
+
+test("后置追加器存在时非历史事务不消耗粘贴后的历史边界", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  state = state.apply(state.tr.insertText("外", 1).setMeta("addToHistory", false));
+  const before = state.doc;
+  state = state.apply(state.tr.insertText("续"));
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(before)).toBe(true);
+});
+
+test("宿主推演并丢弃状态时不消耗真实编辑器的历史边界", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  const view = {
+    dom: document.body,
+    editable: true,
+    composing: false,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  const pasted = state.doc;
+  const speculative = state.apply(state.tr.insertText("推演"));
+  expect(speculative.doc.eq(pasted)).toBe(false);
+  const pos = state.selection.from;
+  expect(plugin!.props.handleTextInput!.call(plugin!, view, pos, pos, "续", () => state.tr)).toBe(true);
+  expect(serialize(document, state)).toBe("<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续</p><p>乙</p>");
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(pasted)).toBe(true);
+});
+
+test("组合期间宿主推演并丢弃状态不会取消真实输入候选", async () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  const view = {
+    dom: document.body,
+    editable: true,
+    composing: false,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  plugin!.props.handleDOMEvents!.compositionstart!.call(plugin!, view, {} as CompositionEvent);
+  state.apply(state.tr.insertText("推演"));
+  state = state.apply(state.tr.insertText("测试").setMeta("composition", 7));
+  plugin!.props.handleDOMEvents!.compositionend!.call(plugin!, view, {} as CompositionEvent);
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(serialize(document, state)).toBe("<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p><p>乙</p>");
+});
+
+test("后置追加器未修改时，继续输入在引用与后缀之间建立正文", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  const view = {
+    dom: document.body,
+    editable: true,
+    composing: false,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      state = state.apply(tr);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  const pasted = state.doc;
+  const position = state.selection.from;
+  expect(plugin!.props.handleTextInput!.call(plugin!, view, position, position, "续", () => state.tr)).toBe(true);
+  expect(serialize(document, state)).toBe("<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续</p><p>乙</p>");
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(pasted)).toBe(true);
+});
+
+test("后置追加器未修改时，粘贴派发内的宿主重入不设置旧历史边界", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({ appendTransaction: () => null });
+  let state = EditorState.create({ doc, selection: TextSelection.create(doc, 2), plugins: [history(), plugin!, host] });
+  let dispatches = 0;
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(tr: Transaction) {
+      dispatches++;
+      state = state.apply(tr);
+      if (tr.getMeta("paste")) state = state.apply(state.tr.insertText("宿主"));
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  expect(dispatches).toBe(1);
+  const afterHost = state.doc;
+  state = state.apply(state.tr.insertText("续"));
+  expect(
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    }),
+  ).toBe(true);
+  expect(state.doc.eq(afterHost)).toBe(false);
 });
 
 test("前置宿主追加并修改粘贴结果时，不建立后续输入候选", () => {

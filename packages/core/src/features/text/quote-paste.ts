@@ -1,5 +1,5 @@
 import { Extension } from "@tiptap/core";
-import { closeHistory } from "@tiptap/pm/history";
+import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import { Fragment, Slice, type Mark, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
@@ -253,20 +253,73 @@ function quoteContinuation(state: EditorState, transaction: Transaction) {
   return insertAt === null ? null : { doc: state.doc, position: selection.from, insertAt, armed: false };
 }
 
+type QuoteComposition = {
+  doc: ProseMirrorNode;
+  position: number;
+  insertAt: number;
+  id: number | null;
+  session: object;
+};
+type QuotePasteState = {
+  token: object;
+  selectionToken: object;
+  continuation: ReturnType<typeof quoteContinuation>;
+  composition: QuoteComposition | null;
+};
+
 /** 让其他粘贴处理器先处理，仅为所测引用片段划定撤销边界。 */
 export const QuotePasteHistory = Extension.create({
   name: "semloEditorQuotePasteHistory",
   priority: -1,
   addProseMirrorPlugins() {
-    let pending: { transaction: Transaction; before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
-    let continuation: { doc: ProseMirrorNode; position: number; insertAt: number; armed: boolean } | null = null;
-    let composition: { doc: ProseMirrorNode; position: number; insertAt: number; id: number | null } | null = null;
-    let plugin: Plugin;
-    plugin = new Plugin({
+    let pending: {
+      transaction: Transaction;
+      before: ProseMirrorNode;
+      expected: ProseMirrorNode;
+      deferred: boolean;
+      accepted: boolean;
+      invalid: boolean;
+      lastState: EditorState | null;
+    } | null = null;
+    const armedBoundaries = new WeakSet<object>();
+    const deferredContinuations = new WeakMap<object, NonNullable<ReturnType<typeof quoteContinuation>>>();
+    const startedCompositions = new WeakMap<object, QuoteComposition>();
+    const endedCompositions = new WeakSet<object>();
+    let plugin: Plugin<QuotePasteState>;
+    function getContinuation(state: EditorState) {
+      const current = plugin.getState(state);
+      return current?.continuation ?? (current ? deferredContinuations.get(current.selectionToken) : undefined) ?? null;
+    }
+    function getComposition(state: EditorState) {
+      const current = plugin.getState(state);
+      const active = current?.composition;
+      if (active && !endedCompositions.has(active.session)) return active;
+      const started = current ? startedCompositions.get(current.selectionToken) : undefined;
+      return started && !endedCompositions.has(started.session) ? started : null;
+    }
+    plugin = new Plugin<QuotePasteState>({
       key: quotePasteHistoryKey,
+      filterTransaction(transaction, state) {
+        const token = plugin.getState(state)?.token;
+        if (
+          token &&
+          armedBoundaries.has(token) &&
+          transaction.docChanged &&
+          transaction.getMeta("addToHistory") !== false &&
+          !isHistoryTransaction(transaction)
+        )
+          closeHistory(transaction);
+        return true;
+      },
       state: {
-        init: () => null,
-        apply(transaction, value) {
+        init: () => ({ token: {}, selectionToken: {}, continuation: null, composition: null }),
+        apply(transaction, value, oldState, newState) {
+          if (pending?.deferred) {
+            if (transaction === pending.transaction) pending.accepted = true;
+            else if (transaction.getMeta("appendedTransaction") !== pending.transaction) pending.invalid = true;
+            if (pending.accepted && !pending.invalid) pending.lastState = newState;
+          }
+          let composition = getComposition(oldState);
           if (composition && (transaction.docChanged || transaction.selectionSet)) {
             const id = transaction.getMeta("composition");
             if (
@@ -276,41 +329,61 @@ export const QuotePasteHistory = Extension.create({
               transaction.getMeta("appendedTransaction")
             )
               composition = null;
-            else composition.id = id;
+            else composition = { ...composition, id };
           }
-          if (continuation && transaction.getMeta(quotePasteHistoryKey) && transaction.doc === continuation.doc)
-            continuation.armed = true;
-          if (
-            continuation &&
-            !transaction.getMeta(quotePasteHistoryKey) &&
-            (transaction.docChanged || transaction.selectionSet)
-          )
-            continuation = null;
-          return value;
+          const meta = transaction.getMeta(quotePasteHistoryKey) as
+            | { candidate?: ReturnType<typeof quoteContinuation> }
+            | undefined;
+          const continuation =
+            meta?.candidate && transaction.doc === meta.candidate.doc
+              ? { ...meta.candidate, armed: true }
+              : transaction.docChanged || transaction.selectionSet
+                ? null
+                : value.continuation;
+          const keepBoundary =
+            !isHistoryTransaction(transaction) &&
+            (!transaction.docChanged || transaction.getMeta("addToHistory") === false);
+          return {
+            token: keepBoundary ? value.token : {},
+            selectionToken: transaction.docChanged || transaction.selectionSet ? {} : value.selectionToken,
+            continuation,
+            composition,
+          };
         },
       },
       props: {
         handleDOMEvents: {
           compositionstart(view) {
-            const candidate = continuation;
-            composition =
+            const candidate = getContinuation(view.state);
+            const current = plugin.getState(view.state);
+            const previous = getComposition(view.state);
+            if (previous) endedCompositions.add(previous.session);
+            if (
+              current &&
               candidate?.armed &&
               view.editable &&
               view.state.doc === candidate.doc &&
               view.state.selection.empty &&
               view.state.selection.from === candidate.position
-                ? { doc: candidate.doc, position: candidate.position, insertAt: candidate.insertAt, id: null }
-                : null;
+            )
+              startedCompositions.set(current.selectionToken, {
+                doc: candidate.doc,
+                position: candidate.position,
+                insertAt: candidate.insertAt,
+                id: null,
+                session: {},
+              });
             return false;
           },
           compositionend(view) {
-            const candidate = composition;
-            if (!candidate) return false;
+            const started = getComposition(view.state);
+            if (!started) return false;
             // 等待 ProseMirror 刷新组合输入的 DOM 事务，再核对输入与原文档。
             queueMicrotask(() =>
               queueMicrotask(() => {
-                if (composition !== candidate) return;
-                composition = null;
+                const candidate = getComposition(view.state);
+                if (!candidate || candidate.session !== started.session) return;
+                endedCompositions.add(candidate.session);
                 if (view.isDestroyed || !view.editable || view.composing || candidate.id === null) return;
                 const { state } = view;
                 const size = state.doc.content.size - candidate.doc.content.size;
@@ -347,8 +420,7 @@ export const QuotePasteHistory = Extension.create({
           },
         },
         handleTextInput(view, from, to, text) {
-          const candidate = continuation;
-          continuation = null;
+          const candidate = getContinuation(view.state);
           const { state } = view;
           if (
             !candidate ||
@@ -390,13 +462,10 @@ export const QuotePasteHistory = Extension.create({
           const index = view.state.plugins.indexOf(plugin);
           // 斜杠探针只在撤销事务时追加处理，不影响粘贴历史分组。
           const slashHistoryProbe = slashHistoryProbeKey.get(view.state);
-          if (
-            index < 0 ||
-            view.state.plugins
-              .slice(index + 1)
-              .some((other) => other.spec.appendTransaction && other !== slashHistoryProbe)
-          )
-            return false;
+          if (index < 0) return false;
+          const deferred = view.state.plugins
+            .slice(index + 1)
+            .some((other) => other.spec.appendTransaction && other !== slashHistoryProbe);
           const document = view.dom.ownerDocument;
           const probeTarget = target === "end" ? "suffix" : target;
           if (
@@ -436,12 +505,34 @@ export const QuotePasteHistory = Extension.create({
             );
             return true;
           }
-          const input = { transaction, before: view.state.doc, expected: transaction.doc };
+          const input = {
+            transaction,
+            before: view.state.doc,
+            expected: transaction.doc,
+            deferred,
+            accepted: false,
+            invalid: false,
+            lastState: null as EditorState | null,
+          };
           pending = input;
           queueMicrotask(() => {
             if (pending === input) pending = null;
           });
           view.dispatch(transaction.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"));
+          if (
+            pending === input &&
+            input.deferred &&
+            input.accepted &&
+            !input.invalid &&
+            input.lastState === view.state &&
+            !view.isDestroyed
+          ) {
+            pending = null;
+            const state = plugin.getState(view.state);
+            if (state) armedBoundaries.add(state.token);
+            const candidate = quoteContinuation(view.state, input.transaction);
+            if (state && candidate) deferredContinuations.set(state.selectionToken, { ...candidate, armed: true });
+          }
           return true;
         },
       },
@@ -460,10 +551,11 @@ export const QuotePasteHistory = Extension.create({
             !transaction.getMeta("appendedTransaction"),
         );
         if (!pasted) return null;
+        if (input.deferred) return null;
         pending = null;
-        continuation = quoteContinuation(newState, input.transaction);
+        const candidate = quoteContinuation(newState, input.transaction);
         // 所测粘贴与其后的输入分别撤销；宿主拒绝或替换事务时不修改历史。
-        return closeHistory(newState.tr).setMeta("addToHistory", false).setMeta(quotePasteHistoryKey, true);
+        return closeHistory(newState.tr).setMeta("addToHistory", false).setMeta(quotePasteHistoryKey, { candidate });
       },
     });
     return [plugin];
