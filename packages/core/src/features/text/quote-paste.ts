@@ -221,7 +221,11 @@ export const QuotePasteHistory = Extension.create({
           if (!view.editable || event.defaultPrevented || !html || !target || !isYuqueQuoteBoundarySlice(slice, target))
             return false;
           const index = view.state.plugins.indexOf(plugin);
-          if (index < 0 || view.state.plugins.slice(index + 1).some((other) => other.props.handlePaste)) return false;
+          if (
+            index < 0 ||
+            view.state.plugins.slice(index + 1).some((other) => other.props.handlePaste || other.spec.appendTransaction)
+          )
+            return false;
           const document = view.dom.ownerDocument;
           if (normalizeExternalQuoteHTML(html, document, false, target) === normalizeExternalQuoteHTML(html, document))
             return false;
