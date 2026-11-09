@@ -41,6 +41,8 @@ export function createImageCaptionControl({
   caption.className = "semlo-editor-image-caption";
   caption.contentEditable = "false";
   const input = doc.createElement("textarea");
+  // 描述宽度由图片决定，避免 textarea 的默认列宽反过来撑大图片容器。
+  input.cols = 1;
   input.rows = 1;
   input.className = "semlo-editor-image-caption-input";
   input.setAttribute("aria-label", "图片描述内容");

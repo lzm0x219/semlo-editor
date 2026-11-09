@@ -91,8 +91,19 @@ async function _browserTest(page: import("playwright").Page) {
   });
   if (!roundtrip) throw new Error("Media HTML roundtrip or URL validation failed");
   await page.getByRole("button", { name: "只读预览" }).click();
-  if ((await page.getByRole("button", { name: "删除视频" }).count()) || (await video.getAttribute("controls")) === null)
-    throw new Error("Read-only controls incorrect");
+  await video.hover();
+  if (await page.getByRole("button", { name: "删除视频" }).count()) throw new Error("Read-only delete is visible");
+  await video.evaluate((element) => {
+    const player = element as HTMLVideoElement;
+    player.currentTime = 0;
+    player.muted = true;
+    return player.play();
+  });
+  const pause = page.getByRole("button", { name: "暂停视频" });
+  await pause.click();
+  await page.waitForFunction(() => document.querySelector<HTMLVideoElement>(".semlo-editor-media-node video")?.paused);
+  await page.getByRole("button", { name: "播放视频" }).click();
+  await page.waitForFunction(() => !document.querySelector<HTMLVideoElement>(".semlo-editor-media-node video")?.paused);
   await page.getByRole("button", { name: "继续编辑" }).click();
   await video.hover();
   await page.getByRole("button", { name: "删除视频" }).click();
