@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import type { Node as ProseMirrorNode, Slice } from "@tiptap/pm/model";
+import { Fragment, Slice, type Mark, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
@@ -77,6 +77,24 @@ function isYuqueQuoteBoundarySlice(slice: Slice, target: Exclude<YuqueQuoteTarge
     if (paragraph.type.name !== "paragraph" || paragraph.content.size !== 0) return false;
   }
   return true;
+}
+
+function applyQuoteBold(slice: Slice, target: Exclude<YuqueQuoteTarget, null>, bold: Mark | undefined): Slice {
+  if (!bold) return slice;
+  const quoteIndex = slice.content.childCount - (target === "suffix" ? 2 : 1);
+  const quote = slice.content.child(quoteIndex);
+  const paragraph = quote.firstChild!;
+  if (!paragraph.type.allowsMarkType(bold.type)) return slice;
+  const children: ProseMirrorNode[] = [];
+  paragraph.forEach((node) => {
+    const marks = bold.addToSet(node.marks);
+    children.push(node.isText && node.marks.every((mark) => mark.isInSet(marks)) ? node.mark(marks) : node);
+  });
+  const blocks: ProseMirrorNode[] = [];
+  slice.content.forEach((node, _offset, index) => {
+    blocks.push(index === quoteIndex ? quote.copy(Fragment.from(paragraph.copy(Fragment.fromArray(children)))) : node);
+  });
+  return new Slice(Fragment.fromArray(blocks), slice.openStart, slice.openEnd);
 }
 
 function hasOnlyElementsAndWhitespace(parent: ParentNode): boolean {
@@ -215,10 +233,61 @@ export const QuotePasteHistory = Extension.create({
   priority: -1,
   addProseMirrorPlugins() {
     let pending: { transaction: Transaction; before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
+    let continuation: { doc: ProseMirrorNode; position: number; insertAt: number; armed: boolean } | null = null;
     let plugin: Plugin;
     plugin = new Plugin({
       key: quotePasteHistoryKey,
+      state: {
+        init: () => null,
+        apply(transaction, value) {
+          if (continuation && transaction.getMeta(quotePasteHistoryKey) && transaction.doc === continuation.doc)
+            continuation.armed = true;
+          if (
+            continuation &&
+            !transaction.getMeta(quotePasteHistoryKey) &&
+            (transaction.docChanged || transaction.selectionSet)
+          )
+            continuation = null;
+          return value;
+        },
+      },
       props: {
+        handleTextInput(view, from, to, text) {
+          const candidate = continuation;
+          continuation = null;
+          const { state } = view;
+          if (
+            !candidate ||
+            !candidate.armed ||
+            !view.editable ||
+            view.composing ||
+            !text ||
+            /[\r\n]/.test(text) ||
+            from !== to ||
+            state.doc !== candidate.doc ||
+            !state.selection.empty ||
+            state.selection.from !== from ||
+            from !== candidate.position
+          )
+            return false;
+          const paragraph = state.schema.nodes.paragraph;
+          if (!paragraph) return false;
+          let transaction: Transaction;
+          try {
+            const marks = state.storedMarks ?? state.selection.$from.marks();
+            const block = paragraph.create(null, state.schema.text(text, paragraph.allowedMarks(marks)));
+            const $insert = state.doc.resolve(candidate.insertAt);
+            if ($insert.depth !== 0 || !$insert.parent.canReplaceWith($insert.index(), $insert.index(), paragraph))
+              return false;
+            transaction = state.tr.insert(candidate.insertAt, block);
+            transaction.setSelection(TextSelection.create(transaction.doc, candidate.insertAt + 1 + text.length));
+          } catch {
+            // 自定义 schema 无法插入普通正文时保留默认输入行为。
+            return false;
+          }
+          view.dispatch(transaction.scrollIntoView());
+          return true;
+        },
         handlePaste(view, event, slice) {
           const html = event.clipboardData?.getData("text/html");
           const target = yuqueQuoteTarget(view);
@@ -239,7 +308,8 @@ export const QuotePasteHistory = Extension.create({
             return false;
           let transaction: Transaction;
           try {
-            transaction = closeHistory(view.state.tr).replaceSelection(slice);
+            const bold = view.state.storedMarks?.find((mark) => mark.type.name === "bold");
+            transaction = closeHistory(view.state.tr).replaceSelection(applyQuoteBold(slice, target, bold));
           } catch {
             // 自定义 schema 无法安全构造粘贴事务时交回正常流程。
             return false;
@@ -269,8 +339,25 @@ export const QuotePasteHistory = Extension.create({
         );
         if (!pasted) return null;
         pending = null;
+        const { selection } = newState;
+        if (selection instanceof TextSelection && selection.empty) {
+          const $from = selection.$from;
+          const insertAt =
+            $from.depth === 1 &&
+            $from.parent.type.name === "paragraph" &&
+            $from.parentOffset === 0 &&
+            $from.index(0) > 0 &&
+            newState.doc.child($from.index(0) - 1).type.name === "blockquote"
+              ? $from.before(1)
+              : $from.depth === 2 &&
+                  $from.node(1).type.name === "blockquote" &&
+                  $from.parentOffset === $from.parent.content.size
+                ? $from.after(1)
+                : null;
+          if (insertAt !== null) continuation = { doc: newState.doc, position: selection.from, insertAt, armed: false };
+        }
         // 所测粘贴与其后的输入分别撤销；宿主拒绝或替换事务时不修改历史。
-        return closeHistory(newState.tr).setMeta("addToHistory", false);
+        return closeHistory(newState.tr).setMeta("addToHistory", false).setMeta(quotePasteHistoryKey, true);
       },
     });
     return [plugin];

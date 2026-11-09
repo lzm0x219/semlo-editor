@@ -343,9 +343,14 @@ test("语雀片段粘贴后可继续输入并分别撤销和重做", async ({ pa
   await page.keyboard.insertText("续");
   const edited = await page.evaluate(() => {
     const controller = window.__semloRequireFixture("quotePasteEditor");
-    return { json: controller.getSnapshot().json, text: controller.editor.state.doc.textContent };
+    return {
+      json: controller.getSnapshot().json,
+      html: controller.getSnapshot().html,
+      text: controller.editor.state.doc.textContent,
+    };
   });
   expect(edited.text).toBe("甲新引用甲乙续乙");
+  expect(edited.html).toBe("<p>甲新</p><blockquote><p>引用甲乙</p></blockquote><p>续</p><p>乙</p>");
   await page.keyboard.press("ControlOrMeta+z");
   expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
     pasted.json,
@@ -372,7 +377,7 @@ test("语雀片段粘贴后可继续输入并分别撤销和重做", async ({ pa
   );
 });
 
-test("段中开启粗体后粘贴语雀片段不会吞入后缀", async ({ page }) => {
+test("段中开启粗体后粘贴语雀片段，引用继承粗体且不吞入后缀", async ({ page }) => {
   await mountBoundaryEditor(page, "<p>甲乙</p>");
   await page.evaluate(() => {
     const editor = window.__semloRequireFixture("quotePasteEditor").editor;
@@ -384,6 +389,54 @@ test("段中开启粗体后粘贴语雀片段不会吞入后缀", async ({ page 
   const prose = page.locator("#quote-paste .semlo-editor-prose");
   await expect(prose.locator(":scope > p")).toHaveText(["甲", "乙"]);
   await expect(prose.locator(":scope > blockquote")).toHaveText("引用甲乙");
+  await expect(prose.locator(":scope > blockquote strong")).toHaveText("引用甲乙");
+});
+
+test("空段粘贴引用后输入生成正文，受控回写和撤销保留边界", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p></p>", true);
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await page.waitForFunction(() => document.activeElement?.closest("#quote-paste") !== null);
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  expect(pasted.html).toBe("<blockquote><p>引用甲乙</p></blockquote>");
+  await page.keyboard.insertText("续");
+  await page.keyboard.insertText("写");
+  const edited = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  expect(edited.html).toBe("<blockquote><p>引用甲乙</p></blockquote><p>续写</p>");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p></p>",
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    edited.json,
+  );
+});
+
+test("粘贴后选区移动使继续输入候选失效", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>甲乙</p>");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
+    editor.commands.focus();
+    editor.commands.setTextSelection(2);
+  });
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
+    const position = editor.state.selection.from;
+    editor.commands.setTextSelection(1);
+    editor.commands.setTextSelection(position);
+  });
+  await page.keyboard.insertText("续");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续乙</p>",
+  );
 });
 
 test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新挂载", async ({ page }) => {
@@ -437,6 +490,13 @@ test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新�
   });
   expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().text)).toBe(
     "重新挂载",
+  );
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await page.waitForFunction(() => document.activeElement?.closest("#quote-paste") !== null);
+  await page.keyboard.insertText("续");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>重新挂载续</p>",
   );
 });
 
