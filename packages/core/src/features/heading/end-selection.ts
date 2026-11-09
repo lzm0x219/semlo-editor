@@ -45,6 +45,8 @@ const singleLineLTR =
 // 两端与段落方向一致，并通过字形几何验证整行的逻辑端点。
 const mixedSingleLineLTR =
   /^[A-Za-z\u4e00-\u9fff][A-Za-z\u4e00-\u9fff \u05d0-\u05ea\u0621-\u063a\u0641-\u064a]*[A-Za-z\u4e00-\u9fff](?![\s\S])/u;
+// 仅支持英文开头、单一希伯来文或阿拉伯文字段结尾的单行标题。
+const trailingRtlLTR = /^[A-Za-z]+(?: +[A-Za-z]+)* +(?:[\u05d0-\u05ea]+|[\u0621-\u063a\u0641-\u064a]+)(?![\s\S])/u;
 const mixedSingleLineRTL =
   /^(?:[\u05d0-\u05ea][\u05d0-\u05ea A-Za-z\u4e00-\u9fff]*[\u05d0-\u05ea]|[\u0621-\u063a\u0641-\u064a][\u0621-\u063a\u0641-\u064a A-Za-z\u4e00-\u9fff]*[\u0621-\u063a\u0641-\u064a])(?![\s\S])/u;
 const bidiControls = /[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u;
@@ -113,6 +115,7 @@ function singleVisualTextHeading(
   heading: ProseMirrorNode,
   pos: number,
   direction: "ltr" | "rtl" = "ltr",
+  allowTrailingRtl = false,
 ): boolean {
   if (heading.content.size > 4096 || heading.childCount > 256) return false;
   let supported = heading.childCount > 0 && Boolean(heading.textContent);
@@ -122,6 +125,7 @@ function singleVisualTextHeading(
   if (!supported || bidiControls.test(heading.textContent)) return false;
   const mixedLTR = direction === "ltr" && !singleLineLTR.test(heading.textContent);
   const mixedRTL = direction === "rtl" && !simpleRTL.test(heading.textContent);
+  const trailingRtl = direction === "ltr" && allowTrailingRtl && trailingRtlLTR.test(heading.textContent);
   if (direction === "ltr") {
     if (
       mixedLTR &&
@@ -129,7 +133,7 @@ function singleVisualTextHeading(
         heading.childCount !== 1 ||
         !heading.firstChild?.isText ||
         heading.firstChild.marks.some((mark) => !["bold", "italic"].includes(mark.type.name)) ||
-        !mixedSingleLineLTR.test(heading.textContent))
+        (!mixedSingleLineLTR.test(heading.textContent) && !trailingRtl))
     )
       return false;
   } else if (
@@ -147,6 +151,8 @@ function singleVisualTextHeading(
   const headingElement: HTMLElement = element;
   const getStyle = win.getComputedStyle.bind(win);
   const headingStyle = win.getComputedStyle(element);
+  // 包括闭合 Shadow DOM 的实际缩放；无法取得尺度时不猜测。
+  if (trailingRtl && Reflect.get(element, "currentCSSZoom") !== 1) return false;
   if (
     !hasSupportedHeadingLayout(element, win) ||
     headingStyle.writingMode !== "horizontal-tb" ||
@@ -158,13 +164,16 @@ function singleVisualTextHeading(
     return false;
   for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) {
     const style = win.getComputedStyle(ancestor);
+    // zoom 会改变字形矩形的坐标尺度，但计算后的 line-height 仍是未缩放值。
+    const zoom = style.getPropertyValue("zoom");
+    if (trailingRtl && zoom !== "" && zoom !== "normal" && zoom !== "1") return false;
     if (style.transform !== "none" || (style.columnCount !== "auto" && style.columnCount !== "1")) return false;
     if (
       direction === "rtl" &&
       (hasCoordinateTransform(style) || (style.columnWidth !== "" && style.columnWidth !== "auto"))
     )
       return false;
-    if (ancestor === view.dom && direction === "ltr") break;
+    if (ancestor === view.dom && direction === "ltr" && !trailingRtl) break;
   }
 
   const rects: DOMRect[] = [];
@@ -263,11 +272,18 @@ function singleVisualTextHeading(
   if (mixedLTR) {
     if (!mixedLtrText || mixedLtrText.data !== heading.textContent || visitedRtlMarks.size !== rtlMarks.size)
       return false;
+    const lineHeight = Number.parseFloat(headingStyle.lineHeight);
+    // 行距小于字形高度时，不同行的矩形可能重叠，不能据此判成单行。
+    if (trailingRtl && (!Number.isFinite(lineHeight) || lineHeight <= 0)) return false;
     const glyph = view.dom.ownerDocument.createRange();
     let firstLeft = Infinity;
     let lastRight = -Infinity;
     let minLeft = Infinity;
     let maxRight = -Infinity;
+    let firstTop: number | undefined;
+    const rightmostOffset = trailingRtl
+      ? mixedLtrText.data.search(/[\u05d0-\u05ea\u0621-\u063a\u0641-\u064a]/u)
+      : mixedLtrText.length - 1;
     for (let offset = 0; offset < mixedLtrText.length; offset++) {
       glyph.setStart(mixedLtrText, offset);
       glyph.setEnd(mixedLtrText, offset + 1);
@@ -277,11 +293,17 @@ function singleVisualTextHeading(
       if (
         ![box.left, box.right, box.top, box.bottom, box.width, box.height].every(Number.isFinite) ||
         box.width <= 0 ||
-        box.height <= 0
+        box.height <= 0 ||
+        (trailingRtl && box.height < 1) ||
+        (trailingRtl && box.height > lineHeight + 0.5)
       )
         return false;
       if (offset === 0) firstLeft = box.left;
-      lastRight = box.right;
+      if (trailingRtl) {
+        if (firstTop !== undefined && box.top !== firstTop) return false;
+        firstTop = box.top;
+      }
+      if (offset === rightmostOffset) lastRight = box.right;
       minLeft = Math.min(minLeft, box.left);
       maxRight = Math.max(maxRight, box.right);
     }
@@ -716,8 +738,14 @@ function selectHeadingEnd(view: EditorView, event: KeyboardEvent, provenVisualLi
     const insideDetails =
       cursor.depth === 3 && cursor.node(1).type.name === "details" && cursor.node(2).type.name === "detailsContent";
     if (!insideRoot && !insideQuote && !insideDetails) return false;
+    // 仅接管已核对的末尾 Home 与行首 Shift+End，不猜测双向行内选区。
+    const allowTrailingRtl =
+      view.state.selection.empty &&
+      native.isCollapsed &&
+      !event.getModifierState("AltGraph") &&
+      ((home && cursor.parentOffset === heading.content.size) || (shiftEnd && cursor.parentOffset === 0));
     const singleLine =
-      singleVisualTextHeading(view, heading, cursor.before()) ||
+      singleVisualTextHeading(view, heading, cursor.before(), "ltr", allowTrailingRtl) ||
       ((shiftEnd || home) &&
         !event.getModifierState("AltGraph") &&
         singleVisualTextHeading(view, heading, cursor.before(), "rtl"));

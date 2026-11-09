@@ -27,7 +27,7 @@ type Sample = {
 };
 const cases: Sample[] = [
   // The narrow single-script RTL case has its own safety tests.
-  { name: "LTR ends in RTL", text: "abc אבג", dir: "ltr" },
+  { name: "LTR ends in mixed RTL scripts", text: "abc אב مرحبا", dir: "ltr" },
   { name: "RTL ends in LTR", text: "אבג abc", dir: "rtl" },
   { name: "mixed LTR trailing newline", text: "abc אבג def\n", dir: "ltr" },
   { name: "mixed RTL trailing newline", text: "אבג abc דהו\n", dir: "rtl" },
@@ -154,6 +154,10 @@ for (const item of cases) {
 }
 
 for (const item of [
+  { name: "LTR ends in Arabic", text: "abc مرحبا", dir: "ltr" as const },
+  { name: "LTR ends in Hebrew", text: "abc אבג", dir: "ltr" as const },
+  { name: "bold LTR ends in Hebrew", text: "abc אבג", dir: "ltr" as const, mark: "bold" as const },
+  { name: "numbered LTR ends in Hebrew", text: "abc אבג", dir: "ltr" as const, numbered: true },
   { name: "LTR with heading link", text: "标题内容", dir: "ltr" as const },
   { name: "LTR mixed", text: "abc אבג def", dir: "ltr" as const },
   { name: "numbered LTR mixed", text: "abc אבג def", dir: "ltr" as const, numbered: true },
@@ -210,6 +214,196 @@ test("标题链接进入文字流时保留选区，避免误选后文", async ({
   const after = await snapshot(page);
   expect(after.pm).toEqual(before.pm);
   expect(after.json).toEqual(before.json);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("英文与希伯来文混排的行内光标继续保守回退", async ({ page }) => {
+  await mount(page, { name: "interior bidi", text: "abc אבג", dir: "ltr" }, false);
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").select("abc אבג", 2, 2));
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
+  expect(after.json).toEqual(before.json);
+  expect(after.homePrevented).toBe(true);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("英文与希伯来文标题末尾换行时继续保守回退", async ({ page }) => {
+  const text = "abc אבג\n";
+  await mount(page, { name: "bidi trailing newline", text, dir: "ltr" }, false);
+  await page.evaluate(
+    (value) => window.__semloRequireFixture("headingEndBoundary").select(value, value.length, value.length),
+    text,
+  );
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
+  expect(after.json).toEqual(before.json);
+  expect(after.homePrevented).toBe(true);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("混排标题行距过紧时不把多行当作单行", async ({ page }) => {
+  const text = "abc אבגדהוז";
+  await mount(page, { name: "overlapping lines", text, dir: "ltr" }, false);
+  await page.addStyleTag({
+    content:
+      "#heading-end-boundary h3 { font: 26px Arial !important; line-height: 2px !important; white-space: pre-wrap !important; width: 70px !important; }",
+  });
+  await page.evaluate(
+    (value) => window.__semloRequireFixture("headingEndBoundary").select(value, value.length, value.length),
+    text,
+  );
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const tops = await page.locator("#heading-end-boundary h3").evaluate((heading) => {
+    const node = Array.from(heading.childNodes).find((child) => child.nodeType === Node.TEXT_NODE)!;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    return Array.from(range.getClientRects(), (rect) => rect.top);
+  });
+  expect(new Set(tops).size).toBeGreaterThan(1);
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
+  expect(after.json).toEqual(before.json);
+  expect(after.endPrevented).toBe(true);
+});
+
+for (const target of ["h3", ".semlo-editor-prose"]) {
+  test(`缩放后的紧密混排行距仍保守回退：${target}`, async ({ page }) => {
+    const text = "abc אבגדהו";
+    await mount(page, { name: "scaled overlapping lines", text, dir: "ltr" }, false);
+    await page.addStyleTag({
+      content: `#heading-end-boundary h3 { font: 26px Arial !important; line-height: 13px !important; white-space: pre-wrap !important; width: 80px !important; } #heading-end-boundary ${target} { zoom: 0.4 !important; }`,
+    });
+    await page.evaluate(
+      (value) => window.__semloRequireFixture("headingEndBoundary").select(value, value.length, value.length),
+      text,
+    );
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    const tops = await page.locator("#heading-end-boundary h3").evaluate((heading) => {
+      const node = Array.from(heading.childNodes).find((child) => child.nodeType === Node.TEXT_NODE)!;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return Array.from(range.getClientRects(), (rect) => rect.top);
+    });
+    expect(new Set(tops).size).toBeGreaterThan(1);
+    const before = await snapshot(page);
+    await page.keyboard.press("Home");
+    const home = await snapshot(page);
+    expect(home.pm).toEqual(before.pm);
+    expect(home.homePrevented).toBe(true);
+    await page.keyboard.press("Shift+End");
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    const after = await snapshot(page);
+    expect(after.pm).toEqual(before.pm);
+    expect(after.dom).toEqual(before.dom);
+    expect(after.json).toEqual(before.json);
+    expect(after.endPrevented).toBe(true);
+  });
+}
+
+for (const mode of ["zoom", "transform"] as const) {
+  test(`插槽内${mode}的紧密混排标题不会跨行扩选`, async ({ page }) => {
+    const text = "a אבגדהוזחטיכלמנסעפצקרשת";
+    await mount(page, { name: "slotted zoom", text, dir: "ltr" }, false);
+    await page.evaluate((mode) => {
+      const container = document.querySelector("#heading-end-boundary")!;
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = host.attachShadow({ mode: "closed" });
+      const wrapper = document.createElement("div");
+      wrapper.style.setProperty(mode, mode === "zoom" ? "0.25" : "scale(0.25)");
+      wrapper.append(document.createElement("slot"));
+      root.append(wrapper);
+      host.append(container);
+    }, mode);
+    await page.addStyleTag({
+      content:
+        "#heading-end-boundary h3 { font-family: Arial !important; font-weight: normal !important; font-size: 16px !important; line-height: 8px !important; word-break: break-all !important; width: 155px !important; }",
+    });
+    await page.evaluate((value) => window.__semloRequireFixture("headingEndBoundary").select(value, 0, 0), text);
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    const tops = await page.locator("#heading-end-boundary h3").evaluate((heading) => {
+      const node = Array.from(heading.childNodes).find((child) => child.nodeType === Node.TEXT_NODE)!;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      return Array.from(range.getClientRects(), (rect) => rect.top);
+    });
+    expect(new Set(tops).size).toBeGreaterThan(1);
+    const before = await snapshot(page);
+    await page.keyboard.press("Shift+End");
+    await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+    const after = await snapshot(page);
+    expect(after.pm).toEqual(before.pm);
+    expect(after.dom).toEqual(before.dom);
+    expect(after.endPrevented).toBe(true);
+  });
+}
+
+test("无法获取缩放尺度时保留混排标题选区", async ({ page }) => {
+  const text = "abc אבג";
+  await mount(page, { name: "unknown zoom", text, dir: "ltr" }, false);
+  await page.locator("#heading-end-boundary h3").evaluate((heading) => {
+    Object.defineProperty(heading, "currentCSSZoom", { value: undefined, configurable: true });
+  });
+  await page.evaluate(
+    (value) => window.__semloRequireFixture("headingEndBoundary").select(value, value.length, value.length),
+    text,
+  );
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await snapshot(page);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
+  expect(after.homePrevented).toBe(true);
+  expect(after.endPrevented).toBe(true);
+});
+
+test("插槽内极小纵向缩放的多行标题不跨行扩选", async ({ page }) => {
+  const text = "abc אבגדהו";
+  await mount(page, { name: "slotted vertical scale", text, dir: "ltr" }, false);
+  await page.evaluate(() => {
+    const container = document.querySelector("#heading-end-boundary")!;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = host.attachShadow({ mode: "closed" });
+    const wrapper = document.createElement("div");
+    wrapper.style.transform = "scaleY(0.0001)";
+    wrapper.style.transformOrigin = "top left";
+    wrapper.append(document.createElement("slot"));
+    root.append(wrapper);
+    host.append(container);
+  });
+  await page.addStyleTag({
+    content:
+      "#heading-end-boundary h3 { font: 26px Arial !important; line-height: 13px !important; white-space: pre-wrap !important; width: 80px !important; }",
+  });
+  await page.evaluate((value) => window.__semloRequireFixture("headingEndBoundary").select(value, 0, 0), text);
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const before = await snapshot(page);
+  await page.keyboard.press("Shift+End");
+  await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
+  const after = await snapshot(page);
+  expect(after.pm).toEqual(before.pm);
+  expect(after.dom).toEqual(before.dom);
   expect(after.endPrevented).toBe(true);
 });
 
