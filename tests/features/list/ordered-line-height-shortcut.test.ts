@@ -356,7 +356,7 @@ test("explicit old values and end stops preserve the existing step sequence", as
   }
 });
 
-test("paragraph, heading, other lists, containers, and mixed selections retain their previous behavior", async ({
+test("lists retain their scoped steps while default paragraph-heading selections step down to 1.5", async ({
   page,
 }) => {
   const content = doc(
@@ -406,7 +406,7 @@ test("paragraph, heading, other lists, containers, and mixed selections retain t
   await page.keyboard.press(down);
   const after = await inspect(page);
   expect(after.blocks).toEqual(
-    before.blocks.map((block) => (["正文", "标题"].includes(block.text) ? { ...block, height: "1.15" } : block)),
+    before.blocks.map((block) => (["正文", "标题"].includes(block.text) ? { ...block, height: "1.5" } : block)),
   );
   expect(withoutLineHeight(after.json)).toEqual(withoutLineHeight(before.json));
   expect(after.selection).toEqual(before.selection);

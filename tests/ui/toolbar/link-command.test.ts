@@ -116,6 +116,74 @@ test("窄屏跨段落链接禁用，收回单段选区后可从更多菜单打�
   await page.evaluate(() => window.linkCommandFixture.destroy("A"));
 });
 
+for (const entry of ["main", "api"] as const) {
+  for (const gradient of [null, "linear-gradient(90deg, #2abcbf, #3836dd)"]) {
+    test(`${entry} 新建${gradient ? "渐变" : "彩色"}链接恢复默认文字色并保留其他格式及两步历史`, async ({ page }) => {
+      await page.evaluate(
+        ({ entry, gradient }) => {
+          window.linkCommandFixture.mount(
+            "A",
+            {
+              type: "doc",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: "甲",
+                      marks: [
+                        { type: "bold" },
+                        { type: "italic" },
+                        { type: "underline" },
+                        { type: "strike" },
+                        { type: "highlight", attrs: { color: "#fbde28" } },
+                        {
+                          type: "textStyle",
+                          attrs: { color: "#df2a3f", fontSize: "24px", semloEditorGradient: gradient },
+                        },
+                      ],
+                    },
+                    { type: "text", text: "乙" },
+                  ],
+                },
+                { type: "paragraph", content: [{ type: "text", text: "TAIL" }] },
+              ],
+            },
+            entry === "api" ? "hidden" : "default",
+          );
+          window.linkCommandFixture.select("A", "甲", 0, 2);
+        },
+        { entry, gradient },
+      );
+      const before = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      await openLink(page, entry);
+      const pending = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      const marks = pending.content![0].content![0].marks!;
+      expect(marks.find((mark) => mark.type === "textStyle")?.attrs).toMatchObject({
+        color: null,
+        semloEditorGradient: null,
+        fontSize: "24px",
+      });
+      expect(marks.filter((mark) => !["link", "textStyle"].includes(mark.type))).toEqual(
+        before.content![0].content![0].marks!.filter((mark) => mark.type !== "textStyle"),
+      );
+      expect(pending.content![1]).toEqual(before.content![1]);
+      await applyLink(page, entry, "https://example.com/", "甲乙");
+      const after = await page.evaluate(() => window.linkCommandFixture.snapshot("A"));
+      expect(await page.evaluate(() => window.linkCommandFixture.undo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(pending);
+      expect(await page.evaluate(() => window.linkCommandFixture.undo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(before);
+      expect(await page.evaluate(() => window.linkCommandFixture.redo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(pending);
+      expect(await page.evaluate(() => window.linkCommandFixture.redo("A"))).toBe(true);
+      expect(await page.evaluate(() => window.linkCommandFixture.snapshot("A"))).toEqual(after);
+      await page.evaluate(() => window.linkCommandFixture.destroy("A"));
+    });
+  }
+}
+
 for (const entry of ["main", "custom-floating", "shortcut", "custom", "api"] as const) {
   test(`${entry} 新建链接保留格式、选区与两步撤销重做`, async ({ page }) => {
     const mode: "custom" | "hidden" | "default" | "custom-floating" =

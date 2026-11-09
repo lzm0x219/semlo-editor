@@ -1,5 +1,6 @@
 import type { Editor, Range } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
+import type { Mark } from "@tiptap/pm/model";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 
 /** 与默认链接按钮一致的选中和可用状态。 */
@@ -60,6 +61,14 @@ function isLinkRangeSupported(editor: Editor, { from, to }: Range): boolean {
   return $from.parent.isTextblock && $from.sameParent($to);
 }
 
+function withoutLinkColor(marks: readonly Mark[]): Mark[] {
+  return marks.flatMap((mark) => {
+    if (mark.type.name !== "textStyle") return [mark];
+    const attrs = { ...mark.attrs, color: null, semloEditorGradient: null };
+    return Object.values(attrs).some((value) => value !== null && value !== undefined) ? [mark.type.create(attrs)] : [];
+  });
+}
+
 interface BeginLinkEditOptions extends LinkEditOptions {
   range?: Range;
   prepared?: boolean;
@@ -81,10 +90,26 @@ export function beginLinkEdit(editor: Editor, options: BeginLinkEditOptions = {}
     if (!link || !editor.can().setMark("link")) return null;
     const tr = state.tr;
     if (from === to || options.range) {
-      const marks = (state.storedMarks ?? state.doc.resolve(from).marks()).filter((mark) => mark.type !== link);
+      const marks = withoutLinkColor(state.storedMarks ?? state.doc.resolve(from).marks()).filter(
+        (mark) => mark.type !== link,
+      );
       tr.replaceWith(from, to, state.schema.text("链接", link.create({ href: null }).addToSet(marks)));
       to = from + "链接".length;
-    } else tr.addMark(from, to, link.create({ href: null }));
+    } else {
+      tr.addMark(from, to, link.create({ href: null }));
+      // 新建链接使用默认链接色，其他文字属性与占位在同一历史事务中保留。
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (!node.isText) return;
+        const current = node.marks.find((mark) => mark.type.name === "textStyle");
+        if (!current) return;
+        const next = withoutLinkColor([current])[0];
+        if (next?.eq(current)) return;
+        const start = Math.max(from, pos),
+          end = Math.min(to, pos + node.nodeSize);
+        tr.removeMark(start, end, current.type);
+        if (next) tr.addMark(start, end, next);
+      });
+    }
     if (!tr.docChanged) return null;
     tr.setSelection(TextSelection.create(tr.doc, from, to)).setMeta("preventAutolink", true);
     // 块插入已创建历史边界，其他入口需单独记录占位。

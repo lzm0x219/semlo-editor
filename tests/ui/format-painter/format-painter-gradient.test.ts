@@ -54,6 +54,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("composition keyboard events do not cancel or activate the format painter", async ({ page }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "Linux x86_64" }),
+  );
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -76,16 +79,27 @@ test("composition keyboard events do not cancel or activate the format painter",
   const prose = host.locator(".semlo-editor-prose");
   await painter.click();
   await expect(painter).toHaveAttribute("aria-pressed", "true");
+  const original = await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").getSnapshot().json);
   for (const event of [
     { key: "Escape", isComposing: true },
     { key: "Escape", keyCode: 229 },
     { key: "s", shiftKey: true, ctrlKey: true, isComposing: true },
   ]) {
-    await prose.evaluate((element, init) => element.dispatchEvent(new KeyboardEvent("keydown", init)), {
-      ...event,
-      bubbles: true,
-      cancelable: true,
-    });
+    const result = await prose.evaluate(
+      (element, init) => {
+        const key = new KeyboardEvent("keydown", init);
+        element.dispatchEvent(key);
+        return {
+          composing: key.isComposing,
+          prevented: key.defaultPrevented,
+          json: window.__semloRequireFixture("gradientPainterEditor").getSnapshot().json,
+        };
+      },
+      { ...event, bubbles: true, cancelable: true },
+    );
+    expect(result.composing).toBe(event.isComposing ?? false);
+    expect(result.json).toEqual(original);
+    expect(result.prevented).toBe(false);
     await expect(painter, JSON.stringify(event)).toHaveAttribute("aria-pressed", "true");
   }
   await prose.evaluate((element) => element.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })));
