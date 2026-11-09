@@ -91,7 +91,11 @@ window.mountDynamicEditor = async (framework) => {
   };
   const ready = new Promise<EditorController>((resolve) => (markReady = resolve));
   const onReady = (editor: EditorController) => markReady(editor);
-  const onError = (error: Error) => errors.push(error.message);
+  const onError = (error: Error) => {
+    errors.push(error.message);
+    const debug = window as unknown as { __debugIntegrationErrors?: string[] };
+    (debug.__debugIntegrationErrors ??= []).push(error.stack ?? error.message);
+  };
   if (framework === "react") {
     function DynamicReact() {
       const [integrations, setIntegrations] = useState<Integrations>({});

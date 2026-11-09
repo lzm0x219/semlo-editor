@@ -159,7 +159,14 @@ for (const framework of ["react", "vue", "solid"] as const) {
     const host = page.locator("#dynamic-editor");
     await expect(host.locator(".semlo-editor-prose")).toHaveText("外部替换");
     await expect(host.locator(".semlo-editor-image-node")).toHaveCount(0);
-    expect(await page.evaluate(() => window.__semloRequireFixture("dynamicEditor").errors)).toEqual([]);
+    expect(
+      await page.evaluate(() => window.__semloRequireFixture("dynamicEditor").errors),
+      JSON.stringify(
+        await page.evaluate(
+          () => (window as unknown as { __debugIntegrationErrors?: string[] }).__debugIntegrationErrors,
+        ),
+      ),
+    ).toEqual([]);
     await page.evaluate(() => window.__semloRequireFixture("dynamicEditor").destroy());
   });
 
@@ -188,6 +195,13 @@ for (const framework of ["react", "vue", "solid"] as const) {
     });
     await expect(page.locator("#dynamic-editor")).toHaveCount(0);
     expect(pageErrors).toEqual([]);
-    expect(await page.evaluate(() => window.__semloRequireFixture("dynamicEditor").errors)).toEqual([]);
+    expect(
+      await page.evaluate(() => window.__semloRequireFixture("dynamicEditor").errors),
+      JSON.stringify(
+        await page.evaluate(
+          () => (window as unknown as { __debugIntegrationErrors?: string[] }).__debugIntegrationErrors,
+        ),
+      ),
+    ).toEqual([]);
   });
 }
