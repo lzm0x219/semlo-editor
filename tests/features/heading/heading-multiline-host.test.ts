@@ -22,7 +22,7 @@ async function mount(page: Page, mode: Mode, order: Order) {
     order,
   });
   await page.evaluate(() => window.__semloRequireFixture("headingMultilineHost").settle());
-  await page.locator("#heading-multiline-host h3").click({ position: { x: 50, y: 8 } });
+  await page.locator("#heading-multiline-host h3").click({ position: { x: 100, y: 8 } });
   await page.evaluate(() => window.__semloRequireFixture("headingMultilineHost").settle());
   await page.keyboard.press("Home");
 }
@@ -57,6 +57,22 @@ for (const order of ["early", "late"] as const)
       page.on("pageerror", (error) => errors.push(error.message));
       await mount(page, mode, order);
       const before = await inspect(page);
+      const line = await page.locator("#heading-multiline-host h3").evaluate((heading) => {
+        const node = Array.from(heading.childNodes).find((child) => child.nodeType === Node.TEXT_NODE);
+        if (!node?.textContent) throw new Error("Missing heading text");
+        const range = document.createRange();
+        let top: number | undefined;
+        let end = 0;
+        for (let i = 0; i < node.textContent.length; i++) {
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          const rect = range.getBoundingClientRect();
+          top ??= rect.top;
+          if (Math.abs(rect.top - top) > 1) break;
+          end = i + 1;
+        }
+        return node.textContent.slice(0, end);
+      });
       await page.keyboard.press("Shift+End");
       await page.evaluate(() => window.__semloRequireFixture("headingMultilineHost").settle());
       const after = await inspect(page);
@@ -69,7 +85,7 @@ for (const order of ["early", "late"] as const)
         if (mode === "append-doc") {
           expect(after.json.content?.[1].content?.[0].text).toBe("NEXT!");
           expect(after.changes).toBe(1);
-          expect(after.text).toBe("test ".repeat(4));
+          expect(after.text).toBe(line);
         } else {
           expect(after.json).toEqual(before.json);
           expect(after.changes).toBe(0);
