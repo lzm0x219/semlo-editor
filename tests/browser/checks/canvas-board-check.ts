@@ -106,6 +106,14 @@ try {
       document.body.append(host);
       const svg = host.querySelector("svg")!;
       const text = svg.querySelector("foreignObject div div")!;
+      const details = {
+        liveFont: getComputedStyle(live).font,
+        staticFont: getComputedStyle(text).font,
+        liveWidth: live.getBoundingClientRect().width,
+        staticWidth: text.getBoundingClientRect().width,
+        text: sample.text,
+        shape: sample.shape,
+      };
       range.selectNodeContents(text);
       const staticLines = range.getClientRects().length;
       const textBox = text.getBoundingClientRect();
@@ -134,6 +142,7 @@ try {
       results.push({
         liveLines,
         staticLines,
+        details,
         contained,
         fallbackVisible,
         textInsetWidth:
@@ -151,7 +160,7 @@ try {
   });
   for (const result of wrapping) {
     assert.ok(result.liveLines > 1);
-    assert.equal(result.staticLines, result.liveLines);
+    assert.equal(result.staticLines, result.liveLines, JSON.stringify(result.details));
     assert.equal(result.contained, true);
     assert.equal(result.fallbackVisible, true);
     if (result.textInsetWidth !== null) assert.equal(result.textInsetWidth, "124");
