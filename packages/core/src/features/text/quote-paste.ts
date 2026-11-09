@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
 import { Fragment, Slice, type Mark, type Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
 
@@ -228,6 +228,31 @@ export const QuotePaste = Extension.create({
   },
 });
 
+function quoteContinuation(state: EditorState, transaction: Transaction) {
+  const { selection } = state;
+  if (
+    !state.doc.eq(transaction.doc) ||
+    !selection.eq(transaction.selection) ||
+    !(selection instanceof TextSelection) ||
+    !selection.empty
+  )
+    return null;
+  const $from = selection.$from;
+  const insertAt =
+    $from.depth === 1 &&
+    $from.parent.type.name === "paragraph" &&
+    $from.parentOffset === 0 &&
+    $from.index(0) > 0 &&
+    state.doc.child($from.index(0) - 1).type.name === "blockquote"
+      ? $from.before(1)
+      : $from.depth === 2 &&
+          $from.node(1).type.name === "blockquote" &&
+          $from.parentOffset === $from.parent.content.size
+        ? $from.after(1)
+        : null;
+  return insertAt === null ? null : { doc: state.doc, position: selection.from, insertAt, armed: false };
+}
+
 /** 让其他粘贴处理器先处理，仅为所测引用片段划定撤销边界。 */
 export const QuotePasteHistory = Extension.create({
   name: "semloEditorQuotePasteHistory",
@@ -235,12 +260,24 @@ export const QuotePasteHistory = Extension.create({
   addProseMirrorPlugins() {
     let pending: { transaction: Transaction; before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
     let continuation: { doc: ProseMirrorNode; position: number; insertAt: number; armed: boolean } | null = null;
+    let composition: { doc: ProseMirrorNode; position: number; insertAt: number; id: number | null } | null = null;
     let plugin: Plugin;
     plugin = new Plugin({
       key: quotePasteHistoryKey,
       state: {
         init: () => null,
         apply(transaction, value) {
+          if (composition && (transaction.docChanged || transaction.selectionSet)) {
+            const id = transaction.getMeta("composition");
+            if (
+              typeof id !== "number" ||
+              (composition.id !== null && composition.id !== id) ||
+              transaction.getMeta("addToHistory") === false ||
+              transaction.getMeta("appendedTransaction")
+            )
+              composition = null;
+            else composition.id = id;
+          }
           if (continuation && transaction.getMeta(quotePasteHistoryKey) && transaction.doc === continuation.doc)
             continuation.armed = true;
           if (
@@ -253,6 +290,62 @@ export const QuotePasteHistory = Extension.create({
         },
       },
       props: {
+        handleDOMEvents: {
+          compositionstart(view) {
+            const candidate = continuation;
+            composition =
+              candidate?.armed &&
+              view.editable &&
+              view.state.doc === candidate.doc &&
+              view.state.selection.empty &&
+              view.state.selection.from === candidate.position
+                ? { doc: candidate.doc, position: candidate.position, insertAt: candidate.insertAt, id: null }
+                : null;
+            return false;
+          },
+          compositionend(view) {
+            const candidate = composition;
+            if (!candidate) return false;
+            // 等待 ProseMirror 刷新组合输入的 DOM 事务，再核对输入与原文档。
+            queueMicrotask(() =>
+              queueMicrotask(() => {
+                if (composition !== candidate) return;
+                composition = null;
+                if (view.isDestroyed || !view.editable || view.composing || candidate.id === null) return;
+                const { state } = view;
+                const size = state.doc.content.size - candidate.doc.content.size;
+                if (size <= 0 || !state.selection.empty || state.selection.from !== candidate.position + size) return;
+                let transaction: Transaction;
+                try {
+                  const content = state.doc.slice(candidate.position, candidate.position + size);
+                  if (content.openStart || content.openEnd || !content.content.childCount) return;
+                  let onlyText = true;
+                  content.content.forEach((node) => {
+                    if (!node.isText) onlyText = false;
+                  });
+                  const paragraph = state.schema.nodes.paragraph;
+                  if (!onlyText || !paragraph) return;
+                  transaction = state.tr.delete(candidate.position, candidate.position + size);
+                  if (!transaction.doc.eq(candidate.doc)) return;
+                  const $insert = transaction.doc.resolve(candidate.insertAt);
+                  if (
+                    $insert.depth !== 0 ||
+                    !$insert.parent.canReplaceWith($insert.index(), $insert.index(), paragraph)
+                  )
+                    return;
+                  transaction.insert(candidate.insertAt, paragraph.createChecked(null, content.content));
+                  transaction.setSelection(TextSelection.create(transaction.doc, candidate.insertAt + 1 + size));
+                  transaction.setMeta("composition", candidate.id);
+                } catch {
+                  // 无法证明只移动了本次输入时保留原结果。
+                  return;
+                }
+                view.dispatch(transaction.scrollIntoView());
+              }),
+            );
+            return false;
+          },
+        },
         handleTextInput(view, from, to, text) {
           const candidate = continuation;
           continuation = null;
@@ -301,7 +394,7 @@ export const QuotePasteHistory = Extension.create({
             index < 0 ||
             view.state.plugins
               .slice(index + 1)
-              .some((other) => other.props.handlePaste || (other.spec.appendTransaction && other !== slashHistoryProbe))
+              .some((other) => other.spec.appendTransaction && other !== slashHistoryProbe)
           )
             return false;
           const document = view.dom.ownerDocument;
@@ -318,6 +411,30 @@ export const QuotePasteHistory = Extension.create({
           } catch {
             // 自定义 schema 无法安全构造粘贴事务时交回正常流程。
             return false;
+          }
+          const beforeHandlers = view.state;
+          let beforeSlice: string | undefined;
+          try {
+            beforeSlice = JSON.stringify(slice.toJSON());
+          } catch {
+            return false;
+          }
+          const downstream = beforeHandlers.plugins.slice(index + 1);
+          for (const other of downstream) {
+            if (other.props.handlePaste?.call(other, view, event, slice)) return true;
+          }
+          let sliceUnchanged = false;
+          try {
+            sliceUnchanged = JSON.stringify(slice.toJSON()) === beforeSlice;
+          } catch {
+            // 宿主改变为不可序列化的片段时继续默认流程。
+          }
+          if (view.state !== beforeHandlers || !sliceUnchanged) {
+            // 后置处理器虽未接管但已改变状态或片段；按默认流程继续，避免重复调用它们。
+            view.dispatch(
+              view.state.tr.replaceSelection(slice).scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"),
+            );
+            return true;
           }
           const input = { transaction, before: view.state.doc, expected: transaction.doc };
           pending = input;
@@ -344,23 +461,7 @@ export const QuotePasteHistory = Extension.create({
         );
         if (!pasted) return null;
         pending = null;
-        const { selection } = newState;
-        if (selection instanceof TextSelection && selection.empty) {
-          const $from = selection.$from;
-          const insertAt =
-            $from.depth === 1 &&
-            $from.parent.type.name === "paragraph" &&
-            $from.parentOffset === 0 &&
-            $from.index(0) > 0 &&
-            newState.doc.child($from.index(0) - 1).type.name === "blockquote"
-              ? $from.before(1)
-              : $from.depth === 2 &&
-                  $from.node(1).type.name === "blockquote" &&
-                  $from.parentOffset === $from.parent.content.size
-                ? $from.after(1)
-                : null;
-          if (insertAt !== null) continuation = { doc: newState.doc, position: selection.from, insertAt, armed: false };
-        }
+        continuation = quoteContinuation(newState, input.transaction);
         // 所测粘贴与其后的输入分别撤销；宿主拒绝或替换事务时不修改历史。
         return closeHistory(newState.tr).setMeta("addToHistory", false).setMeta(quotePasteHistoryKey, true);
       },

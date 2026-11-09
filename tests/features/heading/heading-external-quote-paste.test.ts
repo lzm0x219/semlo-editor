@@ -445,6 +445,175 @@ test("段尾粘贴引用后输入生成正文，分别撤销输入和粘贴", as
   );
 });
 
+test("段尾粘贴后组合输入生成正文且可分别撤销", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true, data: "" })),
+  );
+  await page.keyboard.insertText("测试");
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "测试" })),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html))
+    .toBe("<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p>",
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>",
+  );
+});
+
+test("段中粘贴后组合输入与后缀分段，并保留受控回写和撤销", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>甲乙</p>", true);
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.setTextSelection(2));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })),
+  );
+  await page.keyboard.insertText("测试");
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "测试" })),
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html))
+    .toBe("<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p><p>乙</p>");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+});
+
+test("Chromium 组合输入更新并上屏后可分别撤销和重做", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  const session = await page.context().newCDPSession(page);
+  await session.send("Input.imeSetComposition", { text: "ce", selectionStart: 2, selectionEnd: 2 });
+  await session.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
+  await session.send("Input.insertText", { text: "测试" });
+  await expect
+    .poll(() => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html))
+    .toBe("<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p>",
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>",
+  );
+  await session.detach();
+});
+
+test("取消组合输入不创建空段且撤销粘贴", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p></p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  await page.evaluate(() => {
+    const dom = window.__semloRequireFixture("quotePasteEditor").editor.view.dom;
+    dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+  });
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<blockquote><p>引用甲乙</p></blockquote>",
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p></p>",
+  );
+});
+
+test("组合期间外部替换文档后不应用旧输入候选", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    controller.editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    controller.setContent("<p>新文档</p>");
+    controller.editor.view.dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "旧" }));
+  });
+  await page.waitForTimeout(50);
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>新文档</p>",
+  );
+});
+
+test("组合结束时销毁编辑器不会派发旧事务", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })),
+  );
+  await page.keyboard.insertText("测试");
+  await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    controller.editor.view.dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "测试" }));
+    controller.destroy();
+  });
+  await page.waitForTimeout(50);
+  expect(errors).toEqual([]);
+});
+
+test("组合期间切换只读后不移动已输入文字", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  await page.evaluate(() =>
+    window
+      .__semloRequireFixture("quotePasteEditor")
+      .editor.view.dom.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })),
+  );
+  await page.keyboard.insertText("测试");
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
+    editor.setEditable(false);
+    editor.view.dom.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "测试" }));
+  });
+  await page.waitForTimeout(50);
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p><blockquote><p>引用甲乙测试</p></blockquote>",
+  );
+});
+
 test("粘贴后选区移动使继续输入候选失效", async ({ page }) => {
   await mountBoundaryEditor(page, "<p>甲乙</p>");
   await page.evaluate(() => {
@@ -462,6 +631,38 @@ test("粘贴后选区移动使继续输入候选失效", async ({ page }) => {
   await page.keyboard.insertText("续");
   expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
     "<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续乙</p>",
+  );
+});
+
+test("后置宿主粘贴处理器让出时只调用一次，输入和粘贴分别撤销", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>甲乙</p>", true);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { Plugin } from '/dist/index.js'
+      const editor = window.quotePasteEditor.editor
+      window.quotePasteHostCalls = 0
+      editor.registerPlugin(new Plugin({ props: { handlePaste: () => { window.quotePasteHostCalls++; return false } } }),
+        (plugin, plugins) => [...plugins, plugin])
+    `,
+  });
+  await page.waitForFunction(() => (window as unknown as { quotePasteHostCalls?: number }).quotePasteHostCalls === 0);
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.setTextSelection(2));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  await page.keyboard.insertText("续");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续</p><p>乙</p>",
+  );
+  expect(await page.evaluate(() => (window as unknown as { quotePasteHostCalls: number }).quotePasteHostCalls)).toBe(1);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>甲乙</p>",
   );
 });
 
@@ -514,6 +715,7 @@ test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新�
         content: '<p>重新挂载</p>' })
     `,
   });
+  await page.waitForFunction(() => window.quotePasteEditor && !window.quotePasteEditor.editor.isDestroyed);
   expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().text)).toBe(
     "重新挂载",
   );
