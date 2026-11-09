@@ -359,7 +359,7 @@ test("other input rules keep their existing Backspace behavior", async ({ page }
   await page.keyboard.press("Space");
   await expect(prose.locator(":scope > ul")).toHaveCount(1);
   await page.keyboard.press("Backspace");
-  expect(await html(page)).toBe("<p>- </p>");
+  expect(await html(page)).toBe('<p data-semlo-editor-preserve-tab="" style="white-space: pre-wrap;">- </p>');
 });
 
 test("a host can reject wrapping or leaving the quote without a fallback edit", async ({ page }) => {

@@ -5,10 +5,14 @@ import { runInThisContext } from "node:vm";
 import { expect, test, type Page } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { fontToolbar, type FontToolbarTools } from "../../fixtures/browser/font-toolbar";
 
-function loadFixture(): (page: Page) => Promise<{ skipped?: string }> {
+function loadFixture(): (page: Page, fonts: FontToolbarTools) => Promise<{ skipped?: string }> {
   const body = readFileSync("tests/browser/cases/browser-local-font-emphasis.ts", "utf8");
-  return runInThisContext(stripTypeScriptTypes(`(${body}\n)`)) as (page: Page) => Promise<{ skipped?: string }>;
+  return runInThisContext(stripTypeScriptTypes(`(${body}\n)`)) as (
+    page: Page,
+    fonts: FontToolbarTools,
+  ) => Promise<{ skipped?: string }>;
 }
 
 test("an empty native font list finishes the emphasis fixture without timing out", async ({ page }) => {
@@ -20,7 +24,9 @@ test("an empty native font list finishes the emphasis fixture without timing out
   });
   await page.goto(origin);
   page.setDefaultTimeout(2500);
-  await expect(loadFixture()(page)).resolves.toEqual({ skipped: "No usable regular/bold local font family was found" });
+  await expect(loadFixture()(page, fontToolbar)).resolves.toEqual({
+    skipped: "No usable regular/bold local font family was found",
+  });
 });
 
 test("a native font request that never settles reports a specific skip", async ({ page }) => {
@@ -35,7 +41,7 @@ test("a native font request that never settles reports a specific skip", async (
     });
   });
   await page.goto(origin);
-  await expect(loadFixture()(page)).resolves.toEqual({
+  await expect(loadFixture()(page, fontToolbar)).resolves.toEqual({
     skipped: "Native local font enumeration did not settle within 8 seconds",
   });
 });
@@ -57,7 +63,7 @@ test("a hanging font request does not hide a browser error", async ({ page }) =>
     });
   });
   await page.goto(origin);
-  await expect(loadFixture()(page)).rejects.toThrow("font page error");
+  await expect(loadFixture()(page, fontToolbar)).rejects.toThrow("font page error");
 });
 
 test("a rejected native font request is reported as an error", async ({ page }) => {
@@ -72,7 +78,9 @@ test("a rejected native font request is reported as an error", async ({ page }) 
     });
   });
   await page.goto(origin);
-  await expect(loadFixture()(page)).rejects.toThrow("Native local font enumeration failed: Error: font query failed");
+  await expect(loadFixture()(page, fontToolbar)).rejects.toThrow(
+    "Native local font enumeration failed: Error: font query failed",
+  );
 });
 
 test("a native font request that throws synchronously is reported as an error", async ({ page }) => {
@@ -89,5 +97,7 @@ test("a native font request that throws synchronously is reported as an error", 
     });
   });
   await page.goto(origin);
-  await expect(loadFixture()(page)).rejects.toThrow("Native local font enumeration failed: Error: font query threw");
+  await expect(loadFixture()(page, fontToolbar)).rejects.toThrow(
+    "Native local font enumeration failed: Error: font query threw",
+  );
 });

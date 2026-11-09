@@ -147,6 +147,10 @@ const fixture = {
   settle,
   snapshot: (id: string) => required(id).controller.getSnapshot(),
   raw: (id: string) => required(id).controller.editor.getJSON(),
+  snapshotAsRaw: (id: string) => {
+    const { controller } = required(id);
+    return controller.editor.schema.nodeFromJSON(controller.getSnapshot().json).toJSON();
+  },
   changes: (id: string) => required(id).changes,
   errors: (id: string) => required(id).errors,
   async echo(id: string, format: "json" | "html") {
