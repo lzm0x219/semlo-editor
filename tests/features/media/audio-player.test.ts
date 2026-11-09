@@ -138,7 +138,17 @@ test("keyboard controls work without editing the document and deletion has one u
   expect(await page.evaluate(() => window.audioPlayerFixture.changes)).toBe(0);
   expect(await page.evaluate(() => window.audioPlayerFixture.api.editor.can().undo())).toBe(false);
   await page.keyboard.press("Tab");
-  await expect(card(page).getByRole("link", { name: "下载音频" })).toBeFocused();
+  try {
+    await expect(card(page).getByRole("link", { name: "下载音频" })).toBeFocused();
+  } catch (error) {
+    throw new Error(
+      "[DEBUG-audio-focus] " +
+        JSON.stringify(
+          await page.evaluate(() => ({ active: document.activeElement?.outerHTML, platform: navigator.platform })),
+        ),
+      { cause: error },
+    );
+  }
   await page.keyboard.press("Tab");
   await expect(card(page).getByLabel("阅读页可下载")).toBeFocused();
   await page.keyboard.press("Tab");
