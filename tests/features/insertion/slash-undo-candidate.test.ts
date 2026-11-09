@@ -374,7 +374,19 @@ test("empty command undo sequence and toolbar redo match observed reference", as
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
     await expect(page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true })).toBeDisabled();
     await page.keyboard.press("ControlOrMeta+Shift+z");
-    await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
+    try {
+      await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
+    } catch (error) {
+      throw new Error(
+        JSON.stringify(
+          await page.evaluate(() => ({
+            html: window.slashCandidate.html(),
+            active: document.activeElement?.outerHTML.slice(0, 400),
+          })),
+        ),
+        { cause: error },
+      );
+    }
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
   }
