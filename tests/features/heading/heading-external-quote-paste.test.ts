@@ -666,6 +666,86 @@ test("后置宿主粘贴处理器让出时只调用一次，输入和粘贴分�
   );
 });
 
+for (const append of [false, true]) {
+  test(`后置宿主事务${append ? "追加文字" : "未追加"}时保持粘贴与后续输入历史边界`, async ({ page }) => {
+    await mountBoundaryEditor(page, "<p>甲乙</p>", true);
+    await page.addScriptTag({
+      type: "module",
+      content: `
+      import { Plugin } from '/dist/index.js'
+      const editor = window.quotePasteEditor.editor
+      window.quotePasteAppenderReady = false
+      window.quotePasteAppenderCalls = 0
+      editor.registerPlugin(new Plugin({ appendTransaction(transactions, _old, next) {
+        window.quotePasteAppenderCalls++
+        if (${append} && transactions.some(tr => tr.getMeta('uiEvent') === 'paste')) return next.tr.insertText('宿主')
+        return null
+      } }), (plugin, plugins) => [...plugins, plugin])
+      window.quotePasteAppenderReady = true
+    `,
+    });
+    await page.waitForFunction(
+      () => (window as unknown as { quotePasteAppenderReady?: boolean }).quotePasteAppenderReady,
+    );
+    await page.locator("#quote-paste .semlo-editor-prose p").click();
+    await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.setTextSelection(2));
+    await page.evaluate(() => {
+      (window as unknown as { quotePasteAppenderCalls: number }).quotePasteAppenderCalls = 0;
+    });
+    await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+    const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+    if (append) expect(pasted.text).toContain("宿主");
+    const calls = await page.evaluate(
+      () => (window as unknown as { quotePasteAppenderCalls: number }).quotePasteAppenderCalls,
+    );
+    expect(calls).toBe(1);
+    await page.keyboard.insertText("续");
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+      pasted.json,
+    );
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+      "<p>甲乙</p>",
+    );
+  });
+}
+
+test("后置追加器未修改时组合上屏与粘贴分别撤销", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>", true);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+    import { Plugin } from '/dist/index.js'
+    window.quotePasteEditor.editor.registerPlugin(new Plugin({ appendTransaction: () => null }), (p, plugins) => [...plugins, p])
+    window.quotePasteAppenderReady = true
+  `,
+  });
+  await page.waitForFunction(
+    () => (window as unknown as { quotePasteAppenderReady?: boolean }).quotePasteAppenderReady,
+  );
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  const session = await page.context().newCDPSession(page);
+  await session.send("Input.imeSetComposition", { text: "ce", selectionStart: 2, selectionEnd: 2 });
+  await session.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
+  await session.send("Input.insertText", { text: "测试" });
+  await expect
+    .poll(() => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html))
+    .toBe("<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
+    "<p>目标</p>",
+  );
+  await session.detach();
+});
+
 test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新挂载", async ({ page }) => {
   await page.addScriptTag({
     type: "module",
