@@ -439,3 +439,59 @@ test("语雀粘贴的历史边界不影响另一个实例，销毁后可重新�
     "重新挂载",
   );
 });
+
+test("自动链接追加事务后，语雀引用粘贴与后续输入仍可分别撤销", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>example.com后</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  const before = await page.evaluate(() => {
+    const controller = window.__semloRequireFixture("quotePasteEditor");
+    controller.editor.commands.setTextSelection(12);
+    return controller.getSnapshot().json;
+  });
+  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  expect(pasted.html).toContain(
+    '<a target="_blank" rel="noopener noreferrer nofollow" href="http://example.com">example.com</a>',
+  );
+  await page.keyboard.insertText("续");
+  const edited = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    before,
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+    edited.json,
+  );
+});
+
+for (const sample of [
+  { name: "空段", content: "<p></p>", selection: { from: 1, to: 1 } },
+  { name: "整段选区", content: "<p>甲乙</p>", selection: { from: 1, to: 3 } },
+]) {
+  test(`语雀引用粘到${sample.name}后，连续输入与粘贴可分别撤销`, async ({ page }) => {
+    await mountBoundaryEditor(page, sample.content);
+    await page.locator("#quote-paste .semlo-editor-prose p").click();
+    const before = await page.evaluate((selection) => {
+      const controller = window.__semloRequireFixture("quotePasteEditor");
+      controller.editor.commands.setTextSelection(selection);
+      return controller.getSnapshot().json;
+    }, sample.selection);
+    await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
+    const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json);
+    await page.keyboard.insertText("续");
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+      pasted,
+    );
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+      before,
+    );
+  });
+}
