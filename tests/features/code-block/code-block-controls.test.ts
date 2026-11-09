@@ -388,7 +388,22 @@ test("copy presents an accessible icon and restores it after the feedback", asyn
   const copy = host.getByRole("button", { name: "复制代码" });
   await expect(copy.locator("svg")).toBeVisible();
   await copy.click();
-  await expect(host.getByRole("button", { name: "已复制" })).toHaveText("已复制");
+  await expect(host.getByRole("button", { name: "已复制" }).locator("svg path")).toHaveAttribute("d", "M5 12l4 4L19 6");
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async () => {
+          throw new Error("denied");
+        },
+      },
+    }),
+  );
+  await host.getByRole("button", { name: "已复制" }).click();
+  await expect(host.getByRole("button", { name: "复制失败" }).locator("svg path")).toHaveAttribute(
+    "d",
+    "M6 6l12 12M18 6 6 18",
+  );
   await expect(host.getByRole("button", { name: "复制代码" }).locator("svg")).toBeVisible({ timeout: 4_000 });
 });
 
