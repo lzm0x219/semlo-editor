@@ -397,6 +397,25 @@ function followSidePanel(anchor: HTMLElement, panel: HTMLElement, onHidden: () =
   };
 }
 
+function retainSidePanelFocus(root: HTMLElement, panel: HTMLElement | undefined) {
+  if (!root.isConnected || !panel?.contains(root.ownerDocument.activeElement)) return;
+  const previousTabIndex = root.getAttribute("tabindex");
+  if (previousTabIndex === null) root.tabIndex = -1;
+  root.focus({ preventScroll: true });
+  if (previousTabIndex === null) root.removeAttribute("tabindex");
+}
+
+function retainOtherSidePanelFocus(root: HTMLElement, selector: string) {
+  const panel = root.ownerDocument.activeElement?.closest<HTMLElement>(selector);
+  if (
+    panel?.id &&
+    Array.from(root.querySelectorAll("[aria-controls]")).some((anchor) =>
+      anchor.getAttribute("aria-controls")?.split(/\s+/).includes(panel.id),
+    )
+  )
+    retainSidePanelFocus(root, panel);
+}
+
 export function addTableGrid(
   root: HTMLElement,
   editor: Editor,
@@ -416,27 +435,35 @@ export function addTableGrid(
     if (timer !== undefined) root.ownerDocument.defaultView?.clearTimeout(timer);
     timer = undefined;
   };
-  const hide = () => {
+  const hide = (retainFocus = false) => {
     cancel();
     stopPosition?.();
     stopPosition = undefined;
-    if (grid) {
+    const previous = grid;
+    if (retainFocus) retainSidePanelFocus(root, previous);
+    const unlink = unlinkGrid;
+    grid = undefined;
+    unlinkGrid = undefined;
+    if (previous) {
       if (previousExpanded === null) tableButton.removeAttribute("aria-expanded");
       else tableButton.setAttribute("aria-expanded", previousExpanded);
     }
-    unlinkGrid?.();
-    unlinkGrid = undefined;
-    grid?.remove();
-    grid = undefined;
+    previous?.remove();
+    unlink?.();
   };
   const schedule = () => {
     cancel();
-    timer = root.ownerDocument.defaultView?.setTimeout(hide, 180);
+    timer = root.ownerDocument.defaultView?.setTimeout(() => {
+      timer = undefined;
+      if (!grid?.contains(root.ownerDocument.activeElement)) hide();
+    }, 180);
   };
   const show = () => {
     if (!root.isConnected) return;
     cancel();
+    retainOtherSidePanelFocus(root, ".semlo-editor-column-picker");
     hideOther();
+    if (!root.isConnected) return;
     if (grid) return;
     const doc = root.ownerDocument;
     grid = doc.createElement("div");
@@ -487,8 +514,17 @@ export function addTableGrid(
       }
     grid.addEventListener("mouseenter", cancel);
     grid.addEventListener("mouseleave", schedule);
+    grid.addEventListener("focusout", (event) => {
+      if (
+        grid &&
+        (!event.relatedTarget || !("nodeType" in event.relatedTarget) || !grid.contains(event.relatedTarget as Node)) &&
+        !tableButton.matches(":hover") &&
+        !grid.matches(":hover")
+      )
+        schedule();
+    });
     doc.body.append(grid);
-    const position = followSidePanel(tableButton, grid, hide);
+    const position = followSidePanel(tableButton, grid, () => hide(true));
     stopPosition = position.stop;
     position.update();
   };
@@ -517,27 +553,35 @@ export function addColumnPicker(
     if (timer !== undefined) root.ownerDocument.defaultView?.clearTimeout(timer);
     timer = undefined;
   };
-  const hide = () => {
+  const hide = (retainFocus = false) => {
     cancel();
     stopPosition?.();
     stopPosition = undefined;
-    if (panel) {
+    const previous = panel;
+    if (retainFocus) retainSidePanelFocus(root, previous);
+    const unlink = unlinkPanel;
+    panel = undefined;
+    unlinkPanel = undefined;
+    if (previous) {
       if (previousExpanded === null) button.removeAttribute("aria-expanded");
       else button.setAttribute("aria-expanded", previousExpanded);
     }
-    unlinkPanel?.();
-    unlinkPanel = undefined;
-    panel?.remove();
-    panel = undefined;
+    previous?.remove();
+    unlink?.();
   };
   const schedule = () => {
     cancel();
-    timer = root.ownerDocument.defaultView?.setTimeout(hide, 180);
+    timer = root.ownerDocument.defaultView?.setTimeout(() => {
+      timer = undefined;
+      if (!panel?.contains(root.ownerDocument.activeElement)) hide();
+    }, 180);
   };
   const show = () => {
     if (!root.isConnected) return;
     cancel();
+    retainOtherSidePanelFocus(root, ".semlo-editor-table-grid-popover");
     hideOther();
+    if (!root.isConnected) return;
     if (panel) return;
     const doc = root.ownerDocument;
     panel = doc.createElement("div");
@@ -571,8 +615,19 @@ export function addColumnPicker(
     }
     panel.addEventListener("mouseenter", cancel);
     panel.addEventListener("mouseleave", schedule);
+    panel.addEventListener("focusout", (event) => {
+      if (
+        panel &&
+        (!event.relatedTarget ||
+          !("nodeType" in event.relatedTarget) ||
+          !panel.contains(event.relatedTarget as Node)) &&
+        !button.matches(":hover") &&
+        !panel.matches(":hover")
+      )
+        schedule();
+    });
     doc.body.append(panel);
-    const position = followSidePanel(button, panel, hide);
+    const position = followSidePanel(button, panel, () => hide(true));
     stopPosition = position.stop;
     position.update();
   };

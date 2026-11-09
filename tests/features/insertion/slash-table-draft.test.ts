@@ -149,14 +149,16 @@ test("表头单元格同层查询与另一实例分别保存，离开查询及�
   const otherBefore = await snapshot(page, "other");
   await enterQuery(page, "header");
   await enterQuery(page, "other");
-  expect(await snapshot(page, "header")).toEqual(headerBefore);
+  const headerCommitted = await snapshot(page, "header");
+  expect(headerCommitted.json).toEqual(committedJSON(headerBefore));
+  expect(headerCommitted.html).toContain("<p>/p</p>");
   expect(await snapshot(page, "other")).toEqual(otherBefore);
   await page.keyboard.press("Escape");
   await expect.poll(async () => cellText((await snapshot(page, "other")).json)).toBe("/p");
-  expect(await snapshot(page, "header")).toEqual(headerBefore);
+  expect(await snapshot(page, "header")).toEqual(headerCommitted);
   const otherCommitted = await snapshot(page, "other");
 
-  // 从表外文字起点离开查询，避开仍属于该实例、位于段落右侧的建议浮层。
+  // 回到表外文字起点，检查另一实例的已保存内容不受影响。
   await page.locator("#header .semlo-editor-prose > p").click({ position: { x: 6, y: 6 } });
   await page.keyboard.type("!");
   await expect.poll(async () => cellText((await snapshot(page, "header")).json)).toBe("/p");
