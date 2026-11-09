@@ -285,12 +285,11 @@ test("each find panel has a unique association with its trigger and cleans it up
   await expect(page.locator(`[id="${secondId}"]`)).toHaveCount(0);
 });
 
-test("search reveals nested folded headings without changing content or undo history", async ({ page }) => {
+test("search reveals nested folded headings in one undo step", async ({ page }) => {
   const html =
     "<p>序言</p><h1>父标题</h1><p>父正文</p><h2>子标题</h2><p>隐藏命中甲</p><h1>另一区域</h1><p>另一段正文</p>";
   const first = await mount(page, 2, html);
   const second = page.locator("#find-replace-test-1");
-  const original = await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].getSnapshot());
   await page.evaluate(() =>
     window.__semloRequireFixture("findReplaceEditors")[0].editor.chain().setTextSelection(1).insertContent("前").run(),
   );
@@ -322,11 +321,16 @@ test("search reveals nested folded headings without changing content or undo his
   expect(await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].editor.commands.undo())).toBe(
     true,
   );
-  const expectedOriginal = structuredClone(original.json);
-  expectedOriginal.content![5].attrs!.semloEditorHeadingFolded = true;
+  const expectedFolded = structuredClone(before.json);
+  for (const index of [1, 3, 5]) expectedFolded.content![index].attrs!.semloEditorHeadingFolded = true;
   expect((await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].getSnapshot())).json).toEqual(
-    expectedOriginal,
+    expectedFolded,
   );
+  expect(await page.evaluate(() => window.__semloRequireFixture("findReplaceEditors")[0].editor.commands.redo())).toBe(
+    true,
+  );
+  await expect(first.getByText("隐藏命中甲")).toBeVisible();
+  await expect(second.getByText("隐藏命中甲")).toBeHidden();
 });
 
 test("search can reveal folded heading content in a read-only editor", async ({ page }) => {

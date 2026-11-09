@@ -135,14 +135,20 @@ async function _browserTest(page: import("playwright").Page) {
   });
   await check("子标题", "子标题正文");
   await page.evaluate(() => window.__semloRequireFixture("coexistApi").setEditable(false));
+  const readonlySnapshot = await page.evaluate(() => window.__semloRequireFixture("coexistApi").getSnapshot());
+  const readonlyChanges = await page.evaluate(() => window.__semloRequireFixture("coexistChanges"));
   await hoverHeading("普通标题");
   await page.waitForTimeout(80);
   if (await handle.count()) throw new Error("Read-only mode exposed the block handle");
   await toggle("普通标题").click({ timeout: 1500 });
   if (await prose.getByText("普通标题正文", { exact: true }).isVisible())
     throw new Error("Read-only heading toggle did not work");
-  if ((await page.evaluate(() => window.__semloRequireFixture("coexistChanges"))) !== 0)
-    throw new Error("Layout or folding changed document data");
+  if (
+    (await page.evaluate(() => window.__semloRequireFixture("coexistChanges"))) !== readonlyChanges ||
+    JSON.stringify(await page.evaluate(() => window.__semloRequireFixture("coexistApi").getSnapshot())) !==
+      JSON.stringify(readonlySnapshot)
+  )
+    throw new Error("Read-only folding changed document data");
   await page.evaluate(() => window.__semloRequireFixture("coexistApi").destroy());
   if (await page.locator(".semlo-editor-block-handle").count()) throw new Error("Destroy left a block handle behind");
   return {
