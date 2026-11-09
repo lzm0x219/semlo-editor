@@ -47,7 +47,17 @@ export function normalizeLinkURL(value: string): string | null {
 /** 读取链接按钮状态；只读时仍可读取选中状态。 */
 export function getLinkState(editor: Editor): LinkState {
   if (editor.isDestroyed) return { active: false, enabled: false };
-  return { active: editor.isActive("link"), enabled: editor.isEditable };
+  return {
+    active: editor.isActive("link"),
+    enabled: editor.isEditable && isLinkRangeSupported(editor, editor.state.selection),
+  };
+}
+
+function isLinkRangeSupported(editor: Editor, { from, to }: Range): boolean {
+  const $from = editor.state.doc.resolve(from);
+  const $to = editor.state.doc.resolve(to);
+  // 链接表单编辑单个文本块，跨块替换文字会合并原有段落结构。
+  return $from.parent.isTextblock && $from.sameParent($to);
 }
 
 interface BeginLinkEditOptions extends LinkEditOptions {
@@ -59,10 +69,10 @@ interface BeginLinkEditOptions extends LinkEditOptions {
 /** 供内置插入入口复用斜杠范围及既有历史边界。 */
 export function beginLinkEdit(editor: Editor, options: BeginLinkEditOptions = {}): LinkEditSession | null {
   const unavailable = () => editor.isDestroyed || !editor.isEditable || Boolean(options.unavailable?.());
-  if (unavailable()) return null;
+  if (unavailable() || !isLinkRangeSupported(editor, options.range ?? editor.state.selection)) return null;
   if (!options.prepared && !options.range && editor.state.selection.empty && editor.isActive("link"))
     editor.commands.extendMarkRange("link");
-  if (unavailable()) return null;
+  if (unavailable() || !isLinkRangeSupported(editor, options.range ?? editor.state.selection)) return null;
   const existing = !options.prepared && !options.range && editor.isActive("link");
   let { from, to } = options.range ?? editor.state.selection;
   if (!existing) {
