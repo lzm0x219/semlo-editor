@@ -149,7 +149,7 @@ function uniqueNodePosition(doc: ProseMirrorNode, target: ProseMirrorNode): numb
 
 /** 展开包含查找结果的标题，正文命中时记录展开历史。 */
 function revealHeadingOwners(editor: Editor, position: number) {
-  if (editor.isDestroyed) return;
+  if (editor.isDestroyed) return null;
   const doc = editor.state.doc;
   const owners: Array<{ pos: number; node: ProseMirrorNode }> = [];
   doc.descendants((node, pos) => {
@@ -175,7 +175,7 @@ function revealHeadingOwners(editor: Editor, position: number) {
     return false;
   });
   const inHeading = doc.resolve(position).parent.type.name === "heading";
-  expandHeadingPositions(
+  return expandHeadingPositions(
     editor,
     owners.map((owner) => owner.pos),
     !inHeading,
@@ -435,10 +435,10 @@ export function mountFindReplace(
     const resolved = current.kind === "text" ? doc.resolve(current.from) : null;
     const target = resolved ? resolved.parent : doc.nodeAt(current.from);
     const targetPosition = resolved ? resolved.before() : current.from;
-    revealHeadingOwners(editor, current.from);
+    const revealedDoc = revealHeadingOwners(editor, current.from);
     if (editor.isDestroyed || destroyed) return;
     let position = current.from;
-    if (editor.state.doc !== doc) {
+    if (editor.state.doc !== doc && (!revealedDoc || !editor.state.doc.eq(revealedDoc))) {
       if (!target) return;
       const moved = uniqueNodePosition(editor.state.doc, target);
       if (moved === null) return;

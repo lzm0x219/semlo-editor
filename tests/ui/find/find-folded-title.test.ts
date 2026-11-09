@@ -7,6 +7,47 @@ test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
 });
 
+test("search locates a folded heading far down the document", async ({ page }) => {
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div')
+      host.id = 'folded-title-scroll'
+      document.body.replaceChildren(host)
+      window.foldedTitleEditors = [createEditor({ element: host, outline: false, content: '<p>' + '前文 '.repeat(4000) + '</p><h2>远处目标标题</h2><p>目标正文</p>' })]
+    `,
+  });
+  const host = page.locator("#folded-title-scroll");
+  await host.getByRole("button", { name: "折叠标题：远处目标标题" }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await host.getByRole("button", { name: "查找替换" }).click();
+  await page.getByRole("textbox", { name: "查找内容" }).fill("远处目标标题");
+  await expect(host.getByRole("button", { name: "折叠标题：远处目标标题" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].destroy());
+});
+
+test("search reveals a folded heading inside a closed card", async ({ page }) => {
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div')
+      host.id = 'folded-title-card'
+      document.body.replaceChildren(host)
+      window.foldedTitleEditors = [createEditor({ element: host, outline: false, content: '<details><summary>卡片</summary><div data-type="detailsContent"><h2 data-semlo-editor-heading-folded="true">卡片内标题</h2><p>卡片内正文</p></div></details>' })]
+    `,
+  });
+  const host = page.locator("#folded-title-card");
+  await host.getByRole("button", { name: "查找替换" }).click();
+  await page.getByRole("textbox", { name: "查找内容" }).fill("卡片内标题");
+  await expect(host.getByText("卡片内正文")).toBeVisible();
+  await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].destroy());
+});
+
 declare global {
   interface Window {
     foldedTitleEditors?: EditorController[];

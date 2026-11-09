@@ -282,12 +282,12 @@ export function setHeadingFolded(editor: Editor, pos: number, folded: boolean, h
 }
 
 /** 查找正文时将同一次展开的标题放入同一撤销步骤。 */
-export function expandHeadingPositions(editor: Editor, positions: number[], history: boolean): void {
-  if (editor.isDestroyed) return;
+export function expandHeadingPositions(editor: Editor, positions: number[], history: boolean): ProseMirrorNode | null {
+  if (editor.isDestroyed) return null;
   const state = headingFoldKey.getState(editor.state);
-  if (!state) return;
+  if (!state) return null;
   const targets = positions.filter((pos) => state.folded.has(pos) && sectionAt(editor.state.doc, pos));
-  if (!targets.length) return;
+  if (!targets.length) return editor.state.doc;
   const recordHistory = history && editor.isEditable && !state.adapter;
   let tr = editor.state.tr.setMeta(headingFoldKey, { kind: "expand", positions: targets } satisfies FoldAction);
   tr = recordHistory ? closeHistory(tr) : tr.setMeta("addToHistory", false);
@@ -295,6 +295,7 @@ export function expandHeadingPositions(editor: Editor, positions: number[], hist
   editor.view.dispatch(tr);
   if (recordHistory && !editor.isDestroyed && editor.state.doc.eq(tr.doc))
     editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
+  return !editor.isDestroyed && editor.state.doc.eq(tr.doc) ? tr.doc : null;
 }
 
 /** Expand folded headings whose hidden sections contain the target heading. */
