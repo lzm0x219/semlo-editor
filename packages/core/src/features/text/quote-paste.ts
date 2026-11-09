@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode, Slice } from "@tiptap/pm/model";
 import { Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
@@ -51,6 +51,30 @@ function isYuqueEmptyParagraph(element: Element | undefined): element is HTMLEle
 }
 
 type YuqueQuoteTarget = "empty" | "suffix" | null;
+
+function isYuqueQuoteBoundarySlice(slice: Slice, target: Exclude<YuqueQuoteTarget, null>): boolean {
+  const content = slice.content;
+  if (!content.childCount) return false;
+  const last = content.childCount - 1;
+  const quoteIndex = target === "suffix" ? last - 1 : last;
+  if (quoteIndex < 0 || (target === "suffix" && quoteIndex === 0)) return false;
+  const quote = content.child(quoteIndex);
+  if (
+    quote.type.name !== "blockquote" ||
+    quote.childCount !== 1 ||
+    quote.firstChild?.type.name !== "paragraph" ||
+    slice.openEnd !== (target === "suffix" ? 1 : 2) ||
+    slice.openStart !== (quoteIndex === 0 ? 2 : 1)
+  )
+    return false;
+  if (target === "suffix" && (content.child(last).type.name !== "paragraph" || content.child(last).content.size !== 0))
+    return false;
+  for (let index = 0; index < quoteIndex; index++) {
+    const paragraph = content.child(index);
+    if (paragraph.type.name !== "paragraph" || paragraph.content.size !== 0) return false;
+  }
+  return true;
+}
 
 function hasOnlyElementsAndWhitespace(parent: ParentNode): boolean {
   return Array.from(parent.childNodes).every(
@@ -187,20 +211,19 @@ export const QuotePasteHistory = Extension.create({
   name: "semloEditorQuotePasteHistory",
   priority: -1,
   addProseMirrorPlugins() {
-    let pending: { before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
+    let pending: { transaction: Transaction; before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
     let plugin: Plugin;
     plugin = new Plugin({
       props: {
         handlePaste(view, event, slice) {
           const html = event.clipboardData?.getData("text/html");
-          if (!view.editable || event.defaultPrevented || !html || !slice.size || yuqueQuoteTarget(view) !== "suffix")
+          const target = yuqueQuoteTarget(view);
+          if (!view.editable || event.defaultPrevented || !html || !target || !isYuqueQuoteBoundarySlice(slice, target))
             return false;
           const index = view.state.plugins.indexOf(plugin);
           if (index < 0 || view.state.plugins.slice(index + 1).some((other) => other.props.handlePaste)) return false;
           const document = view.dom.ownerDocument;
-          if (
-            normalizeExternalQuoteHTML(html, document, false, "suffix") === normalizeExternalQuoteHTML(html, document)
-          )
+          if (normalizeExternalQuoteHTML(html, document, false, target) === normalizeExternalQuoteHTML(html, document))
             return false;
           let transaction: Transaction;
           try {
@@ -209,7 +232,7 @@ export const QuotePasteHistory = Extension.create({
             // 自定义 schema 无法安全构造粘贴事务时交回正常流程。
             return false;
           }
-          const input = { before: view.state.doc, expected: transaction.doc };
+          const input = { transaction, before: view.state.doc, expected: transaction.doc };
           pending = input;
           queueMicrotask(() => {
             if (pending === input) pending = null;
@@ -223,6 +246,7 @@ export const QuotePasteHistory = Extension.create({
         if (!input) return null;
         const pasted = transactions.some(
           (transaction) =>
+            transaction === input.transaction &&
             transaction.docChanged &&
             transaction.before === input.before &&
             transaction.doc.eq(input.expected) &&
@@ -231,7 +255,7 @@ export const QuotePasteHistory = Extension.create({
             transaction.getMeta("addToHistory") !== false &&
             !transaction.getMeta("appendedTransaction"),
         );
-        if (!pasted || !newState.doc.eq(input.expected)) return null;
+        if (!pasted) return null;
         pending = null;
         // 所测粘贴与其后的输入分别撤销；宿主拒绝或替换事务时不修改历史。
         return closeHistory(newState.tr).setMeta("addToHistory", false);
