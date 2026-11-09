@@ -73,7 +73,9 @@ async function drag(page: Page, reverse: boolean) {
   await page.evaluate(() => window.__semloRequireFixture("headingGeneralGuard").settle());
 }
 for (const reverse of [false, true]) {
-  test(`real ${reverse ? "reverse" : "forward"} cross-block selection follows native behavior`, async ({ page }) => {
+  test(`real ${reverse ? "reverse" : "forward"} cross-block selection stops at the paragraph line end`, async ({
+    page,
+  }) => {
     async function run(native: boolean) {
       await mount(page, native);
       await drag(page, reverse);
@@ -95,8 +97,13 @@ for (const reverse of [false, true]) {
       reverse ? candidate.before.anchor > candidate.before.head : candidate.before.anchor < candidate.before.head,
     ).toBe(true);
     expect(candidate.before).toEqual(expected.before);
-    expect(candidate.after).toEqual(expected.after);
-    expect(candidate.timing?.prevented).toBe(expected.timing?.prevented);
+    expect(candidate.after).toEqual({
+      ...candidate.before,
+      text: `${candidate.before.text}T`,
+      anchor: reverse ? candidate.before.anchor + 1 : candidate.before.anchor,
+      head: reverse ? candidate.before.head : candidate.before.head + 1,
+    });
+    expect(candidate.timing).toMatchObject({ prevented: true, trusted: true });
   });
 }
 test("无法验证的宿主控件保留原选区并停止原生行扩选", async ({ page }) => {
@@ -136,7 +143,7 @@ test("标题行保护不以旧 DOM 光标覆盖宿主已提交的非空选区", 
   expect(result.timing?.prevented).toBe(true);
 });
 for (const reverse of [false, true]) {
-  test(`real multiline ${reverse ? "reverse" : "forward"} cross-block selection follows native behavior`, async ({
+  test(`real multiline ${reverse ? "reverse" : "forward"} cross-block selection stops at the paragraph line end`, async ({
     page,
   }) => {
     async function run(native: boolean) {
@@ -160,8 +167,13 @@ for (const reverse of [false, true]) {
       reverse ? candidate.before.anchor > candidate.before.head : candidate.before.anchor < candidate.before.head,
     ).toBe(true);
     expect(candidate.before).toEqual(expected.before);
-    expect(candidate.after).toEqual(expected.after);
-    expect(candidate.timing?.prevented).toBe(expected.timing?.prevented);
+    expect(candidate.after).toEqual({
+      ...candidate.before,
+      text: `${candidate.before.text}T`,
+      anchor: reverse ? candidate.before.anchor + 1 : candidate.before.anchor,
+      head: reverse ? candidate.before.head : candidate.before.head + 1,
+    });
+    expect(candidate.timing).toMatchObject({ prevented: true, trusted: true });
   });
 }
 test("多行标题中的未验证宿主控件保留原选区", async ({ page }) => {

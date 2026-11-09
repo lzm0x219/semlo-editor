@@ -5,7 +5,11 @@ import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Mapping } from "@tiptap/pm/transform";
 
 import { sequenceConversionHintAttribute } from "../list/numbering-sequence-conversion-hint";
-import { selectionHasNumberingSequences } from "../list/numbering-sequence-document";
+import {
+  selectionHasNumberingSequences,
+  sequenceLinkAttribute,
+  sequenceRegistryAttribute,
+} from "../list/numbering-sequence-document";
 import { normalizeOrderedAncestorPath } from "../list/ordered-path";
 import {
   deriveOrderedListValues,
@@ -707,6 +711,8 @@ function selectedBlocks(state: EditorState): OriginalBlock[] {
                   "semloEditorOrderedAncestorPath",
                   "semloEditorListQuoteChain",
                   "semloEditorListTaskChain",
+                  sequenceRegistryAttribute,
+                  sequenceLinkAttribute,
                 ].includes(name) &&
                   value === null),
             );

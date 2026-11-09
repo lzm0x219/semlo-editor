@@ -111,7 +111,11 @@ test("image link and alignment round trip together with description and visual s
   expect(saved.html).toContain('href="https://example.com/path"');
   expect(saved.html).toContain('target="_self"');
   expect(saved.html).toContain('data-semlo-editor-image-style="shadow"');
-  await page.evaluate((html) => window.__semloRequireFixture("imageFormatEditor").setContent(html), saved.html);
+  await page.evaluate((html) => {
+    const editor = window.__semloRequireFixture("imageFormatEditor");
+    editor.setContent("<p>临时文档</p>");
+    editor.setContent(html);
+  }, saved.html);
   const restored = await snapshot(page);
   expect(restored.json.content?.[0].attrs?.textAlign).toBe("center");
   expect(imageNodes(restored.json)[0]?.attrs).toMatchObject({

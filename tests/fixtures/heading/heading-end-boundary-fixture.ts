@@ -8,6 +8,7 @@ import "../../../demo/editor.css";
 interface Probe {
   controller: EditorController;
   select(text: string, anchor: number, head: number): void;
+  selectBetween(anchorText: string, headText: string, offset: number): void;
   settle(): Promise<void>;
 }
 declare global {
@@ -43,6 +44,19 @@ window.mountHeadingEndBoundary = (content, width = 850, native = false, containe
       editor.view.dispatch(
         editor.state.tr.setSelection(TextSelection.create(editor.state.doc, start + anchor, start + head)),
       );
+    },
+    selectBetween(anchorText, headText, offset) {
+      const { editor } = controller;
+      const positions = new Map<string, number>();
+      editor.state.doc.descendants((node, pos) => {
+        if (node.isTextblock && (node.textContent === anchorText || node.textContent === headText))
+          positions.set(node.textContent, pos + 1 + offset);
+      });
+      const anchor = positions.get(anchorText),
+        head = positions.get(headText);
+      if (anchor === undefined || head === undefined) throw new Error("Missing selection blocks");
+      editor.view.focus();
+      editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, anchor, head)));
     },
     settle: () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
   };

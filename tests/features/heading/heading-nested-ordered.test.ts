@@ -393,7 +393,7 @@ for (const backward of [false, true]) {
       page,
       '<ol start="7"><li><p><strong>甲甲</strong></p></li><li data-semlo-editor-list-indent="2"><p>乙乙</p></li><li data-semlo-editor-list-indent="1"><p>丙丙</p></li><li><p><em>丁丁</em></p></li><li data-semlo-editor-list-indent="1"><p>戊戊</p></li></ol><p>尾段</p>',
     );
-    expect(await markers(page)).toMatchObject({ 甲甲: "7.", 乙乙: "i.", 丙丙: "a.", 丁丁: "8.", 戊戊: "a." });
+    expect(await markers(page)).toMatchObject({ 甲甲: "7.", 乙乙: "ⅰ.", 丙丙: "a.", 丁丁: "8.", 戊戊: "a." });
     await page.evaluate((backward) => {
       const editor = window.__semloRequireFixture("nestedOrderedHeadingEditor").editor;
       let from = -1;

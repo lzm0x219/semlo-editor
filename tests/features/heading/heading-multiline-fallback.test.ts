@@ -93,7 +93,7 @@ async function run(page: Page, item: Sample, native: boolean) {
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
   const target = page.locator("#heading-end-boundary .semlo-editor-prose h3");
   if (item.mode === "vertical") await target.click();
-  else await target.click({ position: { x: 50, y: 8 } });
+  else await target.click({ position: { x: 100, y: 8 } });
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
   const before = await page.evaluate(() =>
     window.__semloRequireFixture("headingEndBoundary").controller.editor.getJSON(),

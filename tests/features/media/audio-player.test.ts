@@ -137,6 +137,9 @@ test("keyboard controls work without editing the document and deletion has one u
   expect(await page.evaluate(() => window.audioPlayerFixture.api.getSnapshot())).toEqual(before);
   expect(await page.evaluate(() => window.audioPlayerFixture.changes)).toBe(0);
   expect(await page.evaluate(() => window.audioPlayerFixture.api.editor.can().undo())).toBe(false);
+  // Linux 上 Enter 可能打开原生下拉菜单；先关闭它再继续键盘导航。
+  await page.keyboard.press("Escape");
+  await expect(rate(page)).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(card(page).getByRole("link", { name: "下载音频" })).toBeFocused();
   await page.keyboard.press("Tab");

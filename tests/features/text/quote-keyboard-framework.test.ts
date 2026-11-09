@@ -4,6 +4,7 @@ import { createRsbuild } from "@rsbuild/core";
 import { expect, test, type Page } from "@rstest/playwright";
 
 import type { PasteFramework } from "../../fixtures/list/sequences/numbering-sequence-paste-framework-fixture";
+import { yuqueCrossBlockQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
 
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
@@ -148,4 +149,42 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Pa
       });
     }
   }
+}
+
+for (const framework of ["react", "vue", "solid"] as const satisfies readonly PasteFramework[]) {
+  test(`${framework} 受控回写保留语雀跨正文与引用的选区粘贴及历史`, async ({ page }) => {
+    await page.goto(origin);
+    await page.waitForFunction(() => Boolean(window.mountSequencePasteFramework));
+    await page.evaluate((name) => window.mountSequencePasteFramework(name, "html", "<p>前中后</p>"), framework);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
+    const before = await page.evaluate(() => {
+      const { controller } = window.sequencePasteFramework;
+      controller.editor.commands.focus();
+      controller.editor.commands.setTextSelection({ from: 2, to: 3 });
+      return controller.getSnapshot();
+    });
+    await page.evaluate((html) => {
+      const editor = window.sequencePasteFramework.controller.editor;
+      const data = new DataTransfer();
+      data.setData("text/plain", "\n引用甲乙");
+      data.setData("text/html", html);
+      editor.view.dom.dispatchEvent(
+        new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }),
+      );
+    }, yuqueCrossBlockQuoteHTML);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
+    const after = await page.evaluate(() => {
+      const { controller } = window.sequencePasteFramework;
+      return { snapshot: controller.getSnapshot(), selection: controller.editor.state.selection.toJSON() };
+    });
+    expect(after.snapshot.html).toBe("<p>前</p><blockquote><p>引用甲乙</p></blockquote><p>后</p>");
+    expect(after.selection.anchor).toBe(after.selection.head);
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.undo())).toBe(true);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.getSnapshot())).toEqual(before);
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.redo())).toBe(true);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.getSnapshot())).toEqual(after.snapshot);
+    expect(await page.evaluate(() => window.sequencePasteFramework.errors)).toEqual([]);
+  });
 }

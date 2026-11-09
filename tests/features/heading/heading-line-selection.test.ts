@@ -345,12 +345,8 @@ for (const [listType, itemType] of [
       await mount(page, content);
       await page.evaluate((value) => {
         const probe = window.__semloRequireFixture("headingEndBoundary");
-        if (value === "forward") probe.select("AAAA", 2, 2);
-        else probe.select("BBBB", 2, 2);
+        probe.selectBetween(value === "forward" ? "AAAA" : "BBBB", value === "forward" ? "BBBB" : "AAAA", 2);
       }, direction);
-      const steps = listType === "orderedList" && direction === "reverse" ? 6 : 5;
-      for (let i = 0; i < steps; i++)
-        await page.keyboard.press(direction === "forward" ? "Shift+ArrowRight" : "Shift+ArrowLeft");
       await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
       const before = await inspect(page);
       expect(before.selection).toMatchObject({ anchorOffset: 2, headOffset: 2 });

@@ -361,7 +361,7 @@ try {
   await page.getByLabel("画布文字水平对齐").selectOption("right");
   await page.getByLabel("画布文字垂直对齐").selectOption("bottom");
   assert.equal(await annotation.evaluate((element) => getComputedStyle(element).textAlign), "right");
-  assert.equal(await annotation.evaluate((element) => getComputedStyle(element).justifyContent), "flex-end");
+  assert.equal(await annotation.evaluate((element) => (element as HTMLElement).style.justifyContent), "flex-end");
   const beforeResize = await annotation.boundingBox();
   const annotationResize = page.getByRole("button", { name: "调整画布文字大小：右下" });
   const annotationResizeBox = await annotationResize.boundingBox();
@@ -384,6 +384,13 @@ try {
   const resizedAnnotation = resizedText.json.content?.[0]?.attrs?.annotations[0];
   assert.ok(resizedAnnotation.width > beforeResize.width + 50);
   assert.ok(resizedAnnotation.height > beforeResize.height + 30);
+  const alignment = await annotation.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const text = element.querySelector("span")!.getBoundingClientRect();
+    return { top: text.top - box.top, bottom: box.bottom - text.bottom };
+  });
+  assert.ok(alignment.top > 30);
+  assert.ok(alignment.bottom <= 6);
   assert.equal(resizedAnnotation.size, 14);
   assert.equal(resizedAnnotation.align, "right");
   assert.equal(resizedAnnotation.verticalAlign, "bottom");

@@ -49,6 +49,8 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Bo
       window.boundaryFixture!.unsafe();
       await window.boundaryFixture!.settle();
     });
+    // HTML 回写会序列化当前内容以判断是否为自身输出。
+    expect(await page.evaluate(() => window.boundaryFixture!.snapshots)).toEqual([2, 0]);
     await expect(first).toHaveAttribute("title", "更新后");
     await expect(first.locator(".semlo-editor-prose")).toHaveText("宿主回写");
     await expect(first).not.toContainText("覆盖内容");
@@ -61,7 +63,7 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Bo
     await expect(second.locator(".semlo-editor-prose")).toHaveCount(1);
     await page.evaluate(() => window.boundaryFixture!.controllers[1].editor.commands.insertContent("独立实例"));
     await expect(second.locator(".semlo-editor-prose")).toHaveText("独立实例");
-    expect(await page.evaluate(() => window.boundaryFixture!.snapshots)).toEqual([1, 0]);
+    expect(await page.evaluate(() => window.boundaryFixture!.snapshots)).toEqual([2, 0]);
     expect(await page.evaluate(() => window.boundaryFixture!.changes)).toEqual(["一二"]);
 
     expect(

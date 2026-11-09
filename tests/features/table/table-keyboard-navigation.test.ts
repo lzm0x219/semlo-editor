@@ -335,7 +335,7 @@ test("Tab at the start of a list item in a cell adjusts its list level", async (
     await page.keyboard.press("Tab");
     if (index === 2) {
       await expect(item).toHaveAttribute("value", "7");
-      expect(await item.evaluate((element) => getComputedStyle(element).listStyleType)).toBe("lower-roman");
+      expect(await item.evaluate((element) => getComputedStyle(element).listStyleType)).toBe("semlo-mixed-roman");
     }
     await page.keyboard.press("Tab");
     await expect(item).toHaveAttribute("data-semlo-editor-list-indent", "3");

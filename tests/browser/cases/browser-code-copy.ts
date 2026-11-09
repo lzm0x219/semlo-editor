@@ -24,7 +24,8 @@ async function _browserTest(page: import("playwright").Page) {
   await page.locator("#copy-test .semlo-editor-code-card").hover();
   await copy.click();
   if (
-    (await copy.innerText()) !== "已复制" ||
+    (await copy.getAttribute("aria-label")) !== "已复制" ||
+    (await copy.locator("svg path").getAttribute("d")) !== "M5 12l4 4L19 6" ||
     (await page.evaluate(() => window.__semloRequireFixture("copied"))) !== "const n = 42"
   )
     throw new Error("Copy success feedback incorrect");
@@ -39,7 +40,11 @@ async function _browserTest(page: import("playwright").Page) {
     }),
   );
   await copy.click();
-  if ((await copy.innerText()) !== "复制失败") throw new Error("Copy failure was not reported");
+  if (
+    (await copy.getAttribute("aria-label")) !== "复制失败" ||
+    (await copy.locator("svg path").getAttribute("d")) !== "M6 6l12 12M18 6 6 18"
+  )
+    throw new Error("Copy failure was not reported");
   await page.evaluate(() => {
     window.__semloRequireFixture("copyApi").destroy();
     document.querySelector("#copy-test")!.remove();

@@ -214,7 +214,7 @@ test("root and observed containers keep H1–H6 slash input as literal text", as
     await page.keyboard.press("ControlOrMeta+Alt+2");
     const convertedHeading = page.locator("#slash-list-fixture .semlo-editor-prose h2");
     await expect(convertedHeading).toHaveCount(1);
-    await page.keyboard.press("Home");
+    await positionCaret(convertedHeading, "start");
     await page.keyboard.type("/");
     await expect(convertedHeading).toContainText("/原文");
     await expect(page.getByRole("listbox", { name: "插入内容" })).toHaveCount(0);

@@ -55,7 +55,8 @@ async function run(page: Page, item: Sample, native: boolean) {
   await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
   await page.evaluate(
     ({ doc, native }) => {
-      window.__semloRequireFixture("mountHeadingEndBoundary")(doc, 260, native);
+      // 保持矩形数量低于另一项几何上限，单独验证模型长度边界。
+      window.__semloRequireFixture("mountHeadingEndBoundary")(doc, 360, native);
       const view = window.__semloRequireFixture("headingEndBoundary").controller.editor.view;
       const original = view.coordsAtPos.bind(view);
       let calls = 0;
@@ -89,7 +90,20 @@ async function run(page: Page, item: Sample, native: boolean) {
     { doc, native },
   );
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
-  await page.locator("#heading-end-boundary .semlo-editor-prose h3").click({ position: { x: 50, y: 8 } });
+  if (item.expectedHandled) {
+    const rectCount = await page.locator("#heading-end-boundary .semlo-editor-prose h3").evaluate((heading) => {
+      const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+      let count = 0;
+      while (walker.nextNode()) {
+        const range = document.createRange();
+        range.selectNodeContents(walker.currentNode);
+        count += range.getClientRects().length;
+      }
+      return count;
+    });
+    expect(rectCount).toBeLessThanOrEqual(256);
+  }
+  await page.locator("#heading-end-boundary .semlo-editor-prose h3").click({ position: { x: 100, y: 8 } });
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
   const before = await page.evaluate(() =>
     window.__semloRequireFixture("headingEndBoundary").controller.editor.getJSON(),

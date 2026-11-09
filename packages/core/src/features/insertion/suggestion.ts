@@ -157,6 +157,7 @@ export function slashCommands(
             let loading = false;
             let removeGrid: (() => void) | undefined;
             let removeColumns: (() => void) | undefined;
+            let stopFocusTracking: (() => void) | undefined;
             let selected = 0;
             let selectedByNavigation = false;
             let drawRevision = 0;
@@ -165,6 +166,8 @@ export function slashCommands(
             let invalidatedMatch: { from: number; text: string } | null = null;
             const cleanup = () => {
               drawRevision++;
+              stopFocusTracking?.();
+              stopFocusTracking = undefined;
               removeGrid?.();
               removeColumns?.();
               removeGrid = undefined;
@@ -198,11 +201,122 @@ export function slashCommands(
               },
             });
             const mountMenu = (editor: Editor) => {
-              menu = editor.view.dom.ownerDocument.createElement("div");
+              const view = editor.view;
+              const doc = view.dom.ownerDocument;
+              menu = doc.createElement("div");
+              const root = menu;
               menu.className = "semlo-editor-slash-menu";
               menu.setAttribute("role", "listbox");
               menu.setAttribute("aria-label", "插入内容");
-              editor.view.dom.ownerDocument.body.append(menu);
+              const owns = (target: EventTarget | null) => {
+                if (!target || !("nodeType" in target)) return false;
+                const node = target as Node;
+                if (view.dom.contains(node) || root.contains(node)) return true;
+                const element = node.nodeType === 1 ? (node as Element) : node.parentElement;
+                const popup = element?.closest(".semlo-editor-table-grid-popover,.semlo-editor-column-picker");
+                return (
+                  !!popup?.id &&
+                  Array.from(root.querySelectorAll("[aria-controls]")).some((anchor) =>
+                    anchor.getAttribute("aria-controls")?.split(/\s+/).includes(popup.id),
+                  )
+                );
+              };
+              const leave = () => {
+                if (menu === root && !editor.isDestroyed && !view.isDestroyed) exitSuggestion(view, slashSuggestionKey);
+              };
+              const isEditorShadowHost = (target: EventTarget) => {
+                let tree: Node = view.dom.getRootNode();
+                while (tree !== doc && "host" in tree) {
+                  const host = (tree as ShadowRoot).host;
+                  if (target === host) return true;
+                  tree = host.getRootNode();
+                }
+                return false;
+              };
+              const onFocusOut = (event: FocusEvent) => {
+                if (!owns(event.target)) return;
+                if (!event.relatedTarget) {
+                  leave();
+                  return;
+                }
+                if (owns(event.relatedTarget)) return;
+                if (!isEditorShadowHost(event.relatedTarget)) {
+                  leave();
+                  return;
+                }
+                // 跨 Shadow DOM 时目标会被重定向到宿主；焦点落定后再判断内部元素。
+                queueMicrotask(() => {
+                  if (
+                    menu === root &&
+                    !editor.isDestroyed &&
+                    !view.isDestroyed &&
+                    !owns(view.root.activeElement) &&
+                    !owns(doc.activeElement)
+                  )
+                    leave();
+                });
+              };
+              const onKeyDown = (event: KeyboardEvent) => {
+                if (
+                  event.key !== "Escape" ||
+                  event.isComposing ||
+                  event.keyCode === 229 ||
+                  view.composing ||
+                  !owns(event.target) ||
+                  view.dom.contains(event.target as Node)
+                )
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                leave();
+                if (
+                  !editor.isDestroyed &&
+                  !view.isDestroyed &&
+                  editor.isEditable &&
+                  view.dom.isConnected &&
+                  (doc.activeElement === doc.body || doc.activeElement === event.target)
+                )
+                  view.focus();
+              };
+              const onWindowBlur = () => {
+                if (!doc.hasFocus()) leave();
+                else
+                  queueMicrotask(() => {
+                    if (!doc.hasFocus()) leave();
+                  });
+              };
+              const onShadowFocus = (event: FocusEvent) => {
+                if (event.target && isEditorShadowHost(event.target) && !owns(view.root.activeElement)) leave();
+              };
+              doc.addEventListener("focusout", onFocusOut, true);
+              view.dom.addEventListener("focusout", onFocusOut, true);
+              doc.addEventListener("focus", onShadowFocus, true);
+              doc.addEventListener("keydown", onKeyDown, true);
+              doc.defaultView?.addEventListener("blur", onWindowBlur);
+              stopFocusTracking = () => {
+                doc.removeEventListener("focusout", onFocusOut, true);
+                view.dom.removeEventListener("focusout", onFocusOut, true);
+                doc.removeEventListener("focus", onShadowFocus, true);
+                doc.removeEventListener("keydown", onKeyDown, true);
+                doc.defaultView?.removeEventListener("blur", onWindowBlur);
+              };
+              root.addEventListener("keydown", (event) => {
+                if (
+                  event.key === "Tab" &&
+                  event.shiftKey &&
+                  !event.altKey &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.isComposing &&
+                  event.keyCode !== 229 &&
+                  !view.composing &&
+                  event.target === root.querySelector(".semlo-editor-quick-grid button")
+                ) {
+                  event.preventDefault();
+                  if (!editor.isDestroyed && !view.isDestroyed && editor.isEditable) view.focus();
+                }
+              });
+              doc.body.append(menu);
             };
             const draw = () => {
               if (!menu) return;
@@ -340,6 +454,22 @@ export function slashCommands(
                     return true;
                   }
                   return false;
+                }
+                if (
+                  event.key === "Tab" &&
+                  !event.shiftKey &&
+                  !event.altKey &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.isComposing &&
+                  event.keyCode !== 229 &&
+                  !this.editor.view.composing
+                ) {
+                  const first = menu?.querySelector<HTMLButtonElement>(".semlo-editor-quick-grid button");
+                  if (first) {
+                    first.focus();
+                    return true;
+                  }
                 }
                 if (
                   event.key === "ArrowDown" ||

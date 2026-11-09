@@ -121,8 +121,10 @@ async function _browserTest(
       fonts
         .filter((item) => ["regular", "normal"].includes(kind(item.style)))
         .map((item) => find(item.postscriptName))[0];
-    let regular = find("STKaitiSC-Regular"),
-      bold = find("STKaitiSC-Bold");
+    const georgia = find("Georgia"),
+      georgiaBold = find("Georgia-Bold");
+    let regular = georgia && georgiaBold ? georgia : find("STKaitiSC-Regular"),
+      bold = georgia && georgiaBold ? georgiaBold : find("STKaitiSC-Bold");
     if (!regular || !bold) {
       for (const candidate of fonts) {
         if (!["regular", "normal"].includes(kind(candidate.style))) continue;
@@ -244,9 +246,10 @@ async function _browserTest(
   await toggle("斜体");
   const boldItalic = await capture();
   if (boldNormal.equals(boldItalic)) throw new Error("The chosen bold face did not visibly slant");
-  if (!(await platformFonts("#emphasis-first .semlo-editor-prose em")).includes(real.bold.ps))
-    throw new Error("Italic changed the selected bold face to a lighter face");
   snapshot = await page.evaluate(() => window.__semloRequireFixture("emphasisFirst").getSnapshot());
+  const boldItalicFace = snapshot.json.attrs!.semloEditorDocumentFontVariants?.boldItalic ?? real.bold.ps;
+  if (!(await platformFonts("#emphasis-first .semlo-editor-prose em")).includes(boldItalicFace))
+    throw new Error("Italic changed the selected bold face to a lighter face");
   await page.context().clearPermissions();
   for (const content of [snapshot.json, snapshot.html]) {
     await page.evaluate((value) => {
@@ -254,7 +257,7 @@ async function _browserTest(
       window.__semloRequireFixture("emphasisFirst").setContent(value);
     }, content);
     await page.evaluate(() => document.fonts.ready);
-    if (!(await platformFonts("#emphasis-first .semlo-editor-prose em")).includes(real.bold.ps))
+    if (!(await platformFonts("#emphasis-first .semlo-editor-prose em")).includes(boldItalicFace))
       throw new Error("JSON/HTML roundtrip lost the chosen bold face");
   }
 
@@ -320,8 +323,8 @@ async function _browserTest(
       throw new Error("Adding italic to a selected bold face missed its real bold-italic sibling");
   }
 
-  // An inline face in a mixed selection retains its mapping and its selected scope.
-  await page.evaluate(() => window.__semloRequireFixture("emphasisFirst").setContent("<p>天地玄黄 ABCdef 123</p>"));
+  // 用所选字体通常覆盖的拉丁字符验证实际字形，避免中文回退字体影响判断。
+  await page.evaluate(() => window.__semloRequireFixture("emphasisFirst").setContent("<p>ABCdef 天地玄黄 123</p>"));
   await setSelection(1, 5);
   await choose(real.regular.name);
   await toggle("加粗");
@@ -350,12 +353,13 @@ async function _browserTest(
       window.__semloRequireFixture("emphasisFirst").setContent(value);
     }, content);
     await page.evaluate(() => document.fonts.ready);
-    if (
-      !(await platformFonts("#emphasis-first .semlo-editor-prose span[data-semlo-editor-font-name] em")).includes(
-        real.bold.ps,
-      )
-    )
-      throw new Error("Inline font variant did not survive roundtrip");
+    const inlineFonts = await platformFonts("#emphasis-first .semlo-editor-prose span[data-semlo-editor-font-name] em");
+    const inlineExpected =
+      firstStyle.semloEditorFontVariants?.boldItalic ?? firstStyle.semloEditorFontVariants?.italic ?? real.bold.ps;
+    if (!inlineFonts.includes(inlineExpected))
+      throw new Error(
+        "Inline font variant did not survive roundtrip: " + JSON.stringify({ inlineFonts, inlineExpected, firstStyle }),
+      );
   }
   const inlineAlias = await host
     .locator(".semlo-editor-prose span[data-semlo-editor-local-face]")

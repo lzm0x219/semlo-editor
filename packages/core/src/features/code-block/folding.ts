@@ -259,19 +259,20 @@ export function createCodeFoldingPlugin(editor: import("@tiptap/core").Editor) {
         const blockPos = selection.$from.before();
         const offset = selection.from - blockPos - 1;
         const backward = event.key === "Backspace";
+        const deleteLine = event.shiftKey && event.key === "Delete";
         const fold = readCodeFolds(view, blockPos, parent).find((item) =>
-          backward ? item.to === offset : item.from === offset,
+          backward ? item.to === offset : item.from === offset || (deleteLine && item.to === offset),
         );
         if (!fold) return false;
         let from = offset;
         let to = offset;
-        const deleteLine = event.shiftKey && event.key === "Delete";
         if (deleteLine) {
           const text = parent.textContent;
           from = text.lastIndexOf("\n", offset - 1) + 1;
           to = text.indexOf("\n", offset);
           if (to < 0) to = text.length;
-          if (from > 0) from--;
+          // 折叠末端紧邻的换行属于隐藏内容，删除可见末行时保留它。
+          if (from > 0 && fold.to !== offset) from--;
           else if (to < text.length) to++;
         } else if (event.altKey || event.ctrlKey) {
           const state = EditorState.create({ doc: parent.textContent, selection: EditorSelection.cursor(offset) });

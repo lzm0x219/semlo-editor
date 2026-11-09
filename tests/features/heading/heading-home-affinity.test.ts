@@ -277,6 +277,12 @@ test("host rejection of nonempty heading selection consumes Shift+End and retain
   const line = await geometry(page);
   await page.mouse.click(line.x, line.y);
   await page.keyboard.press("Shift+ArrowRight");
+  await expect
+    .poll(async () => {
+      const state = await inspect(page);
+      return state.pm.anchor === state.native.anchor && state.pm.head === state.native.head;
+    })
+    .toBe(true);
   const before = await inspect(page);
   expect(before.native.text.length).toBe(1);
   await page.evaluate(() => window.__semloRequireFixture("wrapHome").arm());
@@ -384,6 +390,12 @@ test("host rejection of Shift+Home range is consumed without applying it", async
   const line = await geometry(page);
   const before = await inspect(page);
   await page.mouse.click(line.x, line.y);
+  await expect
+    .poll(async () => {
+      const state = await inspect(page);
+      return state.pm.anchor === state.native.anchor && state.pm.head === state.native.head;
+    })
+    .toBe(true);
   const clicked = await inspect(page);
   await page.evaluate(() => window.__semloRequireFixture("wrapHome").arm());
   await page.keyboard.press("Shift+Home");
