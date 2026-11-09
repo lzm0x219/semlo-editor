@@ -94,3 +94,28 @@ test("the column picker follows the insert menu while its scroll container moves
   await picker.getByRole("menuitem", { name: "两栏" }).click();
   await expect(page.locator("#column-scroll-test .semlo-editor-columns")).toHaveCount(1);
 });
+
+test("切换工具栏子菜单时保留键盘焦点", async ({ page }) => {
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      const host = document.createElement('div')
+      host.id = 'insert-focus-test'
+      document.body.prepend(host)
+      createEditor({ element: host, content: '<p></p>' })
+    `,
+  });
+  await page.locator("#insert-focus-test").getByRole("button", { name: "插入内容" }).click();
+  const menu = page.getByRole("dialog", { name: "插入内容" });
+  const list = menu.locator(".semlo-editor-card-list");
+  await list.locator('[data-command="table"]').focus();
+  await page.getByLabel("1行1列", { exact: true }).focus();
+  await list.locator('[data-command="columns"]').hover({ force: true });
+  await expect(page.getByRole("menu", { name: "选择分栏数" })).toBeVisible();
+  await expect(list).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator("#insert-focus-test .semlo-editor-prose")).toBeFocused();
+});
