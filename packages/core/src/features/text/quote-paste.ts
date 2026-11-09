@@ -53,14 +53,14 @@ function isYuqueEmptyParagraph(element: Element | undefined): element is HTMLEle
   });
 }
 
-type YuqueQuoteTarget = "empty" | "suffix" | null;
+type YuqueQuoteTarget = "empty" | "suffix" | "end" | null;
 
 function isYuqueQuoteBoundarySlice(slice: Slice, target: Exclude<YuqueQuoteTarget, null>): boolean {
   const content = slice.content;
   if (!content.childCount) return false;
   const last = content.childCount - 1;
   const quoteIndex = target === "suffix" ? last - 1 : last;
-  if (quoteIndex < 0 || (target === "suffix" && quoteIndex === 0)) return false;
+  if (quoteIndex < 0 || ((target === "suffix" || target === "end") && quoteIndex === 0)) return false;
   const quote = content.child(quoteIndex);
   if (
     quote.type.name !== "blockquote" ||
@@ -116,7 +116,8 @@ function yuqueQuoteTarget(view: EditorView): YuqueQuoteTarget {
   try {
     if (!paragraph.sameMarkup(paragraph.type.create())) return null;
     if (selection.$from.parentOffset === 0 && selection.$to.parentOffset === paragraph.content.size) return "empty";
-    return selection.$to.parentOffset < paragraph.content.size ? "suffix" : null;
+    if (selection.$to.parentOffset < paragraph.content.size) return "suffix";
+    return selection.empty && paragraph.content.size > 0 ? "end" : null;
   } catch {
     // 自定义 schema 的默认属性不可用时，保留原始剪贴板内容。
     return null;
@@ -150,7 +151,7 @@ function adjustYuqueQuoteBoundary(fragment: DocumentFragment, target: YuqueQuote
   )
     return;
   if (target === "empty") blocks[0].remove();
-  else {
+  else if (target === "suffix") {
     // 开放的末段使目标文字后缀留在引用外；片段中其余空段仍保留。
     contents[0].appendChild(fragment.ownerDocument.createElement("p"));
   }
@@ -304,7 +305,11 @@ export const QuotePasteHistory = Extension.create({
           )
             return false;
           const document = view.dom.ownerDocument;
-          if (normalizeExternalQuoteHTML(html, document, false, target) === normalizeExternalQuoteHTML(html, document))
+          const probeTarget = target === "end" ? "suffix" : target;
+          if (
+            normalizeExternalQuoteHTML(html, document, false, probeTarget) ===
+            normalizeExternalQuoteHTML(html, document)
+          )
             return false;
           let transaction: Transaction;
           try {
