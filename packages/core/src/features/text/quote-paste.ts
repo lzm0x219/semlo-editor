@@ -1,6 +1,7 @@
 import { Extension } from "@tiptap/core";
-import { Plugin } from "@tiptap/pm/state";
+import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
+import type { EditorView } from "@tiptap/pm/view";
 
 export const clipboardSourceAttribute = "data-semlo-editor-clipboard";
 
@@ -18,8 +19,101 @@ function hasYuqueSource(fragment: DocumentFragment): boolean {
   return false;
 }
 
+function isYuqueEmptyParagraph(element: Element | undefined): element is HTMLElement {
+  if (
+    !element ||
+    element.tagName !== "P" ||
+    element.getAttribute("class") !== "ne-p" ||
+    element.getAttributeNames().some((name) => !["id", "class", "style"].includes(name)) ||
+    (element.hasAttribute("id") && !/^u[\da-f]{8}$/i.test(element.id)) ||
+    element.childNodes.length !== 1
+  )
+    return false;
+  const child = element.firstElementChild;
+  if (
+    !child ||
+    child.tagName !== "SPAN" ||
+    child.getAttribute("class") !== "ne-text" ||
+    child.getAttributeNames().some((name) => name !== "class") ||
+    child.childNodes.length !== 0
+  )
+    return false;
+  const style = (element as HTMLElement).style;
+  return Array.from(style).every((name) => {
+    const value = style.getPropertyValue(name);
+    if (style.getPropertyPriority(name)) return false;
+    return /^(margin|padding)(?:-(top|right|bottom|left))?$/.test(name) && (value === "0" || value === "0px")
+      ? true
+      : name === "min-height" && value === "24px";
+  });
+}
+
+type YuqueQuoteTarget = "empty" | "interior" | null;
+
+function hasOnlyElementsAndWhitespace(parent: ParentNode): boolean {
+  return Array.from(parent.childNodes).every(
+    (node) => node.nodeType === 1 || (node.nodeType === 3 && !node.textContent?.trim()),
+  );
+}
+
+function yuqueQuoteTarget(view: EditorView): YuqueQuoteTarget {
+  const { selection, storedMarks } = view.state;
+  const paragraph = selection.$from.parent;
+  if (
+    !(selection instanceof TextSelection) ||
+    selection.$from.depth !== 1 ||
+    !selection.$from.sameParent(selection.$to) ||
+    paragraph.type.name !== "paragraph" ||
+    storedMarks?.length
+  )
+    return null;
+  try {
+    if (!paragraph.sameMarkup(paragraph.type.create())) return null;
+    if (selection.empty && paragraph.content.size === 0) return "empty";
+    return selection.$from.parentOffset > 0 && selection.$to.parentOffset < paragraph.content.size ? "interior" : null;
+  } catch {
+    // 自定义 schema 的默认属性不可用时，保留原始剪贴板内容。
+    return null;
+  }
+}
+
+function adjustYuqueQuoteBoundary(fragment: DocumentFragment, target: YuqueQuoteTarget): void {
+  if (!target) return;
+  if (fragment.querySelector(`[data-pm-slice],[${clipboardSourceAttribute}="1"]`)) return;
+  const roots = Array.from(fragment.children);
+  const contents = roots.filter((element) => element.tagName === "DIV" && element.classList.contains("lake-content"));
+  if (contents.length !== 1 || roots.some((element) => element !== contents[0] && element.tagName !== "NE-CLIPBOARD"))
+    return;
+  if (!hasOnlyElementsAndWhitespace(fragment) || !hasOnlyElementsAndWhitespace(contents[0])) return;
+  const blocks = Array.from(contents[0].children);
+  if (!isYuqueEmptyParagraph(blocks[0])) return;
+  let next = 1;
+  while (isYuqueEmptyParagraph(blocks[next])) next++;
+  if (next !== blocks.length - 1 || blocks[next]?.tagName !== "DIV" || !blocks[next].classList.contains("ne-quote"))
+    return;
+  const quote = blocks[next];
+  if (
+    quote.children.length !== 1 ||
+    !hasOnlyElementsAndWhitespace(quote) ||
+    quote.firstElementChild?.tagName !== "P" ||
+    !quote.firstElementChild.classList.contains("ne-p") ||
+    quote.querySelector("blockquote, div, ol, ul, table, img, video, audio, iframe")
+  )
+    return;
+  if (target === "empty") blocks[0].remove();
+  else {
+    // 开放的末段使目标文字后缀留在引用外；片段中其余空段仍保留。
+    contents[0].appendChild(fragment.ownerDocument.createElement("p"));
+  }
+}
+
 /** 按来源处理引用粘贴；不改变文档载入规则，也不读取语雀私有载荷。 */
-export function normalizeExternalQuoteHTML(html: string, document: Document, preserveCellGrouping = false): string {
+export function normalizeExternalQuoteHTML(
+  html: string,
+  document: Document,
+  preserveCellGrouping = false,
+  target: YuqueQuoteTarget = null,
+): string {
   if (!/<blockquote(?:\s|>)|\bne-quote\b/i.test(html)) return html;
   try {
     const template = document.createElement("template");
@@ -27,6 +121,8 @@ export function normalizeExternalQuoteHTML(html: string, document: Document, pre
     if (hasYuqueSource(template.content)) {
       const quotes = Array.from(template.content.querySelectorAll("div.ne-quote"));
       if (!quotes.length) return html;
+      // 仅修正语雀所测的前缀空段加引用；保留后续空段及其他来源。
+      adjustYuqueQuoteBoundary(template.content, target);
       for (const quote of quotes) {
         const blockquote = document.createElement("blockquote");
         // 原生复制的可见 HTML 使用 div.ne-quote，按其嵌套关系转成 schema 可读的引用。
@@ -73,6 +169,7 @@ export const QuotePaste = Extension.create({
               html,
               view.dom.ownerDocument,
               view.state.selection instanceof CellSelection,
+              yuqueQuoteTarget(view),
             );
           },
         },
