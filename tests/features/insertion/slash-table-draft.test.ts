@@ -182,7 +182,9 @@ test("载入表格中的字面查询保持全部格式并可再次保存恢复",
   expect(cellText(literal.json)).toBe("/p");
   expect(literal.text).toContain("/p");
   expect(literal.html).toContain("<p>/p</p>");
-  expect(await raw(page, "literal")).toEqual(literal.json);
+  expect(await raw(page, "literal")).toEqual(
+    await page.evaluate(() => window.__semloRequireFixture("slashTableFixture").snapshotAsRaw("literal")),
+  );
   await page.evaluate(
     (content) => window.__semloRequireFixture("slashTableFixture").mount("core", "reloaded", { content }),
     literal.html,

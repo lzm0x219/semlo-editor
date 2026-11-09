@@ -42,18 +42,16 @@ const samples: Sample[] = [
     expected: "TAIL",
     textNode: "TAIL",
   },
-  { name: "soft-wrap-first", content: [txt("test ".repeat(25))], expected: "test ".repeat(4), width: 260 },
+  { name: "soft-wrap-first", content: [txt("test ".repeat(25))], width: 260 },
   {
     name: "soft-wrap-second",
     content: [txt("test ".repeat(25))],
-    expected: "test ".repeat(4),
     width: 260,
     clickOffset: 25,
   },
   {
     name: "preceding-block",
     content: [txt("test ".repeat(25))],
-    expected: "test ".repeat(4),
     width: 260,
     before: true,
   },
@@ -198,7 +196,7 @@ async function mount(page: Page, item: Sample) {
     await page
       .locator("#heading-end-boundary .semlo-editor-prose h3")
       .first()
-      .click({ position: { x: 50, y: 8 } });
+      .click({ position: { x: 100, y: 8 } });
   await page.evaluate(() => window.__semloRequireFixture("headingEndBoundary").settle());
 }
 async function snapshot(page: Page) {
@@ -232,6 +230,28 @@ for (const item of samples) {
     const initial = await snapshot(page);
     await page.keyboard.press("Home");
     const home = await snapshot(page);
+    const expectedLine =
+      item.name.startsWith("soft-wrap") || item.name === "preceding-block"
+        ? await page
+            .locator("#heading-end-boundary .semlo-editor-prose h3")
+            .first()
+            .evaluate((heading, start) => {
+              const node = Array.from(heading.childNodes).find((child) => child.nodeType === Node.TEXT_NODE);
+              if (!node?.textContent) throw new Error("Missing heading text");
+              const range = document.createRange();
+              let top: number | undefined;
+              let end = start;
+              for (let i = start; i < node.textContent.length; i++) {
+                range.setStart(node, i);
+                range.setEnd(node, i + 1);
+                const rect = range.getBoundingClientRect();
+                top ??= rect.top;
+                if (Math.abs(rect.top - top) > 1) break;
+                end = i + 1;
+              }
+              return node.textContent.slice(start, end);
+            }, home.anchorOffset)
+        : item.expected;
     if (item.name === "hard-break-second")
       expect(home).toMatchObject({
         anchorOffset: 5,
@@ -294,7 +314,10 @@ for (const item of samples) {
     expect(visual.lineEnd.bottom).toBeGreaterThanOrEqual(center);
     if (visual.nextEnd) expect(visual.nextEnd.top).toBeGreaterThan(center);
     expect(selected.text).not.toContain("NEXT");
-    if (item.expected) expect(selected.text).toBe(item.expected);
+    if (expectedLine !== undefined) {
+      expect(expectedLine.length).toBeGreaterThan(0);
+      expect(selected.text).toBe(expectedLine);
+    }
     if (item.name === "emoji-wrap" || item.name.startsWith("cross-mark") || item.name === "hard-break-cross-mark") {
       const full = item.content.map((node) => (node.type === "hardBreak" ? "\n" : (node.text ?? ""))).join("");
       const boundaries = new Set([

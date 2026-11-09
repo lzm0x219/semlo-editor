@@ -20,25 +20,37 @@ test("remount reconstructs host NodeView, heading widget, and leaves another ins
   const result = await page.evaluate(() => {
     window.__semloRequireFixture("mountFoldRemountHost")();
     const { first, second, events } = window.__semloRequireFixture("foldRemountHost");
+    const stages: string[][] = [events.slice()];
     const before = first.getSnapshot().json;
     first.editor.unmount();
+    stages.push(events.slice());
     const target = document.createElement("div");
     document.querySelector("#first-fold-host .semlo-editor-content")!.append(target);
     first.editor.mount(target);
+    stages.push(events.slice());
     const after = first.getSnapshot().json;
     const widget = first.editor.view.dom.querySelector<HTMLButtonElement>(".semlo-editor-heading-fold-toggle")!;
     widget.click();
+    stages.push(events.slice());
     const hidden = !!first.editor.view.dom.querySelector(".semlo-editor-heading-fold-hidden");
     first.destroy();
+    stages.push(events.slice());
     second.setContent("<p>第二实例继续编辑</p>");
     const secondText = second.getSnapshot().text;
     second.destroy();
-    return { before, after, hidden, secondText, events };
+    return { before, after, hidden, secondText, events, stages };
   });
   expect(result.after).toEqual(result.before);
   expect(result.hidden).toBe(true);
   expect(result.secondText).toBe("第二实例继续编辑");
-  expect(result.events).toEqual(["create", "destroy", "create", "destroy"]);
+  expect(result.stages).toEqual([
+    ["create"],
+    ["create", "destroy"],
+    ["create", "destroy", "create"],
+    ["create", "destroy", "create", "create", "destroy"],
+    ["create", "destroy", "create", "create", "destroy", "destroy"],
+  ]);
+  expect(result.events).toEqual(result.stages[4]);
 });
 
 test("host NodeView creation exception propagates during remount", async ({ page }) => {

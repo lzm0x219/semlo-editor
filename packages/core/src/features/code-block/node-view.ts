@@ -151,8 +151,17 @@ export function createCodeBlockNodeView(): NodeViewRenderer {
     copyIcon.append(front, back);
     const paintCopy = (status?: string) => {
       copy.setAttribute("aria-label", status ?? "复制代码");
-      if (status) copy.textContent = status;
-      else copy.replaceChildren(copyIcon.cloneNode(true));
+      copy.title = status ?? "复制代码";
+      if (status) {
+        const icon = copyIcon.cloneNode(false) as SVGSVGElement;
+        const mark = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+        mark.setAttribute("d", status === "已复制" ? "M5 12l4 4L19 6" : "M6 6l12 12M18 6 6 18");
+        icon.append(mark);
+        const announcement = doc.createElement("span");
+        announcement.className = "semlo-editor-code-copy-announcement";
+        announcement.textContent = status;
+        copy.replaceChildren(icon, announcement);
+      } else copy.replaceChildren(copyIcon.cloneNode(true));
     };
     paintCopy();
     const run = doc.createElement("button");

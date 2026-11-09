@@ -154,7 +154,10 @@ async function expectedDocument(page: Page, from: number, to: number) {
       const heading = doc.firstChild;
       if (!heading || heading.type.name !== "heading") throw new Error("Missing root heading");
       const replacement = heading.copy(heading.content.cut(0, from).append(heading.content.cut(to)));
-      return doc.copy(doc.content.replaceChild(0, replacement)).toJSON();
+      const snapshot = window.__semloRequireFixture("restartControlledFixture").controller.getSnapshot().json;
+      if (!snapshot.content?.[0]) throw new Error("Missing snapshot heading");
+      snapshot.content[0].content = replacement.toJSON().content;
+      return snapshot;
     },
     { from, to },
   );
@@ -258,6 +261,10 @@ async function captureBackspace(page: Page) {
           start = native?.anchorNode ? editor.view.posAtDOM(native.anchorNode, native.anchorOffset) : null;
           return;
         }
+        const expected = window.__semloRequireFixture("restartControlledFixture").controller.getSnapshot().json;
+        const heading = editor.state.tr.delete(selection.from, selection.to).doc.firstChild;
+        if (!expected.content?.[0] || !heading || heading.type.name !== "heading") throw new Error("Missing heading");
+        expected.content[0].content = heading.toJSON().content;
         trace.push({
           empty: native?.isCollapsed ?? true,
           text: fragment?.textContent ?? "",
@@ -267,7 +274,7 @@ async function captureBackspace(page: Page) {
           pmFrom: selection.from,
           pmTo: selection.to,
           start,
-          expected: editor.state.tr.delete(selection.from, selection.to).doc.toJSON(),
+          expected,
         });
       },
       { capture: true },

@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
-import { createElement, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createComponent, createSignal } from "solid-js";
 import { render } from "solid-js/web";
@@ -85,6 +85,7 @@ window.mountDynamicEditor = async (framework) => {
   let dispose: () => void = () => {
     throw new Error("Dynamic editor is not mounted");
   };
+  let committed = Promise.resolve();
   const errors: string[] = [];
   let markReady: (editor: EditorController) => void = () => {
     throw new Error("Ready callback is not initialized");
@@ -93,9 +94,18 @@ window.mountDynamicEditor = async (framework) => {
   const onReady = (editor: EditorController) => markReady(editor);
   const onError = (error: Error) => errors.push(error.message);
   if (framework === "react") {
+    let requested: Integrations | undefined;
+    let confirm: (() => void) | undefined;
     function DynamicReact() {
       const [integrations, setIntegrations] = useState<Integrations>({});
-      update = (next) => setIntegrations(next);
+      update = (next) => {
+        requested = { ...next };
+        committed = new Promise<void>((resolve) => (confirm = resolve));
+        setIntegrations(requested);
+      };
+      useEffect(() => {
+        if (integrations === requested) confirm?.();
+      }, [integrations]);
       return createElement(ReactEditor, { ...integrations, onReady, onError });
     }
     const root = createRoot(host);
@@ -142,6 +152,7 @@ window.mountDynamicEditor = async (framework) => {
     },
     setIntegrations: (next) => update(next),
     settle: async () => {
+      await committed;
       await nextTick();
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     },
