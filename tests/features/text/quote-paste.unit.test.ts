@@ -464,3 +464,36 @@ test("宿主以相同文档的替代事务处理粘贴时，不追加历史边�
   expect(appliedCount).toBe(1);
   expect(state.doc.textContent).toBe("甲引用甲乙乙");
 });
+
+test("后置宿主追加粘贴事务时，引用与追加内容保持同一撤销组", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const original = parse(document, "<p>甲乙</p>");
+  const host = new Plugin({
+    appendTransaction(transactions, _oldState, newState) {
+      if (!transactions.some((transaction) => transaction.getMeta("uiEvent") === "paste")) return null;
+      return newState.tr.insertText("宿主");
+    },
+  });
+  let state = EditorState.create({
+    schema,
+    doc: original,
+    selection: TextSelection.create(original, 2),
+    plugins: [history(), plugin!, host],
+  });
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  const view = { dom: document.body, editable: true, state, dispatch: () => {} } as unknown as EditorView;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(false);
+  const applied = state.applyTransaction(
+    state.tr.replaceSelection(slice).setMeta("paste", true).setMeta("uiEvent", "paste"),
+  );
+  expect(applied.transactions).toHaveLength(2);
+  state = applied.state;
+  expect(state.doc.textContent).toContain("宿主");
+  expect(undo(state, (transaction) => (state = state.apply(transaction)))).toBe(true);
+  expect(state.doc.eq(original)).toBe(true);
+});
