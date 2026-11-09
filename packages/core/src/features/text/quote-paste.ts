@@ -1,11 +1,14 @@
 import { Extension } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode, Slice } from "@tiptap/pm/model";
-import { Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
 
+import { slashHistoryProbeKey } from "../insertion/keys";
+
 export const clipboardSourceAttribute = "data-semlo-editor-clipboard";
+const quotePasteHistoryKey = new PluginKey("semloEditorQuotePasteHistory");
 
 function hasYuqueSource(fragment: DocumentFragment): boolean {
   for (const metadata of fragment.querySelectorAll("ne-clipboard[source]")) {
@@ -214,6 +217,7 @@ export const QuotePasteHistory = Extension.create({
     let pending: { transaction: Transaction; before: ProseMirrorNode; expected: ProseMirrorNode } | null = null;
     let plugin: Plugin;
     plugin = new Plugin({
+      key: quotePasteHistoryKey,
       props: {
         handlePaste(view, event, slice) {
           const html = event.clipboardData?.getData("text/html");
@@ -221,9 +225,13 @@ export const QuotePasteHistory = Extension.create({
           if (!view.editable || event.defaultPrevented || !html || !target || !isYuqueQuoteBoundarySlice(slice, target))
             return false;
           const index = view.state.plugins.indexOf(plugin);
+          // 斜杠探针只在撤销事务时追加处理，不影响粘贴历史分组。
+          const slashHistoryProbe = slashHistoryProbeKey.get(view.state);
           if (
             index < 0 ||
-            view.state.plugins.slice(index + 1).some((other) => other.props.handlePaste || other.spec.appendTransaction)
+            view.state.plugins
+              .slice(index + 1)
+              .some((other) => other.props.handlePaste || (other.spec.appendTransaction && other !== slashHistoryProbe))
           )
             return false;
           const document = view.dom.ownerDocument;
