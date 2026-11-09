@@ -66,7 +66,7 @@ import { ParagraphLayout } from "../features/text/paragraph-layout";
 import { RootParagraphPaste } from "../features/text/paragraph-paste";
 import { PlainTextPaste } from "../features/text/plain-paste";
 import { QuoteKeyboard } from "../features/text/quote-keyboard";
-import { QuotePaste } from "../features/text/quote-paste";
+import { QuotePaste, QuotePasteHistory } from "../features/text/quote-paste";
 import { TransactionGuard } from "../runtime/transaction-guard";
 import type { EditorOptions } from "../types";
 import { createStarterKitWithCodeFonts } from "./starter-kit";
@@ -142,6 +142,7 @@ export function createEditorExtensions({
     RootParagraphPaste,
     QuoteKeyboard,
     QuotePaste,
+    QuotePasteHistory,
     FlatListTab,
     ListKeyboard,
     ListFold,

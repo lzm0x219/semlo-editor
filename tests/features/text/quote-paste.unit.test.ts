@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "@rstest/core";
 import { getSchema, type Editor } from "@tiptap/core";
 import { history, redo, undo } from "@tiptap/pm/history";
 import { DOMParser, DOMSerializer } from "@tiptap/pm/model";
-import { AllSelection, EditorState, Plugin } from "@tiptap/pm/state";
+import { AllSelection, EditorState, Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { Window } from "happy-dom";
 
@@ -13,6 +13,7 @@ import {
   clipboardSourceAttribute,
   normalizeExternalQuoteHTML,
   QuotePaste,
+  QuotePasteHistory,
 } from "../../../packages/core/src/features/text/quote-paste";
 import { nativeYuqueQuoteHTML, yuqueCrossBlockQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
 
@@ -323,11 +324,75 @@ test("语雀引用边界修正不改写带额外语义或复杂结构的片段",
     yuqueCrossBlockQuoteHTML.replace('id="u00000001"', 'data-pm-slice="1 1 []" id="u00000001"'),
     yuqueCrossBlockQuoteHTML.replace('<p id="u00000002"', '前缀<p id="u00000002"'),
     yuqueCrossBlockQuoteHTML.replace("</p></div></div>", '</p><p class="ne-p">第二段</p></div></div>'),
+    yuqueCrossBlockQuoteHTML.replace("</ne-clipboard>", "<p>元数据中的内容</p></ne-clipboard>"),
     yuqueCrossBlockQuoteHTML.replace("www.yuque.com", "example.com"),
   ];
   for (const html of samples) {
     const baseline = normalizeExternalQuoteHTML(html, document);
     expect(normalizeExternalQuoteHTML(html, document, false, "empty")).toBe(baseline);
-    expect(normalizeExternalQuoteHTML(html, document, false, "interior")).toBe(baseline);
+    expect(normalizeExternalQuoteHTML(html, document, false, "suffix")).toBe(baseline);
   }
+});
+
+test("宿主拒绝语雀粘贴事务时，不改变原有连续输入的撤销分组", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const original = parse(document, "<p>甲乙</p>");
+  let state = EditorState.create({
+    schema,
+    doc: original,
+    selection: TextSelection.create(original, 2),
+    plugins: [new Plugin({ filterTransaction: (transaction) => !transaction.getMeta("paste") }), history(), plugin!],
+  });
+  state = state.apply(state.tr.insertText("新"));
+  const before = state.doc;
+  const view = {
+    dom: document.body,
+    editable: true,
+    get state() {
+      return state;
+    },
+    dispatch(transaction: Transaction) {
+      state = state.apply(transaction);
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(true);
+  expect(state.doc.eq(before)).toBe(true);
+  state = state.apply(state.tr.insertText("续"));
+  expect(undo(state, (transaction) => (state = state.apply(transaction)))).toBe(true);
+  expect(state.doc.eq(original)).toBe(true);
+});
+
+test("后续粘贴处理器存在时，引用历史处理器交回控制权", () => {
+  const document = createDocument();
+  const [plugin] = QuotePasteHistory.config.addProseMirrorPlugins!.call({} as never) as Plugin[];
+  const doc = parse(document, "<p>甲乙</p>");
+  const downstream = new Plugin({ props: { handlePaste: () => true } });
+  const state = EditorState.create({
+    schema,
+    doc,
+    selection: TextSelection.create(doc, 2),
+    plugins: [plugin!, downstream],
+  });
+  let dispatched = false;
+  const view = {
+    dom: document.body,
+    editable: true,
+    state,
+    dispatch: () => {
+      dispatched = true;
+    },
+  } as unknown as EditorView;
+  const html = yuqueCrossBlockQuoteHTML;
+  const slice = DOMParser.fromSchema(schema).parseSlice(
+    fragment(document, normalizeExternalQuoteHTML(html, document, false, "suffix")),
+  );
+  const event = { defaultPrevented: false, clipboardData: { getData: () => html } } as unknown as ClipboardEvent;
+  expect(plugin!.props.handlePaste!.call(plugin!, view, event, slice)).toBe(false);
+  expect(dispatched).toBe(false);
 });
