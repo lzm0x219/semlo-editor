@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@rstest/playwright";
 
 import type { EditorController } from "../../../packages/core/src/types";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
-import { nativeYuqueQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
+import { nativeYuqueQuoteHTML, yuqueCrossBlockQuoteHTML } from "../../fixtures/text/yuque-quote-clipboard";
 
 declare global {
   interface Window {
@@ -187,3 +187,88 @@ test("语雀实际复制的引用经过受控回写仍可撤销与保存往返",
   expect(result.redo).toEqual(result.saved.json);
   expect(result.fromHTML).toEqual(result.saved.json);
 });
+
+async function mountBoundaryEditor(page: Page, content: string, controlled = false) {
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").destroy());
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { createEditor } from '/dist/index.js'
+      let instance
+      instance = createEditor({ element: document.querySelector('#quote-paste'), outline: false,
+        content: ${JSON.stringify(content)}, ${controlled ? "onChange: snapshot => instance.setContent(snapshot.json)" : ""} })
+      window.quotePasteEditor = instance
+    `,
+  });
+}
+
+async function pasteBoundary(page: Page, html: string) {
+  await page.evaluate((content) => {
+    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
+    const data = new DataTransfer();
+    data.setData("text/plain", "\n引用甲乙");
+    data.setData("text/html", content);
+    editor.view.dom.dispatchEvent(
+      new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }),
+    );
+  }, html);
+}
+
+for (const sample of [
+  {
+    name: "粘到空段落时不多出空段",
+    content: "<p>前段</p><blockquote><p>引用甲乙</p></blockquote><p>后段</p><p></p>",
+    expected: "<p>前段</p><blockquote><p>引用甲乙</p></blockquote><p>后段</p><blockquote><p>引用甲乙</p></blockquote>",
+  },
+  {
+    name: "粘到正文中间时保留独立后缀",
+    content: "<p>后段</p>",
+    selection: { from: 2, to: 2 },
+    expected: "<p>后</p><blockquote><p>引用甲乙</p></blockquote><p>段</p>",
+  },
+  {
+    name: "替换段内选区时保留两侧文字及格式",
+    content: "<p><strong>前</strong>中<em>后</em></p>",
+    selection: { from: 2, to: 3 },
+    expected: "<p><strong>前</strong></p><blockquote><p>引用甲乙</p></blockquote><p><em>后</em></p>",
+    controlled: true,
+  },
+  {
+    name: "多个前缀空段只合并首个",
+    content: "<p></p>",
+    html: yuqueCrossBlockQuoteHTML.replace(
+      '<div class="ne-quote" style=',
+      '<p id="u12345678" class="ne-p" style="margin: 0; padding: 0; min-height: 24px"><span class="ne-text"></span></p><div class="ne-quote" style=',
+    ),
+    expected: "<p></p><blockquote><p>引用甲乙</p></blockquote>",
+  },
+]) {
+  test(`语雀跨正文与引用复制的片段${sample.name}，可撤销重做`, async ({ page }) => {
+    await mountBoundaryEditor(page, sample.content, sample.controlled);
+    const before = await page.evaluate((selection) => {
+      const controller = window.__semloRequireFixture("quotePasteEditor");
+      controller.editor.commands.focus("end");
+      if (selection) controller.editor.commands.setTextSelection(selection);
+      return controller.getSnapshot().json;
+    }, sample.selection);
+    await pasteBoundary(page, sample.html ?? yuqueCrossBlockQuoteHTML);
+    const after = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+    expect(after.html).toBe(sample.expected);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+      before,
+    );
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
+      after.json,
+    );
+    if (sample.controlled) {
+      const fromHTML = await page.evaluate((html) => {
+        const controller = window.__semloRequireFixture("quotePasteEditor");
+        controller.setContent(html);
+        return controller.getSnapshot().json;
+      }, after.html);
+      expect(fromHTML).toEqual(after.json);
+    }
+  });
+}
