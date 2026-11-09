@@ -9,8 +9,13 @@ declare global {
   }
 }
 
-for (const width of [1280, 320])
-  test(`long unbroken image descriptions wrap within the image width at ${width}px`, async ({ page }) => {
+for (const [width, imageWidth] of [
+  [1280, 160],
+  [320, 160],
+  [1280, 8],
+  [320, 8],
+] as const)
+  test(`long unbroken image descriptions wrap within a ${imageWidth}px image at ${width}px`, async ({ page }) => {
     await installFixtureGuards(page);
     await page.setViewportSize({ width, height: 720 });
     await page.goto(process.env.SEMLO_TEST_ORIGIN!);
@@ -21,7 +26,7 @@ for (const width of [1280, 320])
       host.id = 'image-caption-wrap'
       host.style.width = '100%'
       document.body.prepend(host)
-      window.imageCaptionWrapEditor = createEditor({ element: host, outline: false, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'image', attrs: { src: '/tests/sample-image.svg', width: 160, height: 70, semloEditorCaption: 'a'.repeat(120), semloEditorCaptionVisible: true } }] }] } })`,
+      window.imageCaptionWrapEditor = createEditor({ element: host, outline: false, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'image', attrs: { src: '/tests/sample-image.svg', width: ${imageWidth}, height: 70, semloEditorCaption: 'a'.repeat(120), semloEditorCaptionVisible: true } }] }] } })`,
     });
     const host = page.locator("#image-caption-wrap");
     await page.addStyleTag({ content: ".semlo-editor-image-caption {font-size: 24px !important}" });
