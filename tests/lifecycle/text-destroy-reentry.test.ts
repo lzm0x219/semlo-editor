@@ -101,7 +101,7 @@ test("search reveals a nested card when a heading plugin appends an unrelated ed
             const action = transaction.getMeta("semloEditorHeadingFold$") as
               | { kind?: string; folded?: boolean }
               | undefined;
-            return action?.kind === "set" && action.folded === false;
+            return action?.kind === "expand";
           });
           if (done || !opens) return null;
           done = true;
@@ -348,7 +348,7 @@ test("search tolerates host replacement while revealing a folded heading", async
     let done = false;
     api.editor.on("transaction", ({ transaction }: { transaction: { getMeta(key: string): unknown } }) => {
       const action = transaction.getMeta("semloEditorHeadingFold$") as { kind?: string; folded?: boolean } | undefined;
-      if (done || action?.kind !== "set" || action.folded !== false) return;
+      if (done || action?.kind !== "expand") return;
       done = true;
       api.setContent("<p>新</p>");
     });

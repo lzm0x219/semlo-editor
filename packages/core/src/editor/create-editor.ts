@@ -641,7 +641,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     if (options.toolbar !== false) unmountTableToolbar = mountTableToolbar(editor, shell);
     if (options.outline !== false)
       unmountOutline = mountOutline(editor, editorBody, (pos) => {
-        expandHeadingAncestors(editor, pos);
+        expandHeadingAncestors(editor, pos, true);
       });
     unmountPainter = mountFormatPainter(editor, defaultToolbar?.painterButton, {
       syncSelection: syncTextSelection,

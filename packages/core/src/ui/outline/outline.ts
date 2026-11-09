@@ -249,11 +249,26 @@ export function mountOutline(editor: Editor, container: HTMLElement, revealHeadi
       if (item.pos === active) link.setAttribute("aria-current", "location");
       link.addEventListener("mousedown", (event) => event.preventDefault());
       link.addEventListener("click", () => {
+        if (editor.isDestroyed) return;
+        const view = editor.view;
+        const originalDoc = view.state.doc;
+        const node = originalDoc.nodeAt(item.pos);
+        if (!node || node.type.name !== "heading") return;
         revealHeading(item.pos);
-        const target = editor.view.nodeDOM(item.pos);
+        if (editor.isDestroyed || view.isDestroyed || editor.view !== view) return;
+        let position = item.pos;
+        if (view.state.doc !== originalDoc) {
+          const matches: number[] = [];
+          view.state.doc.descendants((candidate, pos) => {
+            if (candidate === node) matches.push(pos);
+          });
+          if (matches.length !== 1) return;
+          position = matches[0];
+        }
+        const target = view.nodeDOM(position);
         if (target instanceof (win?.HTMLElement ?? HTMLElement))
           target.scrollIntoView({ block: "start", inline: "nearest" });
-        active = item.pos;
+        active = position;
         for (const button of list.querySelectorAll<HTMLButtonElement>(".semlo-editor-outline-link")) {
           if (Number(button.dataset.pos) === active) button.setAttribute("aria-current", "location");
           else button.removeAttribute("aria-current");

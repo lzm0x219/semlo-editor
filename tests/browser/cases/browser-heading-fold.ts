@@ -53,10 +53,9 @@ async function _browserTest(page: import("playwright").Page) {
   const visible = async (locator: import("playwright").Locator, expected: boolean, label: string) => {
     if ((await locator.isVisible()) !== expected) throw new Error(`${label}: unexpected visibility`);
   };
-  const original = await page.evaluate(() =>
-    JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json),
-  );
-  const originalHTML = await page.evaluate(() => window.__semloRequireFixture("foldApi").getSnapshot().html);
+  const withoutFold = (value: unknown) =>
+    JSON.stringify(value, (key, item) => (key === "semloEditorHeadingFolded" ? undefined : item));
+  const original = withoutFold(await page.evaluate(() => window.__semloRequireFixture("foldApi").getSnapshot().json));
   if ((await host.locator("button.semlo-editor-heading-fold-toggle").count()) !== 5)
     throw new Error("Headings with content did not expose fold controls");
 
@@ -107,12 +106,10 @@ async function _browserTest(page: import("playwright").Page) {
   )
     throw new Error("Keyboard toggle did not retain focus or expanded state");
   if (
-    (await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json))) !==
-      original ||
-    (await page.evaluate(() => window.__semloRequireFixture("foldApi").getSnapshot().html)) !== originalHTML ||
-    (await page.evaluate(() => window.__semloRequireFixture("foldChanges"))) !== 0
+    withoutFold(await page.evaluate(() => window.__semloRequireFixture("foldApi").getSnapshot().json)) !== original ||
+    (await page.evaluate(() => window.__semloRequireFixture("foldChanges"))) === 0
   )
-    throw new Error("Folding changed serialized document data");
+    throw new Error("Folding changed other document data or failed to notify the host");
 
   await toggle("子标题").click();
   await toggle("父标题").click();
@@ -131,15 +128,21 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Select-all was collapsed while a section was folded: " + JSON.stringify(all));
   await visible(paragraph("父正文"), false, "select-all keeps ancestor folded");
   await visible(paragraph("子正文"), false, "select-all keeps nested section folded");
+  const beforeDelete = await page.evaluate(() =>
+    JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json),
+  );
   await page.keyboard.press("Backspace");
   if ((await page.evaluate(() => window.__semloRequireFixture("foldApi").editor.getText())).trim())
     throw new Error("Deleting all did not remove hidden text");
   if (
     !(await page.evaluate(() => window.__semloRequireFixture("foldApi").editor.commands.undo())) ||
-    (await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json))) !== original
+    (await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json))) !==
+      beforeDelete
   )
     throw new Error("Undo did not restore content after deleting a folded selection");
 
+  if ((await toggle("父标题").getAttribute("aria-expanded")) === "false") await toggle("父标题").click();
+  if ((await toggle("子标题").getAttribute("aria-expanded")) === "false") await toggle("子标题").click();
   await toggle("子标题").click();
   await toggle("父标题").click();
   const crossSelection = () =>
@@ -166,12 +169,16 @@ async function _browserTest(page: import("playwright").Page) {
   }));
   if (afterFolding.from !== crossing.expectedFrom || afterFolding.to !== crossing.expectedTo)
     throw new Error("Folding a section collapsed a selection whose endpoints remain visible");
+  const beforeReplace = await page.evaluate(() =>
+    JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json),
+  );
   await page.evaluate(() => window.__semloRequireFixture("foldApi").editor.commands.insertContent("跨越替换"));
   if ((await page.evaluate(() => window.__semloRequireFixture("foldApi").editor.getText())).includes("子正文"))
     throw new Error("Editing a cross-section selection left hidden text behind");
   if (
     !(await page.evaluate(() => window.__semloRequireFixture("foldApi").editor.commands.undo())) ||
-    (await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json))) !== original
+    (await page.evaluate(() => JSON.stringify(window.__semloRequireFixture("foldApi").getSnapshot().json))) !==
+      beforeReplace
   )
     throw new Error("Undo did not restore a cross-section edit");
 
