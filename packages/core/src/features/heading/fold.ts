@@ -1,4 +1,5 @@
 import { Extension, type Editor } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection, type Selection, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
@@ -230,7 +231,7 @@ function writeFolded(tr: Transaction, editor: Editor, state: FoldState, position
   for (const pos of positions) {
     const heading = tr.doc.nodeAt(pos);
     if (heading?.type.name === "heading" && heading.attrs[headingFoldAttribute] !== value)
-      tr.setNodeMarkup(pos, undefined, { ...heading.attrs, [headingFoldAttribute]: value });
+      tr.setNodeAttribute(pos, headingFoldAttribute, value);
   }
 }
 
@@ -258,23 +259,42 @@ export function isHeadingFolded(editor: Editor, pos: number): boolean {
   return !editor.isDestroyed && !!headingFoldKey.getState(editor.state)?.folded.has(pos);
 }
 
-/** 更新标题折叠状态，不为该操作增加撤销步骤。 */
-export function setHeadingFolded(editor: Editor, pos: number, folded: boolean): boolean {
+/** 更新标题折叠状态；仅用户操作要求时记录历史。 */
+export function setHeadingFolded(editor: Editor, pos: number, folded: boolean, history = false): boolean {
   if (editor.isDestroyed) return false;
   const state = headingFoldKey.getState(editor.state),
     section = sectionAt(editor.state.doc, pos);
   if (!state || !section) return false;
   if (state.folded.has(pos) === folded) return true;
-  let tr = editor.state.tr
-    .setMeta(headingFoldKey, { kind: "set", pos, folded } satisfies FoldAction)
-    .setMeta("addToHistory", false);
+  const recordHistory = history && editor.isEditable && !state.adapter;
+  let tr = editor.state.tr.setMeta(headingFoldKey, { kind: "set", pos, folded } satisfies FoldAction);
+  tr = recordHistory ? closeHistory(tr) : tr.setMeta("addToHistory", false);
   writeFolded(tr, editor, state, [pos], folded);
   if (folded && hasHiddenEndpoint(tr.selection, section)) tr = tr.setSelection(selectionAtHeading(tr.doc, section));
   const active = editor.view.dom.ownerDocument.activeElement;
   editor.view.dispatch(tr);
+  if (editor.isDestroyed) return true;
+  if (recordHistory && !editor.isDestroyed && editor.state.doc.eq(tr.doc))
+    editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
   if (folded && active && editor.view.dom.contains(active) && active.closest(".semlo-editor-heading-fold-hidden"))
     editor.view.focus();
   return true;
+}
+
+/** 查找正文时将同一次展开的标题放入同一撤销步骤。 */
+export function expandHeadingPositions(editor: Editor, positions: number[], history: boolean): void {
+  if (editor.isDestroyed) return;
+  const state = headingFoldKey.getState(editor.state);
+  if (!state) return;
+  const targets = positions.filter((pos) => state.folded.has(pos) && sectionAt(editor.state.doc, pos));
+  if (!targets.length) return;
+  const recordHistory = history && editor.isEditable && !state.adapter;
+  let tr = editor.state.tr.setMeta(headingFoldKey, { kind: "expand", positions: targets } satisfies FoldAction);
+  tr = recordHistory ? closeHistory(tr) : tr.setMeta("addToHistory", false);
+  writeFolded(tr, editor, state, targets, false);
+  editor.view.dispatch(tr);
+  if (recordHistory && !editor.isDestroyed && editor.state.doc.eq(tr.doc))
+    editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
 }
 
 /** Expand folded headings whose hidden sections contain the target heading. */
@@ -312,7 +332,7 @@ function foldButton(editor: Editor, doc: Document, section: Section, folded: boo
     event.preventDefault();
     event.stopPropagation();
     const keyboard = event.detail === 0 && doc.activeElement === button;
-    if (!setHeadingFolded(editor, section.pos, !folded) || !keyboard || editor.isDestroyed) return;
+    if (!setHeadingFolded(editor, section.pos, !folded, true) || !keyboard || editor.isDestroyed) return;
     const next = editor.view.dom.querySelector<HTMLButtonElement>(
       `[data-semlo-editor-heading-fold-pos="${section.pos}"]`,
     );

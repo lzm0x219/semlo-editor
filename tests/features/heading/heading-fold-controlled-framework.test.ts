@@ -62,8 +62,13 @@ for (const framework of ["react", "vue", "solid"] as PasteFramework[]) {
     expect(snapshot.json.content![0].attrs!.semloEditorHeadingFolded).toBe(true);
     expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.undo())).toBe(true);
     await page.evaluate(() => window.sequencePasteFramework.settle());
-    await expect(host.getByRole("button", { name: "展开标题：标题" })).toBeVisible();
-    await expect(host.locator(".semlo-editor-prose p")).toBeHidden();
+    await expect(host.getByRole("button", { name: "折叠标题：新标题" })).toBeVisible();
+    await expect(host.locator(".semlo-editor-prose p")).toBeVisible();
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.undo())).toBe(true);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
+    await expect(host.getByRole("button", { name: "折叠标题：标题" })).toBeVisible();
+    expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.redo())).toBe(true);
+    await page.evaluate(() => window.sequencePasteFramework.settle());
     expect(await page.evaluate(() => window.sequencePasteFramework.controller.editor.commands.redo())).toBe(true);
     await page.evaluate(() => window.sequencePasteFramework.settle());
     snapshot = await page.evaluate(() => window.sequencePasteFramework.controller.getSnapshot());

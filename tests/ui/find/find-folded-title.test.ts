@@ -32,7 +32,6 @@ test("searching a folded heading title opens its section and folded ancestors wi
   await page.waitForFunction(() => window.foldedTitleEditors?.length === 2);
   const first = page.locator("#folded-title-test-0");
   const second = page.locator("#folded-title-test-1");
-  const before = await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].getSnapshot().json);
   await page.evaluate(() =>
     window.__semloRequireFixture("foldedTitleEditors")[0].editor.chain().setTextSelection(1).insertContent("前").run(),
   );
@@ -57,10 +56,8 @@ test("searching a folded heading title opens its section and folded ancestors wi
   expect(await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].editor.commands.undo())).toBe(
     true,
   );
-  const expectedBefore = structuredClone(before);
-  expectedBefore.content![3].attrs!.semloEditorHeadingFolded = true;
   expect(await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors")[0].getSnapshot().json)).toEqual(
-    expectedBefore,
+    edited,
   );
   await page.evaluate(() => window.__semloRequireFixture("foldedTitleEditors").forEach((editor) => editor.destroy()));
 });
