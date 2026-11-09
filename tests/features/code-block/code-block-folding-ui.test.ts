@@ -443,7 +443,19 @@ test("line backspace across a fold follows the visible line boundary", async ({ 
   await page.keyboard.press("Meta+Backspace");
   const text = () =>
     page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.doc.firstChild?.textContent);
-  await expect.poll(text).toBe("}");
+  try {
+    await expect.poll(text).toBe("}");
+  } catch (error) {
+    throw new Error(
+      "[DEBUG-fold-line] " +
+        JSON.stringify({
+          text: await text(),
+          position: await position(),
+          platform: await page.evaluate(() => navigator.platform),
+        }),
+      { cause: error },
+    );
+  }
   expect(await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.commands.undo())).toBe(true);
   await expect.poll(text).toBe("function test() {\n  return 1;\n}");
 });
@@ -525,7 +537,21 @@ test("shift delete at the folded end removes the closing line", async ({ page })
   await page.keyboard.press("Shift+Delete");
   const text = () =>
     page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.state.doc.firstChild?.textContent);
-  await expect.poll(text).toBe("function test() {\n  return 1;\n");
+  try {
+    await expect.poll(text).toBe("function test() {\n  return 1;\n");
+  } catch (error) {
+    throw new Error(
+      "[DEBUG-fold-shift] " +
+        JSON.stringify({
+          text: await text(),
+          selection: await page.evaluate(() =>
+            window.__semloRequireFixture("foldLanguage").editor.state.selection.toJSON(),
+          ),
+          platform: await page.evaluate(() => navigator.platform),
+        }),
+      { cause: error },
+    );
+  }
   await expect(card.locator(".semlo-editor-code-fold-placeholder")).toBeVisible();
   expect(await page.evaluate(() => window.__semloRequireFixture("foldLanguage").editor.commands.undo())).toBe(true);
   await expect.poll(text).toBe("function test() {\n  return 1;\n}");

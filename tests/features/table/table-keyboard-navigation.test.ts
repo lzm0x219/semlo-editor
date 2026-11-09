@@ -3263,7 +3263,18 @@ for (const axis of ["行", "列"] as const) {
       const handle = page.getByRole("button", { name: `选择第 1 ${axis}` });
       await expect(handle).toBeVisible();
       const box = await handle.boundingBox();
-      if (!box) throw new Error("Missing selection handle");
+      if (!box)
+        throw new Error(
+          "Missing selection handle: " +
+            JSON.stringify(
+              await page.evaluate(() => ({
+                active: document.activeElement?.outerHTML.slice(0, 300),
+                layer: document.querySelector(".semlo-editor-table-edges")?.outerHTML.slice(0, 2000),
+                table: document.querySelector("#table-navigation-test table")?.getBoundingClientRect().toJSON(),
+                viewport: [innerWidth, innerHeight],
+              })),
+            ),
+        );
       await page.evaluate((mode) => {
         const controller = window.__semloRequireFixture("tableNavigationEditor");
         let done = false;
