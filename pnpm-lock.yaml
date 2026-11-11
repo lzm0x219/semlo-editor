@@ -327,8 +327,8 @@ catalogs:
       specifier: 1.18.1
       version: 1.18.1
     happy-dom:
-      specifier: 20.8.3
-      version: 20.8.3
+      specifier: 21.0.4
+      version: 21.0.4
     highlight.js:
       specifier: 11.12.0
       version: 11.12.0
@@ -699,10 +699,10 @@ importers:
         version: 2.1.1(@rspack/core@2.3.1(@swc/helpers@0.5.23))(micromark-util-types@2.0.3)(micromark@4.0.3)
       '@rstest/core':
         specifier: 'catalog:'
-        version: 0.12.6(happy-dom@20.8.3)
+        version: 0.12.6(happy-dom@21.0.4)
       '@rstest/playwright':
         specifier: 'catalog:'
-        version: 0.12.6(@rstest/core@0.12.6(happy-dom@20.8.3))(playwright@1.65.0)
+        version: 0.12.6(@rstest/core@0.12.6(happy-dom@21.0.4))(playwright@1.65.0)
       '@tiptap/core':
         specifier: 'catalog:'
         version: 3.33.0(@tiptap/pm@3.33.0)
@@ -729,7 +729,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       happy-dom:
         specifier: 'catalog:'
-        version: 20.8.3
+        version: 21.0.4
       playwright:
         specifier: 'catalog:'
         version: 1.65.0
@@ -1948,6 +1948,10 @@ packages:
   body-scroll-lock@4.0.0-beta.0:
     resolution: {integrity: sha512-a7tP5+0Mw3YlUJcGAKUqIBkYYGlYxk2fnCasq/FUph1hadxlTRjF+gAcZksxANnaMnALjxEddmSi/H3OR8ugcQ==}
 
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
+
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
@@ -2091,6 +2095,10 @@ packages:
 
   happy-dom@20.8.3:
     resolution: {integrity: sha512-lMHQRRwIPyJ70HV0kkFT7jH/gXzSI7yDkQFe07E2flwmNDFoWUTRMKpW2sglsnpeA7b6S2TJPp98EbQxai8eaQ==}
+    engines: {node: '>=20.0.0'}
+
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
   hast-util-from-parse5@8.0.4:
@@ -3527,9 +3535,25 @@ snapshots:
       - '@module-federation/runtime-tools'
       - core-js
 
+  '@rstest/core@0.12.6(happy-dom@21.0.4)':
+    dependencies:
+      '@rsbuild/core': 2.3.1
+      '@types/chai': 5.2.3
+      cjs-module-lexer: 2.3.0
+    optionalDependencies:
+      happy-dom: 21.0.4
+    transitivePeerDependencies:
+      - '@module-federation/runtime-tools'
+      - core-js
+
   '@rstest/playwright@0.12.6(@rstest/core@0.12.6(happy-dom@20.8.3))(playwright@1.65.0)':
     dependencies:
       '@rstest/core': 0.12.6(happy-dom@20.8.3)
+      playwright: 1.65.0
+
+  '@rstest/playwright@0.12.6(@rstest/core@0.12.6(happy-dom@21.0.4))(playwright@1.65.0)':
+    dependencies:
+      '@rstest/core': 0.12.6(happy-dom@21.0.4)
       playwright: 1.65.0
 
   '@shikijs/core@4.5.0':
@@ -4031,6 +4055,10 @@ snapshots:
 
   body-scroll-lock@4.0.0-beta.0: {}
 
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 26.6.6
+
   ccount@2.0.1: {}
 
   character-entities-html4@2.1.0: {}
@@ -4161,6 +4189,20 @@ snapshots:
       '@types/node': 26.6.6
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.2
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.22.1
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+    optional: true
+
+  happy-dom@21.0.4:
+    dependencies:
+      '@types/node': 26.6.6
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.2
+      buffer-image-size: 0.6.4
       entities: 7.0.1
       whatwg-mimetype: 3.0.0
       ws: 8.22.1
