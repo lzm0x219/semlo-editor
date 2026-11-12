@@ -363,8 +363,8 @@ catalogs:
       specifier: 19.3.1
       version: 19.3.1
     solid-js:
-      specifier: 1.9.18
-      version: 1.9.18
+      specifier: 1.9.19
+      version: 1.9.19
     three:
       specifier: 0.187.0
       version: 0.187.0
@@ -439,7 +439,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       solid-js:
         specifier: 'catalog:'
-        version: 1.9.18
+        version: 1.9.19
       vue:
         specifier: 'catalog:'
         version: 3.5.45(typescript@7.0.2)
@@ -666,7 +666,7 @@ importers:
         version: link:../core
       solid-js:
         specifier: 'catalog:'
-        version: 1.9.18
+        version: 1.9.19
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -741,7 +741,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       solid-js:
         specifier: 'catalog:'
-        version: 1.9.18
+        version: 1.9.19
       vue:
         specifier: 'catalog:'
         version: 3.5.45(typescript@7.0.2)
@@ -2682,8 +2682,8 @@ packages:
     resolution: {integrity: sha512-OcRW72ngQvc+MSVWBRIovC/BTW589iUE/Vxav7VeM4RcY9MUjqB+IR6ILG1k9nuW6LiG/nct9uma4/MBtnZbmQ==}
     engines: {node: '>=20'}
 
-  solid-js@1.9.18:
-    resolution: {integrity: sha512-CHGO5YFk6Y9m/1YSxVtKnXfrW7JD3Tmof8HmR4z6TmCPsS8efo8LnzIR8CQh3cUvffqYm6DWyBFfk8dQw1CNQQ==}
+  solid-js@1.9.19:
+    resolution: {integrity: sha512-NIrV/6o1FtmrA9iuAAYvnQJZaHrGcaH3LKSVj4kCiZfwqjCtJNDgIgR9XcqYl6KR/Lb3oRx1HrlyswPWR8SRvw==}
 
   source-map-js@1.2.2:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
@@ -5212,7 +5212,7 @@ snapshots:
       '@shikijs/vscode-textmate': 10.1.0
       '@types/hast': 3.0.5
 
-  solid-js@1.9.18:
+  solid-js@1.9.19:
     dependencies:
       csstype: 3.2.3
       seroval: 1.6.12
