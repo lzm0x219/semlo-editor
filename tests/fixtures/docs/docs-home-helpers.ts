@@ -3,7 +3,9 @@ import { createServer } from "node:net";
 
 import { test, type Page } from "@rstest/playwright";
 
-export function useDocsHome() {
+type ReducedMotion = "reduce" | "no-preference";
+
+export function useDocsHome(defaultMotion?: ReducedMotion) {
   let server: ChildProcess | undefined;
   let origin = "";
 
@@ -52,7 +54,9 @@ export function useDocsHome() {
     server?.kill();
   });
 
-  async function openHome(page: Page) {
+  async function openHome(page: Page, reducedMotion = defaultMotion) {
+    // 与动效无关的用例可在导航前请求静态场景，避免持续渲染占用无头浏览器。
+    if (reducedMotion) await page.emulateMedia({ reducedMotion });
     await page.goto(origin);
     const editor = page.getByRole("textbox", { name: "首页试用编辑器" });
     await editor.waitFor({ state: "visible" });

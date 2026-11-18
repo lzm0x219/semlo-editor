@@ -2,7 +2,7 @@ import { expect, test } from "@rstest/playwright";
 
 import { appendText, chooseExample, useDocsHome } from "../fixtures/docs/docs-home-helpers";
 
-const openHome = useDocsHome();
+const openHome = useDocsHome("reduce");
 
 for (const { width, height } of [
   { width: 320, height: 568 },
