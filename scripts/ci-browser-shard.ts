@@ -62,7 +62,7 @@ if (mode === "--list") {
 } else {
   console.log(`运行分片 ${index}/${total}（${selected.length} 个文件）`);
   const profileArgs = process.env.PROFILE === "true" ? ["--trace"] : [];
-  const result = spawnSync(rstest, ["run", ...filters, ...config, "--pool.maxWorkers", "2", ...profileArgs], {
+  const result = spawnSync(rstest, ["run", ...filters, ...config, "--pool.maxWorkers", process.env.WORKERS ?? "2", ...profileArgs], {
     stdio: "inherit",
   });
   if (result.error) throw result.error;
