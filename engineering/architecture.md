@@ -184,7 +184,7 @@ HTML 粘贴规则的离线用例使用测试工作区的 Happy DOM 和实际 Pro
 
 Chromium、Firefox 和 WebKit 使用预装浏览器与 Linux 系统依赖的 Playwright 官方镜像。镜像与工作区锁定的 Playwright 版本一起更新。
 
-[耗时快照](../scripts/ci-browser-timings.json)的初始权重取自三轮 Linux 回归日志。首页和表格拆分后的初始权重按用例耗时分配。随后用两轮 Playwright 镜像版回归重新校准，归一化后以 12 片、每片三个 worker 的实测估计为主。 [12 片校准样本](https://github.com/lzm0x219/semlo-editor/actions/runs/44303008802)手动 CI 可开启 `profile` 上传 Rstest 的追踪和摘要。更新权重时，以 `testPath` 汇总追踪中 `phase` 事件的耗时，取近期多轮中位数并换算为毫秒。常规 CI 不启用追踪。可用 `mise exec -- node scripts/ci-browser-shard.ts 1 12 --list` 查看第 1 片的实际文件清单。 [初始样本一](https://github.com/lzm0x219/semlo-editor/actions/runs/44280960822) · [初始样本二](https://github.com/lzm0x219/semlo-editor/actions/runs/44279504974) · [初始样本三](https://github.com/lzm0x219/semlo-editor/actions/runs/44090053758) · [镜像版](https://github.com/lzm0x219/semlo-editor/actions/runs/44290458074) · [worker 对照](https://github.com/lzm0x219/semlo-editor/actions/runs/44300480926)
+[耗时快照](../scripts/ci-browser-timings.json)的初始权重取自三轮 Linux 回归日志。首页和表格拆分后的权重按镜像版 CI 的用例耗时分配。手动 CI 可开启 `profile` 上传 Rstest 的追踪和摘要。更新权重时，以 `testPath` 汇总追踪中 `phase` 事件的耗时，取近期多轮中位数并换算为毫秒。常规 CI 不启用追踪。可用 `mise exec -- node scripts/ci-browser-shard.ts 1 12 --list` 查看第 1 片的实际文件清单。 [初始样本一](https://github.com/lzm0x219/semlo-editor/actions/runs/44280960822) · [初始样本二](https://github.com/lzm0x219/semlo-editor/actions/runs/44279504974) · [初始样本三](https://github.com/lzm0x219/semlo-editor/actions/runs/44090053758) · [镜像版](https://github.com/lzm0x219/semlo-editor/actions/runs/44290458074) · [worker 对照](https://github.com/lzm0x219/semlo-editor/actions/runs/44300480926)
 
 ## 命名与注释
 
