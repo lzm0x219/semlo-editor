@@ -4,7 +4,7 @@ import { codeLowlight } from "../../../packages/core/src/features/code-block/lan
 import { highlightCodeSyntax } from "../../../packages/core/src/features/code-block/syntax-highlight";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
 
-test("tagged and untagged PHP use observed grammar and theme colors", async ({ page }) => {
+test("tagged and untagged PHP keep their source and use theme colors", async ({ page }) => {
   await installFixtureGuards(page);
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   const code = 'class User { public function greet(string $name): string { return "Hello $name"; } }';
@@ -43,15 +43,11 @@ test("tagged and untagged PHP use observed grammar and theme colors", async ({ p
       await expect(token).toHaveCSS("color", colors[theme][j]);
       await expect(token).toHaveCSS("font-style", theme === 4 && j < 3 ? "italic" : "normal");
     }
-    const classKeyword = card.locator(".semlo-editor-syntax-keyword").getByText("class", { exact: true });
-    if (i < 6) await expect(classKeyword).toHaveCount(0);
-    else {
-      await expect(classKeyword).toHaveCount(1);
-      await expect(card.locator(".semlo-editor-syntax-definition").getByText("User", { exact: true })).toHaveCSS(
-        "color",
-        colors[theme][4],
-      );
-    }
+    await expect(card.locator(".semlo-editor-syntax-keyword").getByText("class", { exact: true })).toHaveCount(1);
+    await expect(card.locator(".semlo-editor-syntax-definition").getByText("User", { exact: true })).toHaveCSS(
+      "color",
+      colors[theme][4],
+    );
   }
 });
 

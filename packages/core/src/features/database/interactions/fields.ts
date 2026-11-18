@@ -621,7 +621,17 @@ export function createDatabaseFieldInteractions({
         stored.name !== field.name ||
         stored.type !== field.type ||
         JSON.stringify(stored.ai) !== JSON.stringify(field.ai) ||
-        JSON.stringify(stored.options) !== JSON.stringify(field.options) ||
+        stored.options.length !== field.options.length ||
+        stored.options.some((option, index) => {
+          // 归一化可以重排对象属性，仍需保留选项的顺序和各项内容。
+          const expected = field.options[index];
+          return (
+            option.id !== expected.id ||
+            option.label !== expected.label ||
+            option.color !== expected.color ||
+            option.externalId !== expected.externalId
+          );
+        }) ||
         JSON.stringify(stored.defaultValue) !== JSON.stringify(field.defaultValue) ||
         stored.timeFormat !== field.timeFormat
       ) {

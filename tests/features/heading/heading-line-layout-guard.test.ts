@@ -52,17 +52,11 @@ for (const sample of samples)
       const e = window.__semloRequireFixture("lineInterior").controller.editor,
         h = e.view.dom.querySelector("h3")!,
         strong = h.querySelector("strong")!,
-        em = h.querySelector("em")!,
-        node = strong.firstChild!;
-      const range = document.createRange();
-      range.setStart(node, 1);
-      range.setEnd(node, 2);
-      const target = range.getBoundingClientRect(),
-        a = strong.getBoundingClientRect(),
+        em = h.querySelector("em")!;
+      const a = strong.getBoundingClientRect(),
         b = em.getBoundingClientRect();
       return {
         json: e.getJSON(),
-        point: { x: target.left + target.width * 0.2, y: (target.top + target.bottom) / 2 },
         geometry: {
           strong: { left: a.left, right: a.right, top: a.top },
           em: { left: b.left, right: b.right, top: b.top },
@@ -73,7 +67,12 @@ for (const sample of samples)
         },
       };
     });
-    await page.mouse.click(before.point.x, before.point.y);
+    // 浮动文字的坐标可能落到后续段落的命中区。将光标明确放进被重排的标题。
+    await page.evaluate(() => {
+      const editor = window.__semloRequireFixture("lineInterior").controller.editor;
+      editor.commands.setTextSelection(2);
+      editor.view.focus();
+    });
     await page.evaluate(() => window.__semloRequireFixture("lineInterior").settle());
     const selectionBefore = await page.evaluate(() => {
       const editor = window.__semloRequireFixture("lineInterior").controller.editor;
@@ -83,6 +82,7 @@ for (const sample of samples)
         text: document.getSelection()?.toString() ?? null,
       };
     });
+    expect(selectionBefore).toEqual({ anchor: 2, head: 2, text: "" });
     await page.keyboard.press("Shift+End");
     await page.keyboard.press("Backspace");
     await page.evaluate(() => window.__semloRequireFixture("lineInterior").settle());
