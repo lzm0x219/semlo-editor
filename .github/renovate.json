@@ -13,6 +13,10 @@
     {
       "groupName": "oxc",
       "matchPackageNames": ["ox**"]
+    },
+    {
+      "groupName": "playwright",
+      "matchPackageNames": ["playwright", "mcr.microsoft.com/playwright"]
     }
   ],
   "automergeStrategy": "squash"
