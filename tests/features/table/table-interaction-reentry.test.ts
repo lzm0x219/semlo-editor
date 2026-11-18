@@ -15,7 +15,7 @@ for (const mode of [
   "replace",
 ] as const) {
   test(`resize listeners are cleaned up when the start is ${mode}`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -110,7 +110,7 @@ for (const mode of ["direct", "controller"] as const) {
   test(`row selection can synchronously destroy via ${mode}`, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -147,7 +147,7 @@ for (const mode of ["direct", "controller"] as const) {
 test("a throwing resize-start transaction leaves the next drag usable", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -235,7 +235,7 @@ for (const axis of ["行", "列"] as const) {
     test(`${axis} selection tolerates synchronous ${mode} reentry`, async ({ page }) => {
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
-      await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+      await page.goto(process.env.SEMLO_FIXTURE_URL!);
       await page.addScriptTag({
         type: "module",
         content: `
@@ -305,7 +305,7 @@ for (const axis of ["行", "列"] as const) {
 }
 
 test("code navigation discards its selection marker after synchronous document replacement", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -348,7 +348,7 @@ for (const mode of ["selection", "readonly", "direct", "controller"] as const) {
   test(`code navigation stops safely when ${mode} occurs in the selection transaction`, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -502,7 +502,7 @@ for (const axis of ["行", "列"] as const) {
   test(`host document replacement during ${axis} drag is preserved`, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -545,7 +545,7 @@ for (const axis of ["行", "列"] as const) {
 test("toolbar survives host destruction during history boundary", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -575,7 +575,7 @@ test("toolbar survives host destruction during history boundary", async ({ page 
 
 for (const cleanupThrows of [false, true]) {
   test(`table toolbar rolls back failed setup (cleanup throws: ${cleanupThrows})`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -639,7 +639,7 @@ for (const cleanupThrows of [false, true]) {
 
 for (const mode of ["destroy", "unmount", "throws"] as const) {
   test(`table toolbar cleans up when host ${mode}`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -704,7 +704,7 @@ for (const mode of ["destroy", "unmount", "throws"] as const) {
 
 for (const scenario of ["host", "partial", "partialcleanup", "hostcleanup"] as const) {
   test(`table registry cleans up a failed constructor: ${scenario}`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -757,7 +757,7 @@ for (const scenario of ["host", "partial", "partialcleanup", "hostcleanup"] as c
 
 for (const crossFrame of [false, true]) {
   test(`table registry keeps editors isolated across ${crossFrame ? "documents" : "instances"}`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -818,7 +818,7 @@ for (const axis of ["行", "列"] as const) {
   test(`host beforeTransaction replacement is rejected during ${axis} selection`, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -859,7 +859,7 @@ for (const axis of ["行", "列"] as const) {
 }
 
 test("host beforeTransaction replacement is rejected during resize-start", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -979,7 +979,7 @@ for (const axis of ["行", "列"] as const) {
   test(`host beforeTransaction replacement is rejected during ${axis} drag`, async ({ page }) => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `

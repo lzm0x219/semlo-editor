@@ -5,7 +5,7 @@ import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-run
 test.beforeEach(({ page }) => installFixtureGuards(page));
 
 test("Tab from the last table cell adds a row and focuses its first cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -45,7 +45,7 @@ test("Tab from the last table cell adds a row and focuses its first cell", async
 });
 
 test("Tab and Shift+Tab visit a horizontally merged cell once", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -73,7 +73,7 @@ test("Tab and Shift+Tab visit a horizontally merged cell once", async ({ page })
 });
 
 test("Tab at the start of nonempty cell text adjusts paragraph indentation", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -130,7 +130,7 @@ test("Tab at the start of nonempty cell text adjusts paragraph indentation", asy
 });
 
 test("Tab at the start of a cell heading adjusts its indentation", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -178,7 +178,7 @@ test("Tab at the start of a cell heading adjusts its indentation", async ({ page
 });
 
 test("Tab from an empty cell heading or quote navigates to the next cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -215,7 +215,7 @@ test("Tab from an empty cell heading or quote navigates to the next cell", async
 });
 
 test("Tab at a wrapped visual line start navigates to the next cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -250,7 +250,7 @@ test("Tab at a wrapped visual line start navigates to the next cell", async ({ p
 });
 
 test("Tab at the start of a quote paragraph in a cell adjusts its indentation", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -296,7 +296,7 @@ test("Tab at the start of a quote paragraph in a cell adjusts its indentation", 
 });
 
 test("Tab at the start of a list item in a cell adjusts its list level", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -372,7 +372,7 @@ test("Tab at the start of a list item in a cell adjusts its list level", async (
 });
 
 test("Tab indents an empty list item instead of moving to the next cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -399,7 +399,7 @@ test("Tab indents an empty list item instead of moving to the next cell", async 
 });
 
 test("Tab from the middle of a list item selects the next cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -426,7 +426,7 @@ test("Tab from the middle of a list item selects the next cell", async ({ page }
 });
 
 test("list indentation and immediate typing undo together inside a cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -458,7 +458,7 @@ test("list indentation and immediate typing undo together inside a cell", async 
 });
 
 test("Tab preserves per-level starts when indenting a table's ordered list", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -504,7 +504,7 @@ test("Tab preserves per-level starts when indenting a table's ordered list", asy
 });
 
 test("Tab appends a full logical row when earlier cells are merged", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -532,7 +532,7 @@ test("Tab appends a full logical row when earlier cells are merged", async ({ pa
 });
 
 test("Tab from a cell selection moves relative to its head cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -604,7 +604,7 @@ test("Tab from a cell selection moves relative to its head cell", async ({ page 
 });
 
 test("cell-selection Tab skips repeated rowspan slots in physical order", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -640,7 +640,7 @@ test("cell-selection Tab skips repeated rowspan slots in physical order", async 
 });
 
 test("Home and End move into the first selected cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -713,7 +713,7 @@ test("Home and End move into the first selected cell", async ({ page }) => {
 });
 
 test("End from a cell selection stops at the end of the first visual line", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -772,7 +772,7 @@ test("End from a cell selection stops at the end of the first visual line", asyn
 });
 
 test("End in a table paragraph stops before a hard line break", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -803,7 +803,7 @@ test("End in a table paragraph stops before a hard line break", async ({ page })
 });
 
 test("End at a wrapped line does not split an emoji", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -834,7 +834,7 @@ test("End at a wrapped line does not split an emoji", async ({ page }) => {
 
 test("End at a wrapped line keeps combined emoji intact", async ({ page }) => {
   const original = "春风👨‍👩‍👧‍👦".repeat(30);
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -870,7 +870,7 @@ test("End lands on grapheme boundaries across wrapped widths", async ({ page }) 
   const original = "甲e\u0301👨‍👩‍👧‍👦".repeat(30);
   const segments = [...new Intl.Segmenter("zh", { granularity: "grapheme" }).segment(original)];
   const boundaries = new Set([...segments.map((part) => part.index), original.length]);
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -922,7 +922,7 @@ test("End lands on grapheme boundaries across wrapped widths", async ({ page }) 
 });
 
 test("Home collapses selected cell text at the line start", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -947,7 +947,7 @@ test("Home collapses selected cell text at the line start", async ({ page }) => 
 });
 
 test("Home in a table paragraph stops after a hard line break", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -977,7 +977,7 @@ test("Home in a table paragraph stops after a hard line break", async ({ page })
 });
 
 test("Home in a wrapped table paragraph reaches the start of its visual line", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1022,7 +1022,7 @@ test("Home lands on grapheme boundaries across wrapped widths", async ({ page })
     ...[...new Intl.Segmenter("zh", { granularity: "grapheme" }).segment(original)].map((part) => part.index),
     original.length,
   ]);
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1051,7 +1051,7 @@ test("Home lands on grapheme boundaries across wrapped widths", async ({ page })
 });
 
 test("Shift+Home and Shift+End select text to the visual line boundary", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1077,7 +1077,7 @@ test("Shift+Home and Shift+End select text to the visual line boundary", async (
 });
 
 test("Shift+End selects a formatted table cell line", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1111,7 +1111,7 @@ test("Shift+End selects a formatted table cell line", async ({ page }) => {
 });
 
 test("complex text falls back to native Home and End handling", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1152,7 +1152,7 @@ test("complex text falls back to native Home and End handling", async ({ page })
 });
 
 test("wrapped mixed formatting falls back to native line navigation", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1182,7 +1182,7 @@ test("wrapped mixed formatting falls back to native line navigation", async ({ p
 });
 
 test("composing keys do not alter a cell selection", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1212,7 +1212,7 @@ test("composing keys do not alter a cell selection", async ({ page }) => {
 });
 
 test("End collapses selected cell text at the line end", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1237,7 +1237,7 @@ test("End collapses selected cell text at the line end", async ({ page }) => {
 });
 
 test("End after a literal slash in a table cell reaches the end of the line", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1261,7 +1261,7 @@ test("End after a literal slash in a table cell reaches the end of the line", as
 });
 
 test("arrow keys leave a selected rectangle toward its neighbouring cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1357,7 +1357,7 @@ test("arrow keys leave a selected rectangle toward its neighbouring cell", async
 });
 
 test("arrow navigation reaches a neighbouring vertically merged cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1400,7 +1400,7 @@ test("arrow navigation reaches a neighbouring vertically merged cell", async ({ 
 });
 
 test("Down from a row selection expanded by a merge moves below the expanded range", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -1422,7 +1422,7 @@ test("Down from a row selection expanded by a merge moves below the expanded ran
 });
 
 test("Shift+Down extends a horizontal cell selection to the next row", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `

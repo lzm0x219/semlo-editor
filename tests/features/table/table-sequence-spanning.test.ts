@@ -6,7 +6,7 @@ test.beforeEach(({ page }) => installFixtureGuards(page));
 
 for (const start of [2, 3, 4, 5]) {
   test(`first-column sequence starts at physical row ${start} after a rowspan`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -50,7 +50,7 @@ for (const start of [2, 3, 4, 5]) {
 }
 
 test("first-column sequence preserves data when colspan crosses its boundary", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2">跨列内容</td></tr><tr><td>待填</td><td>右侧数据</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -78,7 +78,7 @@ test("first-column sequence preserves data when colspan crosses its boundary", a
 
 for (const rowSpan of [1, 2]) {
   test(`numbering below a ${rowSpan}-row cross-column header preserves it`, async ({ page }) => {
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     const header = `<tr><td colspan="2" rowspan="${rowSpan}"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr>`;
     const middle = rowSpan === 2 ? "<tr><td>跨行旁列</td></tr>" : "";
     const html = `<table><tbody>${header}${middle}<tr><td>待一</td><td>K</td><td>P</td></tr><tr><td>待二</td><td>L</td><td>Q</td></tr></tbody></table>`;
@@ -125,7 +125,7 @@ for (const rowSpan of [1, 2]) {
 }
 
 test("merging sequence cells below a cross-column header preserves data and undo", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2" data-semlo-editor-sequence="2"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr><tr><td data-semlo-editor-sequence="2">1</td><td>A</td><td>P</td></tr><tr><td data-semlo-editor-sequence="2">2</td><td>B</td><td>Q</td></tr><tr><td data-semlo-editor-sequence="2">3</td><td>C</td><td>R</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -169,7 +169,7 @@ test("merging sequence cells below a cross-column header preserves data and undo
 });
 
 test("merging sequence cells below a cross-row-and-column header preserves data and undo", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2" rowspan="2" data-semlo-editor-sequence="2"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr><tr><td>跨行旁列</td></tr><tr><td data-semlo-editor-sequence="2">1</td><td>A</td><td>P</td></tr><tr><td data-semlo-editor-sequence="2">2</td><td>B</td><td>Q</td></tr><tr><td data-semlo-editor-sequence="2">3</td><td>C</td><td>R</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -213,7 +213,7 @@ test("merging sequence cells below a cross-row-and-column header preserves data 
 });
 
 test("merging an edited sequence below a spanning header keeps all text and can be undone", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2" rowspan="2" data-semlo-editor-sequence="2"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr><tr><td>跨行旁列</td></tr><tr><td data-semlo-editor-sequence="2">1</td><td>A</td><td>P</td></tr><tr><td data-semlo-editor-sequence="2">手改</td><td>B</td><td>Q</td></tr><tr><td data-semlo-editor-sequence="2">3</td><td>C</td><td>R</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -258,7 +258,7 @@ test("merging an edited sequence below a spanning header keeps all text and can 
 
 test("numbering from inside a cross-column and cross-row header preserves all header content", async ({ page }) => {
   const rowSpan = 2;
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const header = `<tr><td colspan="2" rowspan="${rowSpan}"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr>`;
   const middle = rowSpan === 2 ? "<tr><td>跨行旁列</td></tr>" : "";
   const html = `<table><tbody>${header}${middle}<tr><td>待一</td><td>K</td><td>P</td></tr><tr><td>待二</td><td>L</td><td>Q</td></tr></tbody></table>`;
@@ -302,7 +302,7 @@ test("numbering from inside a cross-column and cross-row header preserves all he
 });
 
 test("repeatedly merging numbered cells preserves spanning header and undo history", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2" rowspan="2" data-semlo-editor-sequence="2"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr><tr><td>跨行旁列</td></tr><tr><td data-semlo-editor-sequence="2">1</td><td>A</td><td>P</td></tr><tr><td data-semlo-editor-sequence="2">2</td><td>B</td><td>Q</td></tr><tr><td data-semlo-editor-sequence="2">3</td><td>C</td><td>R</td></tr><tr><td data-semlo-editor-sequence="2">4</td><td>D</td><td>S</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -358,7 +358,7 @@ test("repeatedly merging numbered cells preserves spanning header and undo histo
 });
 
 test("merging an edited spanning sequence cell retains text and supports undo", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const html =
     '<table><tbody><tr><td colspan="2" rowspan="2" data-semlo-editor-sequence="2"><p>表头</p><p>右侧资料</p></td><td>其他</td></tr><tr><td>跨行旁列</td></tr><tr><td data-semlo-editor-sequence="2">1</td><td>A</td><td>P</td></tr><tr><td data-semlo-editor-sequence="2">2</td><td>B</td><td>Q</td></tr><tr><td data-semlo-editor-sequence="2">3</td><td>C</td><td>R</td></tr><tr><td data-semlo-editor-sequence="2">4</td><td>D</td><td>S</td></tr></tbody></table>';
   await page.addScriptTag({
@@ -419,7 +419,7 @@ test("merging an edited spanning sequence cell retains text and supports undo", 
 });
 
 test("pressing and releasing an unset column boundary preserves content and undo", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `

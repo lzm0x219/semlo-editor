@@ -24,7 +24,7 @@ declare global {
 }
 
 test("bookmark metadata requests stay isolated between editor instances", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -498,7 +498,7 @@ test("destroying the editor during the title transaction does not throw", async 
 
 async function mount(page: Page, resolver = true) {
   await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `

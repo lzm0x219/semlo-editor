@@ -5,7 +5,7 @@ import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-run
 test.beforeEach(({ page }) => installFixtureGuards(page));
 
 test("Tab selects all paragraphs in the next table cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -33,7 +33,7 @@ test("Tab selects all paragraphs in the next table cell", async ({ page }) => {
 });
 
 test("Tab selects code in the next table cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -123,7 +123,7 @@ test("Tab selects code in the next table cell", async ({ page }) => {
 });
 
 test("code cell navigation exposes the card boundary", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -174,7 +174,7 @@ test("code cell navigation exposes the card boundary", async ({ page }) => {
 });
 
 test("code boundary handles plain-text paste without replacing the code", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -228,7 +228,7 @@ test("code boundary handles plain-text paste without replacing the code", async 
 });
 
 test("code boundary deletes the adjacent card and undoes the operation", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -262,7 +262,7 @@ test("code boundary deletes the adjacent card and undoes the operation", async (
 });
 
 test("composition at a code boundary starts in a new paragraph", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -302,7 +302,7 @@ test("composition at a code boundary starts in a new paragraph", async ({ page }
 });
 
 test("code boundary maps across edits and stays isolated between editors", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -345,7 +345,7 @@ test("code boundary maps across edits and stays isolated between editors", async
 });
 
 test("arrow keys enter code from its adjacent boundary", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -378,7 +378,7 @@ test("arrow keys enter code from its adjacent boundary", async ({ page }) => {
 });
 
 test("code boundary keeps the document intact when navigating away", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -406,7 +406,7 @@ test("code boundary keeps the document intact when navigating away", async ({ pa
 });
 
 test("Home and End from a selected code cell move before the code block", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -442,7 +442,7 @@ test("Home and End from a selected code cell move before the code block", async 
 });
 
 test("Shift+Home and Shift+End keep a navigated code cell selected", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -475,7 +475,7 @@ test("Shift+Home and Shift+End keep a navigated code cell selected", async ({ pa
 });
 
 test("Shift+arrow from a navigated code cell follows the card selection", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -513,7 +513,7 @@ test("Shift+arrow from a navigated code cell follows the card selection", async 
 });
 
 test("Shift+Up expands a code cell upward, Shift+Down shrinks it or leaves the card", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -552,7 +552,7 @@ test("Shift+Up expands a code cell upward, Shift+Down shrinks it or leaves the c
 });
 
 test("Shift+Down from a code cell with rows below leaves the card", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -581,7 +581,7 @@ test("Shift+Down from a code cell with rows below leaves the card", async ({ pag
 });
 
 test("ArrowUp from selected code cell enters the cell above", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -608,7 +608,7 @@ test("ArrowUp from selected code cell enters the cell above", async ({ page }) =
 });
 
 test("ArrowDown from a last-row code cell reaches the next code card", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -641,7 +641,7 @@ test("ArrowDown from a last-row code cell reaches the next code card", async ({ 
 });
 
 test("ArrowDown from a code cell with a row below reaches the next code card", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `

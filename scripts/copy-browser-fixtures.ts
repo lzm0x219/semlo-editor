@@ -2,9 +2,11 @@ import { copyFile, cp, mkdir } from "node:fs/promises";
 
 await mkdir(".browser-test/tests", { recursive: true });
 await cp("packages/core/dist/fonts", ".browser-test/dist/fonts", { recursive: true });
+await copyFile("packages/core/dist/style.css", ".browser-test/dist/style.css");
 // 保持测试服务器中的访问路径不变，即使 fixture 源文件已按用途归类。
 for (const name of [
   "controlled.html",
+  "editor-fixture.html",
   "sample-image.svg",
   "sample-attachment.txt",
   "sample-video.mp4",

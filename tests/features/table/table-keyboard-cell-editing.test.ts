@@ -5,7 +5,7 @@ import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-run
 test.beforeEach(({ page }) => installFixtureGuards(page));
 
 test("deleting at cell boundaries preserves the table and neighbouring cells", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -52,7 +52,7 @@ test("deleting at cell boundaries preserves the table and neighbouring cells", a
 });
 
 test("Backspace and Delete join paragraphs within a cell without changing its neighbour", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -97,7 +97,7 @@ test("Backspace and Delete join paragraphs within a cell without changing its ne
 });
 
 test("typing into selected cells replaces only the top-left cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -217,7 +217,7 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
 });
 
 test("clearing a selection with an empty first cell and typing undoes together", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -250,7 +250,7 @@ test("clearing a selection with an empty first cell and typing undoes together",
 });
 
 test("clearing a selected row keeps the table and puts the cursor in its first cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -280,7 +280,7 @@ test("clearing a selected row keeps the table and puts the cursor in its first c
 });
 
 test("select all first selects cell text and then the table", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -366,7 +366,7 @@ test("select all first selects cell text and then the table", async ({ page }) =
 
 test("Control+A selects cell contents on non-Mac platforms", async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, "platform", { value: "Linux x86_64" }));
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -388,7 +388,7 @@ test("Control+A selects cell contents on non-Mac platforms", async ({ page }) =>
 });
 
 test("select all handles a multi-paragraph cell and an empty cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -419,7 +419,7 @@ test("select all handles a multi-paragraph cell and an empty cell", async ({ pag
 });
 
 test("select all inside a table code block stays within the code", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -443,7 +443,7 @@ test("select all inside a table code block stays within the code", async ({ page
 });
 
 test("Tab inside a table code block inserts a tab instead of moving cells", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -501,7 +501,7 @@ test("Tab inside a table code block inserts a tab instead of moving cells", asyn
 });
 
 test("Shift+End inside a table code block selects the current code line", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -544,7 +544,7 @@ test("Shift+End inside a table code block selects the current code line", async 
 });
 
 test("Enter and Escape keep the selected rectangle; Shift+Enter replaces its first cell", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -602,7 +602,7 @@ test("Enter and Escape keep the selected rectangle; Shift+Enter replaces its fir
 });
 
 test("input replaces a selected code block cell with a paragraph", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -660,7 +660,7 @@ test("input replaces a selected code block cell with a paragraph", async ({ page
 });
 
 test("selected heading cells keep the heading for text but use a paragraph for Shift+Enter", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -709,7 +709,7 @@ test("selected heading cells keep the heading for text but use a paragraph for S
 });
 
 test("selected quote cells keep the quote for text but use a paragraph for Shift+Enter", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -755,7 +755,7 @@ test("selected quote cells keep the quote for text but use a paragraph for Shift
 });
 
 test("input replaces an image in the first selected cell without changing other cells", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -805,7 +805,7 @@ test("input replaces an image in the first selected cell without changing other 
 });
 
 test("typing into a selected rectangle preserves the first list item structure", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
@@ -860,7 +860,7 @@ test("typing into a selected rectangle preserves the first list item structure",
 });
 
 test("Enter and Shift+Enter in cell text create and undo their respective breaks", async ({ page }) => {
-  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
   await page.addScriptTag({
     type: "module",
     content: `
