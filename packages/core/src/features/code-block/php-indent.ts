@@ -2,7 +2,7 @@ import { phpLanguage } from "@codemirror/lang-php";
 import { indentNodeProp, LRLanguage } from "@codemirror/language";
 import { parser } from "@lezer/php-legacy";
 
-// 语雀 CodeMirror 7.1.26 的已观察行为依赖 1.0.2 语法，专用别名必须保持该版本。
+// 专用别名保持已验证的 1.0.3 语法，1.0.4 起会改变带标签源码的解析行为。
 // 带 PHP 标签时的错误恢复也会影响缩进；借用当前 CodeMirror 规则，不替换旧解析器。
 const indentation = Object.fromEntries(
   phpLanguage.parser.nodeSet.types.flatMap((type) => {
