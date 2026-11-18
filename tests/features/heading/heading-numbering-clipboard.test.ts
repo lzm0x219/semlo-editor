@@ -210,6 +210,7 @@ test("pasting partial heading text preserves its inline formatting", async ({ pa
   await select(page, "甲乙丙丁", "甲乙丙丁", 2, 4);
   const copied = await copy(page);
   expect((await inspectHTML(page, copied.html)).headings).toEqual([]);
+  await page.waitForFunction(() => window.numberedClipboardEditor?.editor.state.doc.lastChild?.textContent === "目标");
   await select(page, "目标", "目标", 2, 2);
   await page.evaluate(({ html, text }) => {
     const transfer = new DataTransfer();
@@ -234,6 +235,7 @@ test("pasting part of a nested heading remains inline in its destination", async
   await select(page, "甲乙丙丁", "甲乙丙丁", 2, 4);
   const copied = await copy(page);
   expect((await inspectHTML(page, copied.html)).headings).toEqual([]);
+  await page.waitForFunction(() => window.numberedClipboardEditor?.editor.state.doc.lastChild?.textContent === "目标");
   await select(page, "目标", "目标", 2, 2);
   await page.evaluate(({ html, text }) => {
     const transfer = new DataTransfer();
@@ -364,6 +366,7 @@ test("pasting a copied numbered heading back does not insert its marker into doc
   );
   const copied = await copy(page);
   expect((await inspectHTML(page, copied.html)).headings[0].marker).toBe("1. ");
+  await page.waitForFunction(() => window.numberedClipboardEditor?.editor.state.doc.lastChild?.textContent === "目标");
   await select(page, "目标", "目标", 2, 2);
   const pasted = await page.evaluate(({ html, text }) => {
     const transfer = new DataTransfer();
@@ -641,6 +644,7 @@ test("pasting between editors recalculates the visible number without adding it 
       content: '<h1 data-semlo-editor-heading-numbering="mixed">上级</h1><p>目标</p>' })
   `,
   });
+  await page.waitForFunction(() => window.numberedClipboardEditor?.editor.state.doc.lastChild?.textContent === "目标");
   await select(page, "目标", "目标", 2, 2);
   await page.evaluate(({ html, text }) => {
     const transfer = new DataTransfer();
@@ -678,6 +682,7 @@ test("pasting a multi-block selection avoids duplicate markers and can be undone
     window.numberedClipboardEditor = createEditor({ element: host, outline: false, content: '<p>目标</p>' })
   `,
   });
+  await page.waitForFunction(() => window.numberedClipboardEditor?.editor.state.doc.lastChild?.textContent === "目标");
   await select(page, "目标", "目标", 2, 2);
   const before = await page.evaluate(() => window.__semloRequireFixture("numberedClipboardEditor").getSnapshot().json);
   await page.evaluate(({ html, text }) => {
