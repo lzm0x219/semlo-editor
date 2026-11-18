@@ -108,17 +108,7 @@ for (const sample of [
 }
 
 test("受控内容回写保留展开后的列表层级", async ({ page }) => {
-  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").destroy());
-  await page.addScriptTag({
-    type: "module",
-    content: `
-      import { createEditor } from '/dist/index.js'
-      let instance
-      instance = createEditor({ element: document.querySelector('#quote-paste'), outline: false,
-        content: '<p>原文</p>', onChange: snapshot => instance.setContent(snapshot.json) })
-      window.quotePasteEditor = instance
-    `,
-  });
+  await mountBoundaryEditor(page, "<p>原文</p>", true);
   await paste(
     page,
     '<ol start="7"><li><p>第七项</p><blockquote><p>引用</p></blockquote><ol><li><p>子项</p></li></ol></li><li><p>第八项</p></li></ol>',
@@ -161,17 +151,7 @@ test("编辑器实际复制的嵌套引用再粘贴保留结构", async ({ page 
 });
 
 test("语雀实际复制的引用经过受控回写仍可撤销与保存往返", async ({ page }) => {
-  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").destroy());
-  await page.addScriptTag({
-    type: "module",
-    content: `
-      import { createEditor } from '/dist/index.js'
-      let instance
-      instance = createEditor({ element: document.querySelector('#quote-paste'), outline: false,
-        content: '<p>原文</p>', onChange: snapshot => instance.setContent(snapshot.json) })
-      window.quotePasteEditor = instance
-    `,
-  });
+  await mountBoundaryEditor(page, "<p>原文</p>", true);
   await paste(page, nativeYuqueQuoteHTML);
   await expect(page.locator("#quote-paste .semlo-editor-prose blockquote")).toHaveText("语雀原生引用样本");
   const result = await page.evaluate(() => {
@@ -201,6 +181,7 @@ async function mountBoundaryEditor(page: Page, content: string, controlled = fal
       window.quotePasteEditor = instance
     `,
   });
+  await page.waitForFunction(() => window.quotePasteEditor && !window.quotePasteEditor.editor.isDestroyed);
 }
 
 async function pasteBoundary(page: Page, html: string) {
