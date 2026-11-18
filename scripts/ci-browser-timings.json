@@ -38,7 +38,7 @@
   "tests/docs/docs-home.test.ts": 51200,
   "tests/docs/docs-home-mobile.test.ts": 106300,
   "tests/docs/docs-home-examples.test.ts": 33000,
-  "tests/docs/docs-scroll.test.ts": 111400,
+  "tests/docs/docs-scroll.test.ts": 185400,
   "tests/features/blocks/block-insert-panel.test.ts": 9500,
   "tests/features/blocks/callout-fidelity.test.ts": 5000,
   "tests/features/blocks/callout-palette-stale.test.ts": 4600,
