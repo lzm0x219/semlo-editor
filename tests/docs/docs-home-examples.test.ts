@@ -131,7 +131,7 @@ test("能力入口定位真实示例且保留试写", async ({ page }) => {
 
 test("能力入口的悬停反馈遵循减少动态效果设置", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await openHome(page);
+  await openHome(page, true);
   const action = page.getByRole("button", { name: "试试表格" });
   const arrow = action.locator("span");
   await action.hover();
