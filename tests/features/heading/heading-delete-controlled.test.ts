@@ -6,6 +6,10 @@ import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-delete-controlled-fixture";
 import type { RestartFramework } from "../../fixtures/list/ordered-restart-controlled-fixture";
 
+function headingMeasure(phase: string, start: number, framework?: string) {
+  console.log("[heading-phase]" + JSON.stringify({ phase, framework, mode: process.env.HEADING_PROBE_MODE, ms: performance.now() - start }));
+}
+
 test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
 });
@@ -13,9 +17,11 @@ test.beforeEach(async ({ page }) => {
 let origin: string;
 let stop: (() => Promise<void>) | undefined;
 beforeAll(async () => {
+  const start = performance.now();
   ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-delete-controlled-fixture.ts", {
     framework: true,
   }));
+  headingMeasure("server", start);
 });
 afterAll(async () => stop?.());
 
@@ -101,12 +107,17 @@ function contentFor(item: Scenario): JSONContent {
 }
 
 async function mount(page: Page, framework: RestartFramework, item: Scenario) {
+  const activated = performance.now();
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountRestartControlledFixture === "function");
+  headingMeasure("navigate and load fixture", activated, framework);
+  const mounting = performance.now();
   await page.evaluate(
     (name) => window.__semloRequireFixture("mountRestartControlledFixture")(name, "legacy"),
     framework,
   );
+  headingMeasure("mount editor", mounting, framework);
+  const preparing = performance.now();
   await page.evaluate(
     (content) => window.__semloRequireFixture("restartControlledFixture").setContent(content),
     contentFor(item),
@@ -114,6 +125,7 @@ async function mount(page: Page, framework: RestartFramework, item: Scenario) {
   await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").settle());
   // The host's initial setContent is fixture setup, not the edit under test.
   await page.evaluate(() => window.__semloRequireFixture("closeHeadingDeleteHistory")());
+  headingMeasure("configure content", preparing, framework);
 }
 
 async function read(page: Page) {
@@ -152,6 +164,7 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await mount(page, framework, item);
+      const interactions = performance.now();
       const host = page.locator("#restart-controlled-fixture");
       const selector = `.semlo-editor-prose > ${item.quote ? "blockquote > " : ""}h${item.level}`;
       const heading = host.locator(selector);
@@ -264,6 +277,7 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       }
       expect((await read(page)).errors).toEqual([]);
       expect(pageErrors).toEqual([]);
+      headingMeasure("interactions and assertions", interactions, framework);
       await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
     });
   }
@@ -303,6 +317,7 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
       await mount(page, framework, item);
+      const interactions = performance.now();
       const initial = await read(page);
       const host = page.locator("#restart-controlled-fixture");
       const heading = host.locator(`.semlo-editor-prose > ${item.quote ? "blockquote > " : ""}h${item.level}`);
@@ -354,6 +369,7 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       expect(redone.documentChanges - initial.documentChanges).toBe(3);
       expect(redone.errors).toEqual([]);
       expect(pageErrors).toEqual([]);
+      headingMeasure("interactions and assertions", interactions, framework);
       await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
     });
   }
