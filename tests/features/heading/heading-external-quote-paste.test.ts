@@ -445,6 +445,22 @@ test("段尾粘贴引用后输入生成正文，分别撤销输入和粘贴", as
   );
 });
 
+test("带浏览器字符集声明的引用粘贴后可在独立正文续写", async ({ page }) => {
+  await mountBoundaryEditor(page, "<p>目标</p>");
+  await page.locator("#quote-paste .semlo-editor-prose p").click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
+  await pasteBoundary(page, `<meta charset="utf-8"><html><head></head><body>${yuqueCrossBlockQuoteHTML}</body></html>`);
+  const snapshot = () => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html);
+  const pasted = "<p>目标</p><blockquote><p>引用甲乙</p></blockquote>";
+  expect(await snapshot()).toBe(pasted);
+  await page.keyboard.press("x");
+  expect(await snapshot()).toBe(`${pasted}<p>x</p>`);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toBe(pasted);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toBe("<p>目标</p>");
+});
+
 test("段尾粘贴后组合输入生成正文且可分别撤销", async ({ page }) => {
   await mountBoundaryEditor(page, "<p>目标</p>");
   await page.locator("#quote-paste .semlo-editor-prose p").click();

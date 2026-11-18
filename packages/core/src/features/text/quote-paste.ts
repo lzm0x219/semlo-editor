@@ -128,6 +128,9 @@ function adjustYuqueQuoteBoundary(fragment: DocumentFragment, target: YuqueQuote
   if (!target) return;
   if (fragment.querySelector(`[data-pm-slice],[${clipboardSourceAttribute}="1"]`)) return;
   const roots = Array.from(fragment.children);
+  const first = roots[0];
+  // Chromium 的系统剪贴板会在 HTML 片段前附加 UTF-8 声明。
+  if (first?.matches('meta[charset="utf-8" i]') && first.attributes.length === 1) roots.shift();
   const contents = roots.filter((element) => element.tagName === "DIV" && element.classList.contains("lake-content"));
   if (
     contents.length !== 1 ||

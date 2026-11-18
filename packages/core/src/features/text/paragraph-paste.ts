@@ -52,8 +52,8 @@ export function canJoinRootParagraphPaste(state: EditorState): boolean {
 /** 空白根正文粘贴多段带行高的 HTML 时，保留首段原有行高。 */
 export const RootParagraphPaste = Extension.create({
   name: "semloEditorRootParagraphPaste",
-  // 让接入方和其他粘贴处理器先决定是否接管。
-  priority: 1,
+  // 在引用粘贴之后兜底，让接入方和其他粘贴处理器先决定是否接管。
+  priority: -2,
   addProseMirrorPlugins() {
     let pending: PendingPaste | null = null;
     let plugin: Plugin<PasteCandidate | null>;
