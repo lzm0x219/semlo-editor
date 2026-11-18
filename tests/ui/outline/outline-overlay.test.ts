@@ -87,6 +87,10 @@ test("outline navigation stops when a host destroys the editor during expansion"
 
 test("outline navigation follows the same heading after a host inserts content during expansion", async ({ page }) => {
   const host = await mount(page);
+  // 给跳转留足滚动空间，使子标题能真正到达大纲判定当前章节的位置。
+  await host.locator(".semlo-editor-prose").evaluate((prose) => {
+    (prose as HTMLElement).style.minHeight = "160vh";
+  });
   await host.getByRole("button", { name: "折叠标题：第一节" }).click();
   const nav = host.getByRole("navigation", { name: "文档大纲" });
   await nav.getByRole("button", { name: "展开大纲" }).focus();

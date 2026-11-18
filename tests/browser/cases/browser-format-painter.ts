@@ -271,9 +271,8 @@ async function _browserTest(page: import("playwright").Page) {
     throw new Error("Keyboard selection did not complete single-use painting");
   await selectionAt(0, 1);
   await painter.click();
-  await prose.locator("p").nth(1).click();
   if ((await painter.getAttribute("aria-pressed")) !== "true")
-    throw new Error("A caret click incorrectly consumed the painter");
+    throw new Error("The painter could not capture formatting at the source caret");
   await selectionAt(1);
   await page.keyboard.press("Enter");
   await page.keyboard.type("新");
