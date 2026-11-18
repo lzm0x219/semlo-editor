@@ -598,8 +598,8 @@ test("input replaces a selected code block cell with a paragraph", async ({ page
   const prose = page.locator("#table-navigation-test .semlo-editor-prose");
   const before = await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot());
   await prose.locator("td").first().locator("code").click();
-  const first = prose.locator("td").first();
-  const last = prose.locator("td").last();
+  const first = prose.locator("td").first().locator("code");
+  const last = prose.locator("td").last().locator("code");
   await dragCells(first, last);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.press("Shift+Enter");
@@ -615,8 +615,8 @@ test("input replaces a selected code block cell with a paragraph", async ({ page
     before.json,
   );
   await prose.locator("td").first().locator("code").click();
-  const restoredFirst = prose.locator("td").first();
-  const restoredLast = prose.locator("td").last();
+  const restoredFirst = prose.locator("td").first().locator("code");
+  const restoredLast = prose.locator("td").last().locator("code");
   await dragCells(restoredFirst, restoredLast);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.type("Z");
