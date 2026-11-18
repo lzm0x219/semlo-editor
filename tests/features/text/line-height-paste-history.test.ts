@@ -265,7 +265,11 @@ test("destroying and remounting clears the previous paste provenance", async ({ 
   const prose = await mount(page);
   await prose.click();
   await page.keyboard.press("ControlOrMeta+v");
-  await page.evaluate(() => window.lineHeightPasteEditor?.destroy());
+  await expect(prose.locator(":scope > p")).toHaveText(["FIRST", "MIDDLE", "LAST"]);
+  await page.evaluate(() => {
+    window.lineHeightPasteEditor?.destroy();
+    delete window.lineHeightPasteEditor;
+  });
   await page.addScriptTag({
     type: "module",
     content: `
@@ -273,6 +277,7 @@ test("destroying and remounting clears the previous paste provenance", async ({ 
       window.lineHeightPasteEditor = createEditor({element: document.getElementById('line-height-paste'), outline: false, content: ${JSON.stringify(sample)}});
     `,
   });
+  await page.waitForFunction(() => Boolean(window.lineHeightPasteEditor));
   const before = await snapshot(page);
   await prose.locator(":scope > p").first().click();
   await page.keyboard.press("ControlOrMeta+a");

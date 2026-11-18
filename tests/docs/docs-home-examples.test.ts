@@ -2,7 +2,7 @@ import { expect, test } from "@rstest/playwright";
 
 import { appendText, chooseExample, useDocsHome } from "../fixtures/docs/docs-home-helpers";
 
-const openHome = useDocsHome();
+const openHome = useDocsHome("reduce");
 
 test("示例分别保留草稿，恢复前可以取消或确认", async ({ page }) => {
   const editor = await openHome(page);
@@ -130,8 +130,7 @@ test("能力入口定位真实示例且保留试写", async ({ page }) => {
 });
 
 test("能力入口的悬停反馈遵循减少动态效果设置", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await openHome(page);
+  await openHome(page, "no-preference");
   const action = page.getByRole("button", { name: "试试表格" });
   const arrow = action.locator("span");
   await action.hover();
