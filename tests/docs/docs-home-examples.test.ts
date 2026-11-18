@@ -1,17 +1,11 @@
-import { expect, test, type Page } from "@rstest/playwright";
+import { expect, test } from "@rstest/playwright";
 
 import { appendText, chooseExample, useDocsHome } from "../fixtures/docs/docs-home-helpers";
 
-const openHome = useDocsHome();
-
-async function openExampleEditor(page: Page) {
-  // 草稿与历史用例使用静态场景，避免首页动画占用无头浏览器的渲染资源。
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  return openHome(page);
-}
+const openHome = useDocsHome("reduce");
 
 test("示例分别保留草稿，恢复前可以取消或确认", async ({ page }) => {
-  const editor = await openExampleEditor(page);
+  const editor = await openHome(page);
   await appendText(page, "起始草稿");
   await chooseExample(page, "公式与绘图");
   await appendText(page, "公式草稿");
@@ -45,7 +39,7 @@ test("示例分别保留草稿，恢复前可以取消或确认", async ({ page 
 });
 
 test("切换示例后的撤销不会带回其他示例", async ({ page }) => {
-  const editor = await openExampleEditor(page);
+  const editor = await openHome(page);
   await appendText(page, "其他示例的草稿");
   await chooseExample(page, "公式与绘图");
   const undo = page.getByRole("button", { name: "撤销", exact: true });
@@ -67,7 +61,7 @@ test("切换示例后的撤销不会带回其他示例", async ({ page }) => {
 });
 
 test("每个示例独立保留撤销和重做，恢复示例也可撤销", async ({ page }) => {
-  const editor = await openExampleEditor(page);
+  const editor = await openHome(page);
   const undo = page.getByRole("button", { name: "撤销", exact: true });
   const redo = page.getByRole("button", { name: "重做", exact: true });
   await appendText(page, "起始历史");
@@ -101,7 +95,7 @@ test("每个示例独立保留撤销和重做，恢复示例也可撤销", async
 });
 
 test("数据表编辑的撤销历史随示例保留", async ({ page }) => {
-  await openExampleEditor(page);
+  await openHome(page);
   await chooseExample(page, "数据表");
   await page.getByLabel("第 1 行 事项").fill("表格历史");
   await chooseExample(page, "开始写作");
@@ -117,7 +111,7 @@ test("数据表编辑的撤销历史随示例保留", async ({ page }) => {
 });
 
 test("能力入口定位真实示例且保留试写", async ({ page }) => {
-  const editor = await openExampleEditor(page);
+  const editor = await openHome(page);
   await appendText(page, "从能力入口返回后保留");
   await page.getByRole("button", { name: "试试表格" }).click();
   await expect(page.getByRole("button", { name: /当前：列表与表格/ })).toBeFocused();
@@ -136,8 +130,7 @@ test("能力入口定位真实示例且保留试写", async ({ page }) => {
 });
 
 test("能力入口的悬停反馈遵循减少动态效果设置", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await openHome(page);
+  await openHome(page, "no-preference");
   const action = page.getByRole("button", { name: "试试表格" });
   const arrow = action.locator("span");
   await action.hover();
