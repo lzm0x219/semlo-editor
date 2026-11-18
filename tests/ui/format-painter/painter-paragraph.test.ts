@@ -55,8 +55,12 @@ async function setup(page: Page, sourceStyled: boolean, targetStyled: boolean, h
     editor.commands.setTextSelection({ from: 1, to: 7 });
   });
   const painter = page.locator("#painter-paragraph .semlo-editor-format-painter");
-  if (heading) await page.keyboard.press("ControlOrMeta+Shift+s");
-  else await painter.click();
+  if (heading) {
+    await expect(page.locator("#painter-paragraph .tiptap")).toBeFocused();
+    await page.keyboard.press("ControlOrMeta+Shift+s");
+  } else {
+    await painter.click();
+  }
   await expect(painter).toHaveAttribute("aria-pressed", "true");
 }
 
