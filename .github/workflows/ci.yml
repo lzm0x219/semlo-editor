@@ -20,7 +20,7 @@ jobs:
           set -eo pipefail
           for mode in normal reduce reduce normal normal reduce; do
             echo "::group::$mode"
-            SEMLO_DOCS_PROBE_MODE="$mode" mise exec -- pnpm test:run --pool.maxWorkers 3 '"tests/docs/docs-home-examples.test.ts"'
+            SEMLO_DOCS_PROBE_MODE="$mode" mise exec -- pnpm test:run --pool.maxWorkers 3 '"tests/docs/docs-home-mobile.test.ts"'
             echo "::endgroup::"
           done
       - name: 输出阶段耗时
