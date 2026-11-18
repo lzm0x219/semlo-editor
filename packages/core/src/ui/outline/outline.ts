@@ -167,7 +167,10 @@ export function mountOutline(editor: Editor, container: HTMLElement, revealHeadi
       const node = editor.view.nodeDOM(item.pos);
       if (!(node instanceof (win?.HTMLElement ?? HTMLElement)) || !node.getClientRects().length) continue;
       if (chosen === null) chosen = item.pos;
-      if (node.getBoundingClientRect().top <= line) chosen = item.pos;
+      const top = node.getBoundingClientRect().top;
+      // 跳转会保留标题的滚动边距，滚动位置还可能被浏览器取整。
+      const margin = Number.parseFloat(win?.getComputedStyle(node).scrollMarginTop ?? "") || 0;
+      if (top <= Math.max(line, margin) + 0.5) chosen = item.pos;
       else break;
     }
     if (chosen === active) return;

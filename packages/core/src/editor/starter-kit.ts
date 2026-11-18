@@ -27,6 +27,17 @@ export function createStarterKitWithCodeFonts(extraExtensions: Extensions) {
   return StarterKit.extend({
     addExtensions() {
       return (this.parent?.() ?? []).map((extension) => {
+        if (extension.type === "extension" && extension.name === "undoRedo")
+          return extension.extend({
+            addKeyboardShortcuts() {
+              const redo = () => {
+                this.editor.commands.redo();
+                // 重做栈为空时也消费快捷键，避免键位回退把它当成撤销。
+                return true;
+              };
+              return { ...this.parent?.(), "Shift-Mod-z": redo, "Shift-Mod-я": redo };
+            },
+          });
         if (extension.type === "node" && extension.name === "paragraph")
           return (extension as TiptapNode).extend({
             parseHTML() {

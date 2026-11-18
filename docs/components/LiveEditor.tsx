@@ -131,6 +131,7 @@ function keepExampleMenuInView(anchor: HTMLButtonElement) {
 export type HomeExample = "lists" | "blocks" | "formula";
 
 export interface LiveEditorHandle {
+  focus(): HTMLElement | undefined;
   openExample(id: HomeExample): void;
 }
 
@@ -156,6 +157,12 @@ const LiveEditor = forwardRef<LiveEditorHandle>(function LiveEditor(_, ref) {
   const [overflow, setOverflow] = useState({ below: false, sideways: false });
 
   useImperativeHandle(ref, () => ({
+    focus() {
+      const editor = controller.current?.editor;
+      if (!editor || editor.isDestroyed) return;
+      editor.view.focus();
+      return editor.view.dom;
+    },
     openExample(id) {
       document.getElementById("semlo-editor-demo")?.scrollIntoView({ behavior: "instant", block: "start" });
       if (!controller.current) {

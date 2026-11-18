@@ -4,6 +4,7 @@ import { Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
 
 import { createEditor } from "../../../packages/core/src/index";
 import type { EditorController } from "../../../packages/core/src/types";
+import { deferDomSelectionUntilKey } from "./defer-dom-selection";
 
 import "../../../demo/editor.css";
 
@@ -11,6 +12,7 @@ type Mode = "normal" | "reject" | "reject-range" | "append-meta" | "append-selec
 interface Fixture {
   controller: EditorController;
   arm(): void;
+  deferSelectionUntilHome(): void;
   trace: string[];
   events: KeyboardEvent[];
   settle(): Promise<void>;
@@ -101,6 +103,7 @@ window.mountWrapHome = (numbered, mode, order) => {
       armed = true;
       trace.length = 0;
     },
+    deferSelectionUntilHome: () => deferDomSelectionUntilKey(controller.editor.view, "Home"),
     trace,
     events,
     closeHistory: () => controller.editor.view.dispatch(closeHistory(controller.editor.state.tr)),

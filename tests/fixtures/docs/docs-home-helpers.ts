@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 
-import { expect, test, type Page } from "@rstest/playwright";
+import { test, type Page } from "@rstest/playwright";
 
 export function useDocsHome() {
   let server: ChildProcess | undefined;
@@ -55,7 +55,7 @@ export function useDocsHome() {
   async function openHome(page: Page) {
     await page.goto(origin);
     const editor = page.getByRole("textbox", { name: "首页试用编辑器" });
-    await expect(editor).toBeVisible();
+    await editor.waitFor({ state: "visible" });
     return editor;
   }
 
