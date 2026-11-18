@@ -90,7 +90,8 @@ async function _browserTest(
     window.__semloRequireFixture("reads")[5].reject(new DOMException("denied", "NotAllowedError")),
   );
   await menu.getByText("字体访问被拒绝，请检查浏览器权限").waitFor();
-  await menu.getByRole("searchbox", { name: "搜索字体" }).press("Escape");
+  await refresh.focus();
+  await page.keyboard.press("Escape");
   await menu.waitFor({ state: "hidden" });
   await fonts.open(first);
   if ((await page.evaluate(() => window.__semloRequireFixture("reads").length)) !== 7)

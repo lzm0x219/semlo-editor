@@ -443,6 +443,10 @@ test("menus fit a small viewport and remain isolated between editors", async ({ 
   const secondPopup = page.getByRole("dialog", { name: "代码主题选项" });
   await expect(popup).toHaveCount(0);
   await expect(secondPopup).toBeVisible();
+  // 销毁第一个编辑器时保留其宿主尺寸，单独验证第二个弹层的归属。
+  await first.evaluate((host) => {
+    (host as HTMLElement).style.minHeight = `${host.getBoundingClientRect().height}px`;
+  });
   await page.evaluate(() => window.__semloRequireFixture("codeControlsEditor").destroy());
   await expect(secondPopup).toBeVisible();
   await page.evaluate(() => window.__semloRequireFixture("secondCodeControlsEditor").setContent("<p>替换代码块</p>"));

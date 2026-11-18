@@ -367,14 +367,11 @@ for (const numbered of [false, true]) {
         fixture.arm();
         const captures: Array<{ native: number | null; pm: number; trusted: boolean }> = [];
         window.__homeRejectCaptures = captures;
-        // 保留真实鼠标点击，但延后选区通知，稳定构造浏览器光标早于模型同步的场景。
-        const deferSelectionChange = (event: Event) => event.stopImmediatePropagation();
-        document.addEventListener("selectionchange", deferSelectionChange, true);
+        fixture.deferSelectionUntilHome();
         editor.view.dom.addEventListener(
           "keydown",
           (event) => {
             if (event.key !== "Home") return;
-            document.removeEventListener("selectionchange", deferSelectionChange, true);
             const native = document.getSelection();
             captures.push({
               native: native?.anchorNode ? editor.view.posAtDOM(native.anchorNode, native.anchorOffset) : null,

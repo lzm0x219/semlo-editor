@@ -3,6 +3,7 @@ import { Plugin } from "@tiptap/pm/state";
 
 import { createEditor } from "../../../packages/core/src/index";
 import type { EditorContent, EditorController } from "../../../packages/core/src/types";
+import { deferDomSelectionUntilKey } from "./defer-dom-selection";
 
 import "../../../demo/editor.css";
 interface Fixture {
@@ -79,6 +80,7 @@ window.mountHardBreakStale = (content, order) => {
     controller,
     arm: (value) => {
       mode = value;
+      if (value === "special") deferDomSelectionUntilKey(view, "End");
       trace.length = 0;
       focusCalls = 0;
     },

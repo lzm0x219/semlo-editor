@@ -50,8 +50,7 @@ const snapshot = (page: Page) =>
   page.evaluate(() => window.__semloRequireFixture("tableEdgeEditor").getSnapshot().json);
 
 async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" | "column") {
-  // The overlay replaces its buttons on the next animation frame after a
-  // selection or undo. Retry while that replacement is in progress.
+  // 选区变化和撤销会在下一帧更新手柄位置，等待源和目标都完成布局。
   const geometry: {
     from?: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
     to?: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
