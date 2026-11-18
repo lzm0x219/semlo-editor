@@ -738,7 +738,9 @@ for (const sample of cases) {
 }
 
 for (const direction of ["forward", "reverse"] as const) {
-  test(`explicit ${direction} cross-block selection stays on the verified line`, async ({ page }) => {
+  test(`explicit ${direction} cross-block selection is preserved when the visual line cannot be verified`, async ({
+    page,
+  }) => {
     const run = async (native: boolean) => {
       await page.goto(origin);
       await page.waitForFunction(() => typeof window.mountHeadingEndBoundary === "function");
@@ -784,7 +786,7 @@ for (const direction of ["forward", "reverse"] as const) {
     const original = await run(true);
     const candidate = await run(false);
     expect(candidate.before).toEqual(original.before);
-    expect(candidate.after).toEqual(original.after);
+    expect(candidate.after).toEqual(candidate.before);
     expect(candidate.prevented).toBe(true);
   });
 }

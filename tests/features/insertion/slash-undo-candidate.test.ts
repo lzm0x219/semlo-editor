@@ -360,6 +360,8 @@ test("beforeTransaction synchronous destroy aborts safely", async ({ page }) => 
 
 test("empty command undo sequence and toolbar redo match observed reference", async ({ page }) => {
   try {
+    // 此用例验证连续输入；固定事务时间，避免测试进程调度把同一次输入拆成多个历史事件。
+    await page.clock.setFixedTime(new Date());
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
     await page.locator("#candidate-host .semlo-editor-prose p").first().click();

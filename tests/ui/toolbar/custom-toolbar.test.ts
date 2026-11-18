@@ -519,6 +519,7 @@ test("自定义工具栏的查找替换按编辑器实例隔离", async ({ page 
   await panel.getByRole("button", { name: "替换", exact: true }).click();
   await expect(first).toHaveText("new world");
   await expect(second).toHaveText("hello world");
+  await expect(panel.getByRole("textbox", { name: "替换为" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.locator("#custom-host-A .semlo-editor")).not.toHaveAttribute("aria-controls", panelId!);
   await page.evaluate(() => {

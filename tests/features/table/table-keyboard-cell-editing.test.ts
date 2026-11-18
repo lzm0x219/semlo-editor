@@ -1,6 +1,7 @@
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { dragCells } from "../../fixtures/table/drag-cells";
 
 test.beforeEach(({ page }) => installFixtureGuards(page));
 
@@ -111,13 +112,9 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
   await page.waitForFunction(() => Boolean(window.tableNavigationEditor));
   const prose = page.locator("#table-navigation-test .semlo-editor-prose");
   const before = await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot());
-  const first = await prose.getByRole("cell", { name: "A", exact: true }).boundingBox();
-  const last = await prose.getByRole("cell", { name: "B", exact: true }).boundingBox();
-  if (!first || !last) throw new Error("Missing table cells");
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2, { steps: 5 });
-  await page.mouse.up();
+  const first = prose.getByRole("cell", { name: "A", exact: true });
+  const last = prose.getByRole("cell", { name: "B", exact: true });
+  await dragCells(first, last);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.type("XYZ");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["XYZ", "B"]);
@@ -129,10 +126,7 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
   expect((await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot())).json).toEqual(
     before.json,
   );
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2, { steps: 5 });
-  await page.mouse.up();
+  await dragCells(last, first);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.type("Y");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["Y", "B"]);
@@ -142,20 +136,14 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
   expect((await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot())).json).toEqual(
     before.json,
   );
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2, { steps: 5 });
-  await page.mouse.up();
+  await dragCells(first, last);
   await page.keyboard.insertText("输入");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["输入", "B"]);
   await expect(prose.locator("tr").first().locator("td strong")).toHaveText("输入");
   expect(await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").editor.commands.undo())).toBe(
     true,
   );
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2, { steps: 5 });
-  await page.mouse.up();
+  await dragCells(first, last);
   await page.keyboard.press("Backspace");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["", ""]);
   await expect(prose.locator("tr").first().locator("td").first().locator("p")).not.toHaveAttribute(
@@ -175,10 +163,7 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
   expect((await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot())).json).toEqual(
     before.json,
   );
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2, { steps: 5 });
-  await page.mouse.up();
+  await dragCells(last, first);
   await page.keyboard.press("Backspace");
   await page.keyboard.type("Z");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["Z", ""]);
@@ -198,12 +183,8 @@ test("typing into selected cells replaces only the top-left cell", async ({ page
   expect((await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot())).json).toEqual(
     before.json,
   );
-  const bottomRight = await prose.getByRole("cell", { name: "D", exact: true }).boundingBox();
-  if (!bottomRight) throw new Error("Missing table cell");
-  await page.mouse.move(bottomRight.x + bottomRight.width - 15, bottomRight.y + bottomRight.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2, { steps: 5 });
-  await page.mouse.up();
+  const bottomRight = prose.getByRole("cell", { name: "D", exact: true });
+  await dragCells(bottomRight, first);
   await expect(prose.locator(".selectedCell")).toHaveCount(4);
   await page.keyboard.type("Z");
   await expect(prose.locator("tr").first().locator("td")).toHaveText(["Z", "B"]);
@@ -617,13 +598,9 @@ test("input replaces a selected code block cell with a paragraph", async ({ page
   const prose = page.locator("#table-navigation-test .semlo-editor-prose");
   const before = await page.evaluate(() => window.__semloRequireFixture("tableNavigationEditor").getSnapshot());
   await prose.locator("td").first().locator("code").click();
-  const first = await prose.locator("td").first().boundingBox();
-  const last = await prose.locator("td").last().boundingBox();
-  if (!first || !last) throw new Error("Missing table cells");
-  await page.mouse.move(first.x + first.width - 15, first.y + first.height - 3);
-  await page.mouse.down();
-  await page.mouse.move(last.x + last.width - 15, last.y + last.height - 3, { steps: 5 });
-  await page.mouse.up();
+  const first = prose.locator("td").first();
+  const last = prose.locator("td").last();
+  await dragCells(first, last);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.press("Shift+Enter");
   await expect(prose.locator("td").first().locator("pre")).toHaveCount(0);
@@ -638,15 +615,9 @@ test("input replaces a selected code block cell with a paragraph", async ({ page
     before.json,
   );
   await prose.locator("td").first().locator("code").click();
-  const restoredFirst = await prose.locator("td").first().boundingBox();
-  const restoredLast = await prose.locator("td").last().boundingBox();
-  if (!restoredFirst || !restoredLast) throw new Error("Missing table cells");
-  await page.mouse.move(restoredFirst.x + restoredFirst.width - 15, restoredFirst.y + restoredFirst.height - 3);
-  await page.mouse.down();
-  await page.mouse.move(restoredLast.x + restoredLast.width - 15, restoredLast.y + restoredLast.height - 3, {
-    steps: 5,
-  });
-  await page.mouse.up();
+  const restoredFirst = prose.locator("td").first();
+  const restoredLast = prose.locator("td").last();
+  await dragCells(restoredFirst, restoredLast);
   await expect(prose.locator(".selectedCell")).toHaveCount(2);
   await page.keyboard.type("Z");
   await expect(prose.locator("td").first().locator("p")).toHaveText("Z");

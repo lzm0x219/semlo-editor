@@ -1,6 +1,7 @@
 import { expect, test } from "@rstest/playwright";
 
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
+import { dragCells } from "../../fixtures/table/drag-cells";
 
 test.beforeEach(({ page }) => installFixtureGuards(page));
 
@@ -319,13 +320,10 @@ test("repeatedly merging numbered cells preserves spanning header and undo histo
   const before = await snapshot();
   const header = await host.locator('td[colspan="2"]').innerHTML();
   const merge = async () => {
-    const first = await host.getByRole("cell", { name: "1", exact: true }).boundingBox();
-    const second = await host.getByRole("cell", { name: "2", exact: true }).boundingBox();
-    if (!first || !second) throw new Error("Missing numbered cells");
-    await page.mouse.move(first.x + first.width - 15, first.y + first.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(second.x + second.width - 15, second.y + second.height / 2, { steps: 5 });
-    await page.mouse.up();
+    const first = host.getByRole("cell", { name: "1", exact: true });
+    const second = host.getByRole("cell", { name: "2", exact: true });
+    await dragCells(first, second);
+    await expect(host.locator(".selectedCell")).toHaveText(["1", "2"]);
     await host.getByRole("cell", { name: "2", exact: true }).click({ button: "right" });
     await page.getByRole("menu", { name: "表格操作" }).getByRole("menuitem", { name: "合并单元格" }).click();
   };

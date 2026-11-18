@@ -387,6 +387,20 @@ test("dragging onto another table does not move either table", async ({ page }) 
   await expect(prose.locator(".selectedCell")).toHaveText(["B1", "B2", "B3"]);
 });
 
+test("table edge controls keep their identity and keyboard focus during layout refresh", async ({ page }) => {
+  const prose = await mount(page);
+  const row = page.getByRole("button", { name: "选择第 2 行" });
+  const remainedFocused = await row.evaluate(async (button) => {
+    button.focus();
+    window.dispatchEvent(new Event("resize"));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return button.isConnected && document.activeElement === button;
+  });
+  expect(remainedFocused).toBe(true);
+  await page.keyboard.press("Enter");
+  await expect(prose.locator(".selectedCell")).toHaveText(["B1", "B2", "B3"]);
+});
+
 test("row drag follows the table when its layout changes", async ({ page }) => {
   const prose = await mount(page, `<p>前文</p>${content}`);
   await prose.getByText("前文", { exact: true }).click();

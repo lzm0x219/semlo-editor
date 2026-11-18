@@ -417,6 +417,7 @@ export function mountFindReplace(
     if (!panel || editor.isDestroyed) return;
     const state = key.getState(editor.state);
     const count = state?.matches.length ?? 0;
+    const focusedAction = [replaceButton, replaceAllButton].find((button) => button === doc.activeElement);
     if (counter) counter.textContent = count ? `${(state?.index ?? 0) + 1}/${count}` : "0";
     if (previousButton) previousButton.disabled = !count;
     if (nextButton) nextButton.disabled = !count;
@@ -424,6 +425,8 @@ export function mountFindReplace(
       replaceButton.disabled = !count || !editor.isEditable || state?.matches[state.index]?.kind !== "text";
     if (replaceAllButton)
       replaceAllButton.disabled = !editor.isEditable || !state?.matches.some((match) => match.kind === "text");
+    // 替换最后一项后，保留面板内的键盘操作入口。
+    if (focusedAction?.disabled) replaceInput?.focus({ preventScroll: true });
     schedulePosition();
   };
   const scrollCurrent = () => {

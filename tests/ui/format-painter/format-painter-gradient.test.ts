@@ -558,7 +558,7 @@ test("continuous painter exits when a plugin appends a whole-document replacemen
   await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").destroy());
 });
 
-test("clicking a heading keeps the painter active and selecting it applies text formatting", async ({ page }) => {
+test("clicking a heading copies the block type and dragging in a heading copies text formatting", async ({ page }) => {
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -567,7 +567,7 @@ test("clicking a heading keeps the painter active and selecting it applies text 
       const host = document.createElement('div')
       host.id = 'gradient-painter-test'
       document.body.append(host)
-      window.gradientPainterEditor = createEditor({ element: host, outline: false, content: '<p><strong><em><span style="font-size: 22px; color: #df2a3f">来源</span></em></strong></p><h2>标题目标</h2>' })
+      window.gradientPainterEditor = createEditor({ element: host, outline: false, content: '<p><strong><em><span style="font-size: 22px; color: #df2a3f">来源</span></em></strong></p><h2>标题目标</h2><h2>拖选标题</h2>' })
     `,
   });
   await page.waitForFunction(() => Boolean(window.gradientPainterEditor));
@@ -579,9 +579,17 @@ test("clicking a heading keeps the painter active and selecting it applies text 
   await expect(page.locator("#gradient-painter-test .semlo-editor-prose")).toBeFocused();
   const painter = page.locator("#gradient-painter-test .semlo-editor-toolbar .semlo-editor-format-painter");
   await painter.click();
-  const heading = page.locator("#gradient-painter-test .semlo-editor-prose h2");
-  await heading.click();
-  await expect(painter).toHaveAttribute("aria-pressed", "true");
+  const prose = page.locator("#gradient-painter-test .semlo-editor-prose");
+  const clicked = prose.getByText("标题目标", { exact: true });
+  await clicked.click();
+  await expect(painter).toHaveAttribute("aria-pressed", "false");
+  await expect(prose.locator("p strong").getByText("标题目标", { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("gradientPainterEditor").editor;
+    editor.commands.setTextSelection({ from: 1, to: 3 });
+  });
+  await painter.click();
+  const heading = prose.getByRole("heading", { name: "拖选标题" });
   const points = await heading.evaluate((element) => {
     const text = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
     if (!text?.textContent) throw new Error("Heading text missing");
@@ -596,7 +604,8 @@ test("clicking a heading keeps the painter active and selecting it applies text 
   await page.mouse.up();
   await expect(painter).toHaveAttribute("aria-pressed", "false");
   const result = await page.evaluate(() => window.__semloRequireFixture("gradientPainterEditor").getSnapshot().json);
-  const marks = result.content?.[1]?.content?.[0]?.marks ?? [];
+  expect(result.content?.[2]?.type).toBe("heading");
+  const marks = result.content?.[2]?.content?.[0]?.marks ?? [];
   expect(marks.some((mark) => mark.type === "bold")).toBe(true);
   expect(marks.some((mark) => mark.type === "italic")).toBe(true);
   expect(marks.find((mark) => mark.type === "textStyle")?.attrs?.fontSize).toBe("22px");
