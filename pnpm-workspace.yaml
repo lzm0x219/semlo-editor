@@ -27,8 +27,8 @@ catalog:
   "@codemirror/legacy-modes": "6.5.5"
   "@codemirror/state": "6.7.6"
   "@lezer/highlight": "1.2.5"
-  # 固定已对照的语雀 PHP 语法；升级此别名前须复核带标签的高亮和缩进。
-  "@lezer/php-legacy": "npm:@lezer/php@1.0.2"
+  # 仅自动缩进保留旧版解析；升级兼容别名前须复核带标签源码的缩进。
+  "@lezer/php-legacy": "npm:@lezer/php@1.0.3"
   "@plantuml/core": "1.2026.10"
   "@rsbuild/core": 2.3.3
   "@rslib/core": 1.0.6

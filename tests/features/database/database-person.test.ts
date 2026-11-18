@@ -47,6 +47,7 @@ test("person defaults and cell selections use host results, persist and undo", a
   await expect(dialog.getByLabel("默认选项 甲")).toBeChecked();
   await expect(dialog.getByRole("button", { name: "文档", exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "确定" }).click();
+  await expect(dialog).toHaveCount(0);
   await expect(root.getByLabel("第 1 行 负责人")).not.toContainText("甲");
   await root.getByRole("button", { name: "添加记录", exact: true }).click();
   await expect(root.getByLabel("第 4 行 负责人")).toContainText("甲");

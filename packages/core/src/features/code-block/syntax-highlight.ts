@@ -5,6 +5,7 @@ import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { markdown } from "@codemirror/lang-markdown";
+import { phpLanguage } from "@codemirror/lang-php";
 import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { sass } from "@codemirror/lang-sass";
@@ -50,7 +51,6 @@ import { verilog } from "@codemirror/legacy-modes/mode/verilog";
 import { yaml } from "@codemirror/legacy-modes/mode/yaml";
 import { EditorState, type Extension } from "@codemirror/state";
 import { highlightTree, tagHighlighter, tags } from "@lezer/highlight";
-import { parser as legacyPhpParser } from "@lezer/php-legacy";
 
 const swiftLanguage = StreamLanguage.define(swift);
 const rubyLanguage = StreamLanguage.define(ruby);
@@ -130,8 +130,7 @@ const sqlLanguage = StreamLanguage.define(
 const plsqlLanguage = StreamLanguage.define(plSQL);
 const stexLanguage = StreamLanguage.define(stex);
 const shellLanguage = StreamLanguage.define(shell);
-// 与自动缩进共用固定的 1.0.2 语法，保留带 PHP 标签时已观察到的解析与高亮。
-const phpParser = legacyPhpParser.configure({ top: "Program" });
+const phpParser = phpLanguage.parser.configure({ top: "Program" });
 const cppSupport = cpp();
 const javaSupport = java();
 const cppParser = cppSupport.language.parser;
