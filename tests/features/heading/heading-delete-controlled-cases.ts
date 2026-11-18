@@ -6,19 +6,6 @@ import { startFixtureServer } from "../../fixtures/browser/fixture-rsbuild";
 import type {} from "../../fixtures/heading/heading-delete-controlled-fixture";
 import type { RestartFramework } from "../../fixtures/list/ordered-restart-controlled-fixture";
 
-test.beforeEach(async ({ page }) => {
-  await installFixtureGuards(page);
-});
-
-let origin: string;
-let stop: (() => Promise<void>) | undefined;
-beforeAll(async () => {
-  ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-delete-controlled-fixture.ts", {
-    framework: true,
-  }));
-});
-afterAll(async () => stop?.());
-
 const title = "标题甲乙";
 type Scenario = {
   name: string;
@@ -100,7 +87,7 @@ function contentFor(item: Scenario): JSONContent {
   return { type: "doc", content: [item.quote ? { type: "blockquote", content: [heading] } : heading] };
 }
 
-async function mount(page: Page, framework: RestartFramework, item: Scenario) {
+async function mount(page: Page, origin: string, framework: RestartFramework, item: Scenario) {
   await page.goto(origin);
   await page.waitForFunction(() => typeof window.mountRestartControlledFixture === "function");
   await page.evaluate(
@@ -146,12 +133,54 @@ async function read(page: Page) {
   });
 }
 
-for (const framework of ["react", "vue", "solid"] as const satisfies readonly RestartFramework[]) {
+// Keep this path free of selection reads or waits between the user's two keys.
+const immediateCases: Scenario[] = [
+  {
+    name: "ordinary H1 immediately Backspace",
+    level: 1,
+    numbered: false,
+    quote: false,
+    selection: "heading",
+    key: "Backspace",
+  },
+  {
+    name: "numbered H2 immediately Backspace",
+    level: 2,
+    numbered: true,
+    quote: false,
+    selection: "heading",
+    key: "Backspace",
+  },
+  {
+    name: "quote H6 immediately Backspace",
+    level: 6,
+    numbered: false,
+    quote: true,
+    selection: "heading",
+    key: "Backspace",
+  },
+  { name: "quote H3 immediately Delete", level: 3, numbered: false, quote: true, selection: "heading", key: "Delete" },
+];
+
+export function testHeadingDeleteControlled(framework: Exclude<RestartFramework, "core">) {
+  test.beforeEach(async ({ page }) => {
+    await installFixtureGuards(page);
+  });
+
+  let origin: string;
+  let stop: (() => Promise<void>) | undefined;
+  beforeAll(async () => {
+    ({ origin, stop } = await startFixtureServer("./tests/fixtures/heading/heading-delete-controlled-fixture.ts", {
+      framework: true,
+    }));
+  });
+  afterAll(async () => stop?.());
+
   for (const item of cases) {
     test(`${framework}: ${item.name} survives controlled host echo`, async ({ page }) => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
-      await mount(page, framework, item);
+      await mount(page, origin, framework, item);
       const host = page.locator("#restart-controlled-fixture");
       const selector = `.semlo-editor-prose > ${item.quote ? "blockquote > " : ""}h${item.level}`;
       const heading = host.locator(selector);
@@ -267,42 +296,12 @@ for (const framework of ["react", "vue", "solid"] as const satisfies readonly Re
       await page.evaluate(() => window.__semloRequireFixture("restartControlledFixture").destroy());
     });
   }
-}
 
-// Keep this path free of selection reads or waits between the user's two keys.
-const immediateCases: Scenario[] = [
-  {
-    name: "ordinary H1 immediately Backspace",
-    level: 1,
-    numbered: false,
-    quote: false,
-    selection: "heading",
-    key: "Backspace",
-  },
-  {
-    name: "numbered H2 immediately Backspace",
-    level: 2,
-    numbered: true,
-    quote: false,
-    selection: "heading",
-    key: "Backspace",
-  },
-  {
-    name: "quote H6 immediately Backspace",
-    level: 6,
-    numbered: false,
-    quote: true,
-    selection: "heading",
-    key: "Backspace",
-  },
-  { name: "quote H3 immediately Delete", level: 3, numbered: false, quote: true, selection: "heading", key: "Delete" },
-];
-for (const framework of ["react", "vue", "solid"] as const satisfies readonly RestartFramework[]) {
   for (const item of immediateCases) {
     test(`${framework}: ${item.name} after Shift+End`, async ({ page }) => {
       const pageErrors: string[] = [];
       page.on("pageerror", (error) => pageErrors.push(error.message));
-      await mount(page, framework, item);
+      await mount(page, origin, framework, item);
       const initial = await read(page);
       const host = page.locator("#restart-controlled-fixture");
       const heading = host.locator(`.semlo-editor-prose > ${item.quote ? "blockquote > " : ""}h${item.level}`);
