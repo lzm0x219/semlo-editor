@@ -180,9 +180,11 @@ HTML 粘贴规则的离线用例使用测试工作区的 Happy DOM 和实际 Pro
 
 参数化测试优先覆盖独立行为、已观察场景和有风险的参数交叉，避免对无特殊分支的参数做全量笛卡尔组合；选区、撤销、受控回写和生命周期等边界仍需按影响保留。运行 `--related` 等依赖关系筛选时，需检查运行时启动的浏览器 fixture 是否被识别，必要时显式指定测试文件；筛选结果不能代替完整回归。
 
-完整 CI 在 PR、`main` 推送和手动触发时运行。新提交取消同一 PR 或 `main` 的旧 CI，手动运行各自独立。Chromium 回归分成 16 片，每片使用两个 worker。分片脚本通过 Rstest 发现当前提交的全部测试文件，按历史耗时从长到短依次分给预计负载最低的分片。没有耗时记录的文件使用历史中位数。每片在执行前用 Rstest 核对实际匹配的文件清单。 Chromium、Firefox 和 WebKit 使用预装浏览器与 Linux 系统依赖的 Playwright 官方镜像。镜像与工作区锁定的 Playwright 版本一起更新。
+完整 CI 在 PR、`main` 推送和手动触发时运行。新提交取消同一 PR 或 `main` 的旧 CI，手动运行各自独立。Chromium 回归分成 12 片，每片使用三个 worker。分片脚本通过 Rstest 发现当前提交的全部测试文件，按历史耗时从长到短依次分给预计负载最低的分片。没有耗时记录的文件使用历史中位数。每片在执行前用 Rstest 核对实际匹配的文件清单。文档首页和表格键盘回归按场景拆分，首页测试仍为每个文件独立启动 Rspress。
 
-[耗时快照](../scripts/ci-browser-timings.json)的初始权重取自 [main](https://github.com/lzm0x219/semlo-editor/actions/runs/44280960822)、[Rsbuild 更新](https://github.com/lzm0x219/semlo-editor/actions/runs/44279504974)和 [Oxc 更新](https://github.com/lzm0x219/semlo-editor/actions/runs/44090053758)三轮 Linux 回归日志。手动 CI 可开启 `profile` 上传 Rstest 的追踪和摘要。更新权重时，以 `testPath` 汇总追踪中 `phase` 事件的耗时，取近期多轮中位数并换算为毫秒。常规 CI 不启用追踪。可用 `mise exec -- node scripts/ci-browser-shard.ts 1 16 --list` 查看第 1 片的实际文件清单。
+Chromium、Firefox 和 WebKit 使用预装浏览器与 Linux 系统依赖的 Playwright 官方镜像。镜像与工作区锁定的 Playwright 版本一起更新。
+
+[耗时快照](../scripts/ci-browser-timings.json)的初始权重取自三轮 Linux 回归日志。首页和表格拆分后的权重按镜像版 CI 的用例耗时分配。手动 CI 可开启 `profile` 上传 Rstest 的追踪和摘要。更新权重时，以 `testPath` 汇总追踪中 `phase` 事件的耗时，取近期多轮中位数并换算为毫秒。常规 CI 不启用追踪。可用 `mise exec -- node scripts/ci-browser-shard.ts 1 12 --list` 查看第 1 片的实际文件清单。 [初始样本一](https://github.com/lzm0x219/semlo-editor/actions/runs/44280960822) · [初始样本二](https://github.com/lzm0x219/semlo-editor/actions/runs/44279504974) · [初始样本三](https://github.com/lzm0x219/semlo-editor/actions/runs/44090053758) · [镜像版](https://github.com/lzm0x219/semlo-editor/actions/runs/44290458074) · [worker 对照](https://github.com/lzm0x219/semlo-editor/actions/runs/44300480926)
 
 ## 命名与注释
 
