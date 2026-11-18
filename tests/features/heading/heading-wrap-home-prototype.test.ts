@@ -367,6 +367,7 @@ for (const numbered of [false, true]) {
         fixture.arm();
         const captures: Array<{ native: number | null; pm: number; trusted: boolean }> = [];
         window.__homeRejectCaptures = captures;
+        fixture.deferSelectionUntilHome();
         editor.view.dom.addEventListener(
           "keydown",
           (event) => {

@@ -543,6 +543,7 @@ export function openLocalFonts(editor: Editor, anchor: HTMLElement): () => void 
   panel.className = "semlo-editor-local-font-menu";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "选择字体");
+  panel.tabIndex = -1;
   const searchRow = doc.createElement("div");
   searchRow.className = "semlo-editor-local-font-search-row";
   const search = doc.createElement("input");
@@ -728,6 +729,7 @@ export function openLocalFonts(editor: Editor, anchor: HTMLElement): () => void 
   };
   const draw = () => {
     if (closed) return;
+    const focused = doc.activeElement;
     search.disabled = !loaded;
     read.disabled = loading && !waitingLong;
     read.hidden = typeof win?.queryLocalFonts !== "function";
@@ -794,6 +796,11 @@ export function openLocalFonts(editor: Editor, anchor: HTMLElement): () => void 
     else status.textContent = "";
     position();
     revealSelected();
+    // 查询开始或失败会禁用当前控件，焦点留在仍可操作的控件或面板内。
+    if (focused === panel || (focused === search && search.disabled) || (focused === read && read.disabled)) {
+      const next = !search.disabled ? search : !read.disabled && !read.hidden ? read : panel;
+      next.focus({ preventScroll: true });
+    }
   };
   read.addEventListener("mousedown", (event) => event.preventDefault());
   const load = (refresh: boolean) => {
@@ -881,7 +888,7 @@ export function openLocalFonts(editor: Editor, anchor: HTMLElement): () => void 
   editor.on("destroy", close);
   editor.on("transaction", transactionChanged);
   draw();
-  if (cache?.fonts !== undefined) search.focus({ preventScroll: true });
-  else load(false);
+  if (cache?.fonts === undefined) load(false);
+  if (!closed) (search.disabled ? panel : search).focus({ preventScroll: true });
   return close;
 }

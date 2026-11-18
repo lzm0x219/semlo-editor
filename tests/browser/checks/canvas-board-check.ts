@@ -95,7 +95,10 @@ try {
         ],
       });
       const original = editor.getJSON();
-      const live = document.querySelector(".semlo-editor-canvas-shape > span")!;
+      const stage = document.querySelector<HTMLElement>(".semlo-editor-canvas-stage")!;
+      // 实时文字按画布宽度缩放，导出文字在 SVG 坐标中排版。先让两边以相同字号断行。
+      stage.style.width = "800px";
+      const live = stage.querySelector(".semlo-editor-canvas-shape > span")!;
       const range = document.createRange();
       range.selectNodeContents(live);
       const liveLines = range.getClientRects().length;
@@ -110,8 +113,10 @@ try {
       const svg = host.querySelector("svg")!;
       const text = svg.querySelector("foreignObject div div")!;
       const details = {
-        liveFont: getComputedStyle(live).font,
-        staticFont: getComputedStyle(text).font,
+        liveFontSize: getComputedStyle(live).fontSize,
+        staticFontSize: getComputedStyle(text).fontSize,
+        liveFontFamily: fontFamily,
+        staticFontFamily: getComputedStyle(text).fontFamily,
         liveWidth: live.getBoundingClientRect().width,
         staticWidth: text.getBoundingClientRect().width,
         text: sample.text,

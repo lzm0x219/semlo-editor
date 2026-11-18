@@ -23,7 +23,7 @@ declare global {
       reorderHistoryPlugin(): void;
       breakHistory(): void;
       setCaret(pos: number): void;
-      debug(): unknown;
+      debug(): { undone: boolean[] };
       html(): string;
       snapshot(): string;
       changes(): string[];
@@ -360,6 +360,8 @@ test("beforeTransaction synchronous destroy aborts safely", async ({ page }) => 
 
 test("empty command undo sequence and toolbar redo match observed reference", async ({ page }) => {
   try {
+    // 此用例验证连续输入；固定事务时间，避免测试进程调度把同一次输入拆成多个历史事件。
+    await page.clock.setFixedTime(new Date());
     await page.goto(`http://127.0.0.1:${port}`);
     await page.evaluate(() => window.slashCandidate.mount("core"));
     await page.locator("#candidate-host .semlo-editor-prose p").first().click();
@@ -373,8 +375,13 @@ test("empty command undo sequence and toolbar redo match observed reference", as
     await page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
     await expect(page.locator("#candidate-host").getByRole("button", { name: "重做", exact: true })).toBeDisabled();
+    await expect(page.locator("#candidate-host .semlo-editor-prose")).toBeFocused();
     await page.keyboard.press("ControlOrMeta+Shift+z");
-    await expect.poll(() => page.evaluate(() => window.slashCandidate.html())).toBe("<p></p><p>乙</p>");
+    const afterShortcut = await page.evaluate(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      return { html: window.slashCandidate.html(), undone: window.slashCandidate.debug().undone };
+    });
+    expect(afterShortcut).toEqual({ html: "<p></p><p>乙</p>", undone: [] });
   } finally {
     await page.evaluate(() => window.slashCandidate?.destroy());
   }

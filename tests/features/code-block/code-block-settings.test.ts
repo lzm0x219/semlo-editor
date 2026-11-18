@@ -337,11 +337,10 @@ test("wrapped logical lines keep their gutter numbers aligned when the editor is
   const numbers = card.locator(".semlo-editor-code-numbers");
   await expect(numbers.locator(".semlo-editor-code-number-line")).toHaveCount(3);
   await expect(numbers).toHaveText("1\n2\n3");
-  const before = await numbers
-    .locator(".semlo-editor-code-number-line")
-    .first()
-    .evaluate((element) => element.clientHeight);
-  expect(before).toBeGreaterThan(30);
+  const firstNumber = numbers.locator(".semlo-editor-code-number-line").first();
+  const height = () => firstNumber.evaluate((element) => element.clientHeight);
+  await expect.poll(height).toBeGreaterThan(30);
+  const before = await height();
   const alignment = await card.evaluate((element) => {
     const code = element.querySelector("code")!;
     const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
@@ -363,13 +362,11 @@ test("wrapped logical lines keep their gutter numbers aligned when the editor is
   expect(Math.abs(alignment)).toBeLessThan(2);
   await host.evaluate((element) => ((element as HTMLElement).style.width = "700px"));
   await expect
-    .poll(() =>
-      numbers
-        .locator(".semlo-editor-code-number-line")
-        .first()
-        .evaluate((element) => element.clientHeight),
-    )
-    .toBeLessThan(before);
+    .poll(async () => {
+      const resized = await height();
+      return resized > 0 && resized < before;
+    })
+    .toBe(true);
 });
 
 test("sync keeps titles and can preserve language; its transaction is undoable", async ({ page }) => {

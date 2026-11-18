@@ -167,7 +167,8 @@ for (const numbered of [false, true])
       expect(after.focusCalls).toBe(0);
       expect(after.pm).toMatchObject({ anchor: start.end, head: start.end });
       expect(after.native).toBe(start.end);
-      expect(after.trace.filter((entry) => entry.rejected)).toHaveLength(2);
+      expect(after.events).toEqual([{ trusted: true, prevented: true }]);
+      expect(after.trace.some((entry) => entry.rejected && entry.selectionSet)).toBe(true);
       expect(afterBackspace.json).toEqual(start.json);
       expect(afterBackspace.last).toBe("NEXT");
       expect(afterBackspace.native).toBe(afterBackspace.pm.anchor);

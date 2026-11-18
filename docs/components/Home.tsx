@@ -18,19 +18,6 @@ const routes = {
   features: "/features",
 };
 
-function focusEditor(event: MouseEvent<HTMLAnchorElement>) {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  const editor = document.querySelector<HTMLElement>('#semlo-editor-demo [contenteditable="true"]');
-  if (!editor) return;
-  event.preventDefault();
-  editor.focus({ preventScroll: true });
-  requestAnimationFrame(() => {
-    if (document.activeElement === editor) {
-      document.getElementById("semlo-editor-demo")?.scrollIntoView({ behavior: "instant", block: "start" });
-    }
-  });
-}
-
 function focusOverview(event: MouseEvent<HTMLAnchorElement>) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const heading = document.getElementById("semlo-editor-overview-heading");
@@ -43,6 +30,18 @@ function focusOverview(event: MouseEvent<HTMLAnchorElement>) {
 export default function Home() {
   const editor = useRef<LiveEditorHandle>(null);
   const [returnPoint, setReturnPoint] = useState<{ button: HTMLButtonElement; scrollY: number } | null>(null);
+
+  function focusEditor(event: MouseEvent<HTMLAnchorElement>) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const editable = editor.current?.focus();
+    if (!editable) return;
+    event.preventDefault();
+    requestAnimationFrame(() => {
+      if (document.activeElement === editable) {
+        document.getElementById("semlo-editor-demo")?.scrollIntoView({ behavior: "instant", block: "start" });
+      }
+    });
+  }
 
   function tryFeature(id: HomeExample, event: MouseEvent<HTMLButtonElement>) {
     setReturnPoint({ button: event.currentTarget, scrollY: window.scrollY });

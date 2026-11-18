@@ -50,8 +50,7 @@ const snapshot = (page: Page) =>
   page.evaluate(() => window.__semloRequireFixture("tableEdgeEditor").getSnapshot().json);
 
 async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" | "column") {
-  // The overlay replaces its buttons on the next animation frame after a
-  // selection or undo. Retry while that replacement is in progress.
+  // 选区变化和撤销会在下一帧更新手柄位置，等待源和目标都完成布局。
   const geometry: {
     from?: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
     to?: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
@@ -384,6 +383,20 @@ test("dragging onto another table does not move either table", async ({ page }) 
   await page.mouse.move(other.x + other.width / 2, other.y + other.height / 2, { steps: 8 });
   await page.mouse.up();
   expect(await snapshot(page)).toEqual(before);
+  await expect(prose.locator(".selectedCell")).toHaveText(["B1", "B2", "B3"]);
+});
+
+test("table edge controls keep their identity and keyboard focus during layout refresh", async ({ page }) => {
+  const prose = await mount(page);
+  const row = page.getByRole("button", { name: "选择第 2 行" });
+  const remainedFocused = await row.evaluate(async (button) => {
+    button.focus();
+    window.dispatchEvent(new Event("resize"));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return button.isConnected && document.activeElement === button;
+  });
+  expect(remainedFocused).toBe(true);
+  await page.keyboard.press("Enter");
   await expect(prose.locator(".selectedCell")).toHaveText(["B1", "B2", "B3"]);
 });
 

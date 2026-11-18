@@ -332,6 +332,7 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
       let lastAxis: Axis | null = null;
       let rangeAnchor: { axis: Axis; index: number; tablePos: number } | null = null;
       let observed: Target | null = null;
+      let controls = new Map<string, HTMLButtonElement>();
 
       const anchorFor = (current: Target, axis: Axis, index: number, shift: boolean) => {
         if (shift && rangeAnchor?.axis === axis && rangeAnchor.tablePos === current.pos) return rangeAnchor.index;
@@ -343,6 +344,7 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
         target = null;
         observer?.disconnect();
         observed = null;
+        controls.clear();
         layer.replaceChildren();
       };
       const schedule = () => {
@@ -362,7 +364,6 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
         element.style.top = `${top}px`;
         element.style.width = `${Math.max(0, width)}px`;
         element.style.height = `${Math.max(0, height)}px`;
-        layer.append(element);
       };
       const action = (label: string, glyph: string, run: () => void) => {
         const button = doc.createElement("button");
@@ -406,10 +407,80 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
         if (moving.axis === "row") {
           const left = Math.max(rect.left, wrapper.left, 0);
           const right = Math.min(rect.right, wrapper.right, win?.innerWidth ?? rect.right);
-          if (right > left) put(line, left, edge - 1, right - left, 2);
-        } else if (edge >= wrapper.left && edge <= wrapper.right) {
+          if (right <= left) return;
+          put(line, left, edge - 1, right - left, 2);
+        } else {
+          if (edge < wrapper.left || edge > wrapper.right) return;
           put(line, edge - 1, rect.top, 2, rect.height);
         }
+        layer.append(line);
+      };
+
+      const createBand = (axis: Axis, index: number) => {
+        const button = doc.createElement("button");
+        button.type = "button";
+        button.className = `semlo-editor-table-edge-band semlo-editor-table-edge-${axis}`;
+        button.setAttribute("aria-label", `选择第 ${index + 1} ${axis === "row" ? "行" : "列"}`);
+        button.innerHTML = dots;
+        button.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0 || !view.editable || !target) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const current = currentTarget();
+          if (!current) return;
+          const currentSelection = view.state.selection;
+          const selectionRect =
+            currentSelection instanceof CellSelection && isInTable(view.state) ? selectedRect(view.state) : null;
+          const matchingAxis =
+            currentSelection instanceof CellSelection &&
+            (axis === "row" ? currentSelection.isRowSelection() : currentSelection.isColSelection()) &&
+            (!(currentSelection.isRowSelection() && currentSelection.isColSelection()) || lastAxis === axis);
+          const selectedStart = axis === "row" ? selectionRect?.top : selectionRect?.left;
+          const selectedEnd = axis === "row" ? selectionRect?.bottom : selectionRect?.right;
+          const deferSelection =
+            !event.shiftKey &&
+            matchingAxis &&
+            selectionRect !== null &&
+            selectionRect.tableStart - 1 === current.pos &&
+            selectedStart !== undefined &&
+            selectedEnd !== undefined &&
+            selectedEnd - selectedStart > 1 &&
+            index >= selectedStart &&
+            index < selectedEnd;
+          lastAxis = axis;
+          if (!deferSelection) {
+            const anchor = anchorFor(current, axis, index, event.shiftKey);
+            if (!selectBand(view, current, axis, index, anchor)) return;
+          }
+          const rect = selectedRect(view.state);
+          drag = {
+            axis,
+            index: index,
+            pointer: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            doc: view.state.doc,
+            tablePos: current.pos,
+            start: axis === "row" ? rect.top : rect.left,
+            end: axis === "row" ? rect.bottom : rect.right,
+            deferSelection,
+            canMove: !event.shiftKey,
+            moved: false,
+            destination: null,
+          };
+        });
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          // Keyboard activation does not produce pointerdown.
+          if (event.detail === 0 && target) {
+            lastAxis = axis;
+            const anchor = anchorFor(target, axis, index, event.shiftKey);
+            selectBand(view, target, axis, index, anchor);
+            schedule();
+          }
+        });
+        return button;
       };
 
       const render = () => {
@@ -423,6 +494,8 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
           return;
         }
         if (observed?.table !== target.table || observed?.wrapper !== target.wrapper) {
+          for (const button of controls.values()) button.remove();
+          controls.clear();
           observer?.disconnect();
           observer?.observe(target.table);
           if (target.wrapper !== target.table) observer?.observe(target.wrapper);
@@ -446,110 +519,68 @@ export function tableEdgesPlugin(registerViewDisposer?: TableViewDisposerRegistr
         }
         const rowSelected = !!selected && selection instanceof CellSelection && selection.isRowSelection();
         const columnSelected = !!selected && selection instanceof CellSelection && selection.isColSelection();
-        layer.replaceChildren();
+        // 布局变化只更新仍可见的按钮，避免打断指针命中和键盘焦点。
+        const nextControls = new Map<string, HTMLButtonElement>();
+        const control = (key: string, create: () => HTMLButtonElement) => {
+          const button = controls.get(key) ?? create();
+          nextControls.set(key, button);
+          return button;
+        };
         const band = (axis: Axis, item: Band, start: number, end: number) => {
           if (end <= start) return;
-          const button = doc.createElement("button");
-          button.type = "button";
-          button.className = `semlo-editor-table-edge-band semlo-editor-table-edge-${axis}`;
-          button.setAttribute("aria-label", `选择第 ${item.index + 1} ${axis === "row" ? "行" : "列"}`);
+          const button = control(`${axis}-${item.index}`, () => createBand(axis, item.index));
           const active =
             !!selected &&
             (axis === "row"
               ? rowSelected && item.index >= selected.top && item.index < selected.bottom
               : columnSelected && item.index >= selected.left && item.index < selected.right);
           button.setAttribute("aria-pressed", String(active));
-          button.innerHTML = dots;
-          button.addEventListener("pointerdown", (event) => {
-            if (event.button !== 0 || !view.editable || !target) return;
-            event.preventDefault();
-            event.stopPropagation();
-            const current = currentTarget();
-            if (!current) return;
-            const currentSelection = view.state.selection;
-            const selectionRect =
-              currentSelection instanceof CellSelection && isInTable(view.state) ? selectedRect(view.state) : null;
-            const matchingAxis =
-              currentSelection instanceof CellSelection &&
-              (axis === "row" ? currentSelection.isRowSelection() : currentSelection.isColSelection()) &&
-              (!(currentSelection.isRowSelection() && currentSelection.isColSelection()) || lastAxis === axis);
-            const selectedStart = axis === "row" ? selectionRect?.top : selectionRect?.left;
-            const selectedEnd = axis === "row" ? selectionRect?.bottom : selectionRect?.right;
-            const deferSelection =
-              !event.shiftKey &&
-              matchingAxis &&
-              selectionRect !== null &&
-              selectionRect.tableStart - 1 === current.pos &&
-              selectedStart !== undefined &&
-              selectedEnd !== undefined &&
-              selectedEnd - selectedStart > 1 &&
-              item.index >= selectedStart &&
-              item.index < selectedEnd;
-            lastAxis = axis;
-            if (!deferSelection) {
-              const anchor = anchorFor(current, axis, item.index, event.shiftKey);
-              if (!selectBand(view, current, axis, item.index, anchor)) return;
-            }
-            const rect = selectedRect(view.state);
-            drag = {
-              axis,
-              index: item.index,
-              pointer: event.pointerId,
-              x: event.clientX,
-              y: event.clientY,
-              doc: view.state.doc,
-              tablePos: current.pos,
-              start: axis === "row" ? rect.top : rect.left,
-              end: axis === "row" ? rect.bottom : rect.right,
-              deferSelection,
-              canMove: !event.shiftKey,
-              moved: false,
-              destination: null,
-            };
-          });
-          button.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            // Keyboard activation does not produce pointerdown.
-            if (event.detail === 0 && target) {
-              lastAxis = axis;
-              const anchor = anchorFor(target, axis, item.index, event.shiftKey);
-              selectBand(view, target, axis, item.index, anchor);
-              schedule();
-            }
-          });
           if (axis === "row") put(button, left - 12, start, 12, end - start);
           else put(button, start, tableRect.top - 12, end - start, 12);
         };
         for (const row of rows) band("row", row, Math.max(row.start, 0), Math.min(row.end, win.innerHeight));
         for (const column of columns) band("column", column, Math.max(column.start, left), Math.min(column.end, right));
 
-        if (!selected) return;
         const activeAxis =
           rowSelected && columnSelected ? lastAxis : rowSelected ? "row" : columnSelected ? "column" : null;
-        if (activeAxis === "row") {
-          const first = rows[selected.top],
-            last = rows[selected.bottom - 1];
-          if (!first || !last) return;
-          const add = action("在下方插入行", plus, () => runCommand(view, addRowAfter));
-          const remove = action("删除所选行", trash, () => runCommand(view, deleteRow));
-          put(add, Math.max(2, left - 25), last.end - 10, 20, 20);
-          put(remove, Math.max(2, left + 4), Math.max(2, first.start - 24), 20, 20);
-        } else if (activeAxis === "column") {
-          const first = columns[selected.left],
-            last = columns[selected.right - 1];
-          if (!first || !last) return;
-          const add = action("在右侧插入列", plus, () => runCommand(view, addColumnAfter));
-          const remove = action("删除所选列", trash, () => runCommand(view, deleteColumn));
-          put(add, Math.min(win.innerWidth - 22, last.end - 10), Math.max(2, tableRect.top - 32), 20, 20);
-          put(
-            remove,
-            Math.max(2, Math.min(win.innerWidth - 22, (first.start + last.end) / 2 - 10)),
-            Math.max(2, tableRect.top - 32),
-            20,
-            20,
-          );
+        if (selected && activeAxis === "row") {
+          const first = rows[selected.top];
+          const last = rows[selected.bottom - 1];
+          if (first && last) {
+            const add = control("add-row", () => action("在下方插入行", plus, () => runCommand(view, addRowAfter)));
+            const remove = control("delete-row", () => action("删除所选行", trash, () => runCommand(view, deleteRow)));
+            put(add, Math.max(2, left - 25), last.end - 10, 20, 20);
+            put(remove, Math.max(2, left + 4), Math.max(2, first.start - 24), 20, 20);
+          }
+        } else if (selected && activeAxis === "column") {
+          const first = columns[selected.left];
+          const last = columns[selected.right - 1];
+          if (first && last) {
+            const add = control("add-column", () =>
+              action("在右侧插入列", plus, () => runCommand(view, addColumnAfter)),
+            );
+            const remove = control("delete-column", () =>
+              action("删除所选列", trash, () => runCommand(view, deleteColumn)),
+            );
+            put(add, Math.min(win.innerWidth - 22, last.end - 10), Math.max(2, tableRect.top - 32), 20, 20);
+            put(
+              remove,
+              Math.max(2, Math.min(win.innerWidth - 22, (first.start + last.end) / 2 - 10)),
+              Math.max(2, tableRect.top - 32),
+              20,
+              20,
+            );
+          }
         }
+        for (const [key, button] of controls) {
+          if (!nextControls.has(key)) button.remove();
+        }
+        let nextSibling = layer.firstChild;
+        for (const button of nextControls.values()) {
+          if (button === nextSibling) nextSibling = button.nextSibling;
+          else layer.insertBefore(button, nextSibling);
+        }
+        controls = nextControls;
         if (drag?.moved) showIndicator(target, drag);
       };
       const pointerMove = (event: PointerEvent) => {

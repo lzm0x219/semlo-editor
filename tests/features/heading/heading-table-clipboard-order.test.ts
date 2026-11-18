@@ -148,6 +148,7 @@ async function registerDynamicHost(
       })
     `,
   });
+  await page.waitForFunction(() => Boolean(window.headingTableCopyPluginKey));
 }
 
 test("table serializer before the heading serializer yields one separator for numbered headings", async ({ page }) => {
