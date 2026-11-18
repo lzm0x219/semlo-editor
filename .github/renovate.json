@@ -11,7 +11,7 @@
       "minimumReleaseAge": "1 day"
     },
     {
-      "description": "兼容别名保留已验证的带标签 PHP 高亮和缩进",
+      "description": "兼容别名保留已验证的带标签 PHP 缩进",
       "matchDepNames": ["@lezer/php-legacy"],
       "allowedVersions": "<1.0.4"
     },
