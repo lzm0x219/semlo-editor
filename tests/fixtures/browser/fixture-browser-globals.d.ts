@@ -34,6 +34,8 @@ declare global {
       writes: Array<{ text: string; html?: string }>;
       resolve: (() => void) | null;
     };
+    tableNavigationEditor?: TestEditor;
+    tableNavigationEditorOther?: TestEditor;
     tableListenerTrace?: { enabled: boolean; start(): void; stop(): number; restore(): void };
     mentionRequests?: Array<{
       query: string;

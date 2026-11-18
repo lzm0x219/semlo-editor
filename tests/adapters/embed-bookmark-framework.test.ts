@@ -42,7 +42,7 @@ declare global {
 for (const kind of ["core", "react", "vue", "solid"] as const) {
   test(`${kind} does not submit bookmark title during simulated composition`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -81,7 +81,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.stack ?? error.message));
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -127,7 +127,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
   });
   test(`${kind} invalidates a bookmark rebuilt in a reentrant transaction`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -159,7 +159,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
   });
   test(`${kind} invalidates only the rebuilt bookmark when nodes share a reference`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -202,7 +202,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
   });
   test(`${kind} retains a pending bookmark through a reentrant local edit`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -231,7 +231,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
   });
   test(`${kind} retains metadata when the same bookmark node moves locally`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -260,7 +260,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} invalidates metadata when a bookmark is rebuilt alongside a local edit`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -292,7 +292,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} invalidates metadata when a net-equal batch rebuilds the bookmark node`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -324,7 +324,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} restarts metadata when an equal appended document rebuilds the bookmark node`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -358,7 +358,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
     page,
   }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -389,7 +389,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
     page,
   }) => {
     await page.route("https://example.test/**", (route) => route.fulfill({ status: 404 }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -417,7 +417,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} preserves a pending video after an equal plugin-appended replacement`, async ({ page }) => {
     await page.route("https://example.test/**", (route) => route.fulfill({ status: 404 }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -447,7 +447,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} retains pending metadata after an equal plugin-appended replacement`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -477,7 +477,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} discards a pending video after a plugin-appended whole-document replacement`, async ({ page }) => {
     await page.route("https://example.test/**", (route) => route.fulfill({ status: 404 }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -509,7 +509,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} invalidates metadata after a plugin-appended whole-document replacement`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -542,7 +542,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} restarts bookmark metadata when the surrounding document is replaced`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -588,7 +588,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} uses the updated upload callback for new uploads`, async ({ page }) => {
     await page.route("https://example.test/**", (route) => route.fulfill({ status: 404 }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -630,7 +630,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} handles in-flight video across equal writes and document replacement`, async ({ page }) => {
     await page.route("https://example.test/**", (route) => route.fulfill({ status: 404 }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);
@@ -696,7 +696,7 @@ for (const kind of ["core", "react", "vue", "solid"] as const) {
 
   test(`${kind} metadata integration supports replacement, deletion and mode conversion`, async ({ page }) => {
     await page.route("https://codepen.io/**", (route) => route.fulfill({ status: 200, body: "Fixture" }));
-    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
     await page.addScriptTag({ type: "module", url: "/tests/embed-bookmark-framework.js" });
     await page.waitForFunction(() => Boolean(window.bookmarkFramework));
     await page.evaluate((entry) => window.__semloRequireFixture("bookmarkFramework").mount(entry), kind);

@@ -174,13 +174,19 @@ React 适配器在浏览器布局 effect 中同步受控内容，SSR 使用普�
 
 常见源码夹具的开发服务器和内联脚本构建分别复用 `tests/fixtures/browser/fixture-rsbuild.ts` 和 `fixture-bundle.ts`；测试负责各自的启动时机、服务关闭和临时目录清理。有特殊构建配置的测试仍可自行配置。
 
+自行挂载编辑器的测试可以访问 `SEMLO_FIXTURE_URL`。该页面只加载组件包的 CSS，和 `SEMLO_TEST_ORIGIN` 上的演示站共用同源资源；要验证演示交互或特定框架夹具时，使用对应页面入口。轻量页当前用于部分表格和书签回归。
+
 无需浏览器的状态和输入策略用例使用 `*.unit.test.ts`，可通过 `mise exec -- pnpm exec rstest run --config tests/config/unit-rstest.config.ts` 独立运行，避免载入浏览器配置及全局服务初始化；标准测试发现规则仍包含这些用例。模拟几何和故障回放用于验证状态安全，不能代替真实浏览器的视觉行、原生选区同步及输入法验收。
 
 HTML 粘贴规则的离线用例使用测试工作区的 Happy DOM 和实际 ProseMirror 解析、状态及历史模块；不启动浏览器或访问网页。此类用例能检查所给 HTML 的结构和状态变化，不能证明系统剪贴板、浏览器输入及语雀私有格式的兼容性。
 
 参数化测试优先覆盖独立行为、已观察场景和有风险的参数交叉，避免对无特殊分支的参数做全量笛卡尔组合；选区、撤销、受控回写和生命周期等边界仍需按影响保留。运行 `--related` 等依赖关系筛选时，需检查运行时启动的浏览器 fixture 是否被识别，必要时显式指定测试文件；筛选结果不能代替完整回归。
 
-CI 将完整回归分成八片，每片使用两个 worker；手动运行 CI 时可选择 `profile`，为各片收集 Rstest 耗时追踪和摘要。常规运行不启用追踪，避免增加采集开销。
+完整 CI 在 PR、`main` 推送和手动触发时运行。新提交取消同一 PR 或 `main` 的旧 CI，手动运行各自独立。Chromium 回归分成 12 片，每片使用三个 worker。分片脚本通过 Rstest 发现当前提交的全部测试文件，按历史耗时从长到短依次分给预计负载最低的分片。没有耗时记录的文件使用历史中位数。每片在执行前用 Rstest 核对实际匹配的文件清单。文档首页和表格键盘回归按场景拆分，首页测试仍为每个文件独立启动 Rspress。
+
+Chromium、Firefox 和 WebKit 使用预装浏览器与 Linux 系统依赖的 Playwright 官方镜像。镜像与工作区锁定的 Playwright 版本一起更新。
+
+[耗时快照](../scripts/ci-browser-timings.json)的初始权重取自三轮 Linux 回归日志。首页和表格拆分后的权重按镜像版 CI 的用例耗时分配。手动 CI 可开启 `profile` 上传 Rstest 的追踪和摘要。更新权重时，以 `testPath` 汇总追踪中 `phase` 事件的耗时，取近期多轮中位数并换算为毫秒。常规 CI 不启用追踪。可用 `mise exec -- node scripts/ci-browser-shard.ts 1 12 --list` 查看第 1 片的实际文件清单。 [初始样本一](https://github.com/lzm0x219/semlo-editor/actions/runs/44280960822) · [初始样本二](https://github.com/lzm0x219/semlo-editor/actions/runs/44279504974) · [初始样本三](https://github.com/lzm0x219/semlo-editor/actions/runs/44090053758) · [镜像版](https://github.com/lzm0x219/semlo-editor/actions/runs/44290458074) · [worker 对照](https://github.com/lzm0x219/semlo-editor/actions/runs/44300480926)
 
 ## 命名与注释
 

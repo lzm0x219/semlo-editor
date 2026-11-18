@@ -13,9 +13,12 @@ export default async function setup() {
     }),
   });
   const { port, server } = await rsbuild.startDevServer();
-  process.env.SEMLO_TEST_ORIGIN = `http://127.0.0.1:${port}`;
+  const origin = `http://127.0.0.1:${port}`;
+  process.env.SEMLO_TEST_ORIGIN = origin;
+  process.env.SEMLO_FIXTURE_URL = `${origin}/tests/editor-fixture.html`;
   return async () => {
     delete process.env.SEMLO_TEST_ORIGIN;
+    delete process.env.SEMLO_FIXTURE_URL;
     await server.close();
   };
 }

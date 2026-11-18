@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -9,6 +10,10 @@ on:
         description: 收集浏览器测试耗时追踪
         type: boolean
         default: false
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,31 +35,27 @@ jobs:
       - run: mise exec -- pnpm docs:build
 
   browser-tests:
-    name: 完整浏览器回归 (${{ matrix.shard }}/${{ matrix.total }})
+    name: 完整浏览器回归 (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    container: &playwright-container
+      image: mcr.microsoft.com/playwright:v1.65.0-resolute@sha256:916c9fb63a8340822589dd5c821dae82e8012106bb8515a72f278d97f277446a
+      options: --ipc=host
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        total: [8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
-      - run: mise exec -- pnpm exec playwright install --with-deps chromium
       - run: mise exec -- pnpm build:browser-test
       - name: 运行浏览器回归
         env:
           PROFILE: ${{ inputs.profile }}
           SHARD: ${{ matrix.shard }}
-          SHARD_TOTAL: ${{ matrix.total }}
-        run: |
-          if [ "$PROFILE" = "true" ]; then
-            mise exec -- pnpm test:run --shard "$SHARD/$SHARD_TOTAL" --pool.maxWorkers 2 --trace
-          else
-            mise exec -- pnpm test:run --shard "$SHARD/$SHARD_TOTAL" --pool.maxWorkers 2
-          fi
+          SHARD_TOTAL: ${{ strategy.job-total }}
+        run: mise exec -- node scripts/ci-browser-shard.ts "$SHARD" "$SHARD_TOTAL"
       - name: 保存耗时追踪
         if: ${{ always() && inputs.profile }}
         uses: actions/upload-artifact@v7
@@ -66,11 +67,16 @@ jobs:
   cross-browser-smoke:
     name: Firefox 与 WebKit 烟雾检查
     runs-on: ubuntu-latest
+    container: *playwright-container
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm build
-      - run: mise exec -- pnpm exec playwright install --with-deps firefox webkit
-      - run: mise exec -- node tests/browser/cross-browser/smoke.ts
+      - name: 运行 Firefox 与 WebKit 烟雾检查
+        run: |
+          # Firefox 要求 HOME 由容器内运行浏览器的用户所有。
+          browser_home="$(mktemp -d)"
+          trap 'rm -rf "$browser_home"' EXIT
+          mise exec -- env HOME="$browser_home" node tests/browser/cross-browser/smoke.ts
