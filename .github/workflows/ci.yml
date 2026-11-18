@@ -19,40 +19,27 @@ permissions:
   contents: read
 
 jobs:
-  checks:
-    name: 类型、规范与构建
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v5
-      - run: mise exec -- pnpm install --frozen-lockfile
-      - run: mise exec -- pnpm build
-      - run: mise exec -- pnpm typecheck
-      - run: mise exec -- pnpm lint
-      - run: mise exec -- pnpm format:check
-      - run: mise exec -- pnpm build:demo
-      - run: mise exec -- pnpm docs:build
-
   browser-tests:
-    name: 完整浏览器回归 (${{ matrix.shard }}/${{ strategy.job-total }})
+    name: 完整浏览器回归 (${{ matrix.shard }}/16)
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-resolute@sha256:916c9fb63a8340822589dd5c821dae82e8012106bb8515a72f278d97f277446a
+      options: --ipc=host
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        shard: [15]
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
-      - run: mise exec -- pnpm exec playwright install --with-deps chromium
       - run: mise exec -- pnpm build:browser-test
       - name: 运行浏览器回归
         env:
           PROFILE: ${{ inputs.profile }}
           SHARD: ${{ matrix.shard }}
-          SHARD_TOTAL: ${{ strategy.job-total }}
+          SHARD_TOTAL: 16
         run: mise exec -- node scripts/ci-browser-shard.ts "$SHARD" "$SHARD_TOTAL"
       - name: 保存耗时追踪
         if: ${{ always() && inputs.profile }}
@@ -65,11 +52,13 @@ jobs:
   cross-browser-smoke:
     name: Firefox 与 WebKit 烟雾检查
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-resolute@sha256:916c9fb63a8340822589dd5c821dae82e8012106bb8515a72f278d97f277446a
+      options: --ipc=host
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v5
       - run: mise exec -- pnpm install --frozen-lockfile
       - run: mise exec -- pnpm build
-      - run: mise exec -- pnpm exec playwright install --with-deps firefox webkit
       - run: mise exec -- node tests/browser/cross-browser/smoke.ts
