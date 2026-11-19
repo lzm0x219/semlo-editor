@@ -15,6 +15,7 @@ import {
 } from "./numbering-sequence-clipboard";
 import {
   planEmptySequenceBackspace,
+  planEmptySequenceExit,
   planSequenceContinuation,
   remapSequenceLinks,
 } from "./numbering-sequence-continuation";
@@ -533,20 +534,23 @@ export function numberingSequencePolicy(): Plugin {
       handlePaste: paste,
       handleKeyDown(view, event) {
         if (
-          event.key !== "Backspace" ||
+          (event.key !== "Backspace" && event.key !== "Enter") ||
           event.defaultPrevented ||
           event.altKey ||
           event.ctrlKey ||
           event.metaKey ||
           event.shiftKey ||
           event.isComposing ||
+          event.keyCode === 229 ||
           view.composing ||
           view.isDestroyed ||
           !view.dom.isConnected ||
           !view.editable
         )
           return false;
-        const transaction = planEmptySequenceBackspace(view.state);
+        const transaction =
+          planEmptySequenceExit(view.state) ??
+          (event.key === "Backspace" ? planEmptySequenceBackspace(view.state) : null);
         if (!transaction) return false;
         const tr = closeHistory(markSequenceOperation(transaction)).scrollIntoView();
         view.dispatch(tr);
