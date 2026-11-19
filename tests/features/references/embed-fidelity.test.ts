@@ -435,6 +435,7 @@ test("HTML and JSON round trips revalidate links and read-only and replacement c
     }),
   );
   await expect(host.locator(".semlo-editor-embed iframe")).toHaveCount(0);
+  await expect(host.getByRole("link", { name: "打开链接" })).toBeHidden();
   await expect(host.getByLabel("CodePen链接")).toHaveAttribute("readonly", "");
   await expect(host.getByRole("button", { name: "确定" })).toBeDisabled();
   expect(
