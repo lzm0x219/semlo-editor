@@ -162,7 +162,7 @@ test("manual card order belongs to the board view and survives undo, redo and HT
   await expect.poll(() => cards(ungrouped)).toEqual([third, first, second]);
 });
 
-test("moving a card across columns updates the field without reordering table records", async ({ page }) => {
+test("board moves and gallery edits share the record without reordering the table", async ({ page }) => {
   const { root, data: initial } = await mount(page);
   const [first, second, third] = initial.records.map((record) => record.id);
   const status = initial.fields[1];
@@ -185,6 +185,25 @@ test("moving a card across columns updates the field without reordering table re
     await expect(root.getByLabel(`第 ${index + 1} 行 任务`)).toHaveValue(name);
   }
   await expect(root.getByLabel("第 3 行 状态")).toContainText("待开始");
+
+  await root.getByRole("button", { name: "新建视图", exact: true }).click();
+  await root.getByRole("dialog", { name: "新建视图" }).getByRole("button", { name: "画册", exact: true }).click();
+  await card(root, third).click();
+  const detail = root.getByRole("dialog", { name: "记录详情" });
+  await detail.getByRole("button", { name: /行 状态/ }).click();
+  await root.getByRole("dialog", { name: "状态 选项" }).getByRole("button", { name: "进行中" }).click();
+  await expect(card(root, third)).toContainText("进行中");
+
+  const switchTo = async (name: string) => {
+    await root.getByRole("button", { name: "切换视图", exact: true }).click();
+    await root.getByRole("button", { name: `切换到${name}`, exact: true }).click();
+  };
+  await switchTo("看板视图");
+  await expect(group(root, status.options[1].id).locator(".semlo-editor-database-card")).toHaveCount(1);
+  expect(await cards(group(root, status.options[1].id))).toEqual([third]);
+  await switchTo("表格视图");
+  await expect(root.getByLabel("第 3 行 状态")).toContainText("进行中");
+  expect((await data(page)).records.map((record) => record.id)).toEqual([first, second, third]);
 });
 
 test("dropping outside or becoming read-only during a drag leaves the document unchanged", async ({ page }) => {

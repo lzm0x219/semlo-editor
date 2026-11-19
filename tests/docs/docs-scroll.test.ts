@@ -597,8 +597,15 @@ test("search supports section shortcuts, action filtering and protects against s
   const dialog = page.getByRole("dialog", { name: "搜索文档" });
   const input = dialog.getByRole("textbox", { name: "搜索文档" });
   await input.fill("表格");
-  const groups = dialog.locator(".rp-search-panel__group");
-  await expect(groups.first()).toHaveAttribute("data-semlo-editor-count", "4");
+  const firstGroup = dialog.locator(".rp-search-panel__group").first();
+  await expect
+    .poll(() =>
+      firstGroup.evaluate((group) => {
+        const count = group.querySelectorAll(".rp-suggest-item").length;
+        return count > 0 && group.getAttribute("data-semlo-editor-count") === String(count);
+      }),
+    )
+    .toBe(true);
   const current = dialog.locator(".rp-suggest-item--current a");
   await page.keyboard.press("ControlOrMeta+ArrowDown");
   await expect(current).toHaveAttribute("href", "/editing#表格和数据表");

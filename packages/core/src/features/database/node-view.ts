@@ -117,7 +117,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       | undefined;
     let refreshFrame: number | undefined;
     const pendingGroups = new Map<string, { viewId: string; fieldId: string; value: boolean | [] | "" }>();
-    let selected = new Set<string>();
+    const selected = new Set<string>();
     let chartView: DatabaseChartsHandle | undefined;
     const reportContentError = (error: DatabaseContentError) => reportDatabaseError(getOptions(), error);
     const closeChartView = () => {
@@ -521,6 +521,8 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         readonlyViewId = viewId;
         paint();
       },
+      focusViewSwitch: () =>
+        surface.querySelector<HTMLButtonElement>(".semlo-editor-database-view-icon")?.focus({ preventScroll: true }),
     });
 
     const finishEditing = (input: HTMLElement) => {
@@ -840,12 +842,52 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       statisticPanel,
       change,
     });
+    const syncSelection = (renderedIds: ReadonlySet<string>) => {
+      for (const id of selected) if (!renderedIds.has(id)) selected.delete(id);
+      const toolbar = surface.querySelector(".semlo-editor-database-toolbar");
+      if (!toolbar) return;
+      const currentAction = toolbar.querySelector(".semlo-editor-database-delete-selected");
+      if (!selected.size) {
+        currentAction?.remove();
+        return;
+      }
+      const caption = `删除 ${selected.size} 条`;
+      if (currentAction) {
+        currentAction.textContent = caption;
+        return;
+      }
+      const action = button(
+        "删除选中记录",
+        caption,
+        () => {
+          if (pendingBodyRefresh) {
+            // 单元格编辑可能已改变分组，先按最新数据收敛勾选范围。
+            pendingBodyRefresh = false;
+            repaintBody();
+          }
+          change(
+            (next, active) => {
+              if (active.kind !== "table") return;
+              // 编辑收尾可能还没刷新行，提交时再核对当前筛选和搜索。
+              const matching = new Set(visibleDatabaseRecords(next, active, query).map((record) => record.id));
+              next.records = next.records.filter((record) => !selected.has(record.id) || !matching.has(record.id));
+            },
+            false,
+            action,
+          );
+          selected.clear();
+          paint();
+        },
+        "semlo-editor-database-delete-selected",
+      );
+      toolbar.append(action);
+    };
     const paintGrid = (container: HTMLElement, data: DatabaseData, active: DatabaseView, records: DatabaseRecord[]) => {
       // 每行绑定拖动时会读取快照；本次绘制共享已校验数据，事件发生时仍重新读取文档。
       const previous = paintingRowSnapshot;
       paintingRowSnapshot = { node: current, data, view: active, editable: !destroyed && editor.isEditable };
       try {
-        renderGrid(container, data, active, records);
+        syncSelection(renderGrid(container, data, active, records));
       } finally {
         paintingRowSnapshot = previous;
       }
@@ -881,7 +923,10 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       const active = getView(data);
       viewState.prune(data);
       const viewChanged = dom.dataset.semloEditorDatabaseViewId !== active.id;
-      if (viewChanged) pendingGroups.clear();
+      if (viewChanged) {
+        pendingGroups.clear();
+        selected.clear();
+      }
       for (const [id, pin] of pendingGroups)
         if (
           !data.records.some((record) => record.id === id) ||
@@ -893,7 +938,6 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       dom.dataset.semloEditorDatabaseViewKind = active.kind;
       if (active.kind !== "calendar") delete dom.dataset.semloEditorDatabaseCalendarMonth;
       const records = visibleDatabaseRecords(data, active, query);
-      selected = new Set([...selected].filter((id) => data.records.some((record) => record.id === id)));
       dom.classList.toggle("is-readonly", !editor.isEditable);
       dom.classList.toggle("is-maximized", maximized);
       surface.replaceChildren();
@@ -1023,21 +1067,6 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         );
         toolbar.append(addChart);
       } else toolbar.append(addRecord);
-      if (selected.size)
-        toolbar.append(
-          button(
-            "删除选中记录",
-            `删除 ${selected.size} 条`,
-            () => {
-              change((next) => {
-                next.records = next.records.filter((record) => !selected.has(record.id));
-              });
-              selected.clear();
-              paint();
-            },
-            "semlo-editor-database-delete-selected",
-          ),
-        );
       surface.append(toolbar);
       const body = doc.createElement("div");
       body.className = "semlo-editor-database-body";
@@ -1155,6 +1184,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       calendarDrag.cancel();
       finishCellSession();
       closePopup();
+      selected.clear();
       readonlyViewId = "";
       paint();
     };
