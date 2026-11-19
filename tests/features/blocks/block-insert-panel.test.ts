@@ -93,6 +93,50 @@ test("choosing a block below inserts at the target and undo restores the documen
   );
 });
 
+test("keyboard confirmation in the narrow block panel activates the focused option", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  const host = await mount(page);
+  const prose = host.locator(".semlo-editor-prose");
+  const before = await page.evaluate(() => window.__semloRequireFixture("blockPanelEditor").getSnapshot().json);
+  await prose.locator("p").first().hover();
+  const handle = page.getByRole("button", { name: "块操作" });
+  await handle.focus();
+  await page.keyboard.press("Enter");
+  const trigger = page.getByRole("menuitem", { name: "在下方添加" });
+  await page.keyboard.press("ArrowUp");
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  const panel = page.getByRole("dialog", { name: "插入内容" });
+  await expect(panel).toBeFocused();
+  const rect = await panel.boundingBox();
+  if (!rect) throw new Error("Missing block insert panel geometry");
+  expect(rect.x).toBeGreaterThanOrEqual(8);
+  expect(rect.x + rect.width).toBeLessThanOrEqual(367);
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Tab");
+  await expect(panel.locator('[data-command="image"]')).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(panel.locator('[data-command="table"]')).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowUp");
+  await expect(panel.locator('[data-command="jinshuju"]')).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(panel.locator('[data-command="table"]')).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(prose.locator("table tr")).toHaveCount(3, { timeout: 2_000 });
+  await expect(prose.locator(":scope > p")).toHaveText(["第一段", "第二段"]);
+  await expect(panel).toHaveCount(0);
+  expect(await page.evaluate(() => window.__semloRequireFixture("blockPanelEditor").editor.commands.undo())).toBe(true);
+  expect(await page.evaluate(() => window.__semloRequireFixture("blockPanelEditor").getSnapshot().json)).toEqual(
+    before,
+  );
+});
+
 test("hover opens the adjacent insert panel and switches between block submenus", async ({ page }) => {
   const host = await mount(page);
   const before = await page.evaluate(() => window.__semloRequireFixture("blockPanelEditor").getSnapshot().json);

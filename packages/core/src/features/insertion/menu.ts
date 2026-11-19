@@ -868,10 +868,12 @@ export function openCardMenu(
   const navigate = (event: KeyboardEvent) => {
     if (event.isComposing || event.keyCode === 229 || editor.view.composing) return;
     if (!enabled.length) return;
+    const focused = blockBelow ? enabled.findIndex(({ button }) => button === event.target) : -1;
+    const current = focused >= 0 ? focused : selected;
     if (
       event.key === "ArrowDown" ||
       event.key === "ArrowUp" ||
-      ((event.key === "ArrowLeft" || event.key === "ArrowRight") && selected >= 0)
+      ((event.key === "ArrowLeft" || event.key === "ArrowRight") && current >= 0)
     ) {
       event.preventDefault();
       const direction = { ArrowDown: "down", ArrowUp: "up", ArrowLeft: "left", ArrowRight: "right" }[event.key] as
@@ -879,10 +881,12 @@ export function openCardMenu(
         | "down"
         | "left"
         | "right";
-      selected = nextCommand(enabled, selected, direction);
+      selected = nextCommand(enabled, current, direction);
       highlightCommand(enabled, selected, true);
+      if (focused >= 0) enabled[selected]?.button.focus({ preventScroll: true });
     }
-    if (event.key === "Enter") {
+    // 焦点已进入按钮时，让浏览器触发该按钮，避免执行残留的高亮项。
+    if (event.key === "Enter" && focused < 0) {
       event.preventDefault();
       if (selected < 0) return;
       const entry = enabled[selected];
