@@ -52,8 +52,9 @@ export function insertDiagram(editor: Editor, range?: Range): boolean {
   const doc = editor.view.dom.ownerDocument;
   const focusInserted = () => {
     if (editor.isDestroyed || !editor.isEditable) return;
-    const active = doc.activeElement;
-    if (active && active !== doc.body && !editor.view.dom.contains(active)) return;
+    const active = editor.view.root.activeElement;
+    // 延迟聚焦源码时，保留用户已经移到菜单或其他控件的焦点。
+    if (active && active !== doc.body && active !== editor.view.dom) return;
     let position: number | undefined;
     editor.state.doc.descendants((node, pos) => {
       if (node === inserted) position = pos;
@@ -227,12 +228,14 @@ export const Diagram = Node.create({
         if (separateHistory) view.dispatch(closeHistory(view.state.tr).setMeta("addToHistory", false));
       };
 
-      const closeMenu = () => {
+      const closeMenu = (restoreFocus = false) => {
+        const trigger = menuKind === "language" ? language : template;
         menu?.remove();
         menu = null;
         menuKind = null;
         language.setAttribute("aria-expanded", "false");
         template.setAttribute("aria-expanded", "false");
+        if (restoreFocus) trigger.focus({ preventScroll: true });
       };
       const openMenu = (kind: "language" | "template") => {
         if (!editor.isEditable) return;
@@ -268,12 +271,16 @@ export const Diagram = Node.create({
           panel.append(item);
         }
         panel.addEventListener("keydown", (event) => {
-          if (!["ArrowDown", "ArrowUp", "Home", "End", "Escape"].includes(event.key)) return;
+          if (
+            event.isComposing ||
+            event.keyCode === 229 ||
+            !["ArrowDown", "ArrowUp", "Home", "End", "Escape"].includes(event.key)
+          )
+            return;
           event.preventDefault();
           event.stopPropagation();
           if (event.key === "Escape") {
-            closeMenu();
-            trigger.focus();
+            closeMenu(true);
             return;
           }
           const buttons = Array.from(panel.querySelectorAll("button"));
@@ -293,6 +300,9 @@ export const Diagram = Node.create({
         const triggerRect = trigger.getBoundingClientRect();
         const actionsRect = actions.getBoundingClientRect();
         panel.style.right = `${Math.max(0, actionsRect.right - triggerRect.right)}px`;
+        const active =
+          panel.querySelector<HTMLButtonElement>('button[aria-current="true"]') ?? panel.querySelector("button");
+        active?.focus({ preventScroll: true });
       };
 
       const scheduleRender = () => {
@@ -379,7 +389,14 @@ export const Diagram = Node.create({
         doc.addEventListener("pointercancel", resizeCancel, true);
       });
       resize.addEventListener("keydown", (event) => {
-        if (!editor.isEditable || inFullscreen || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+        if (
+          event.isComposing ||
+          event.keyCode === 229 ||
+          !editor.isEditable ||
+          inFullscreen ||
+          !["ArrowUp", "ArrowDown"].includes(event.key)
+        )
+          return;
         event.preventDefault();
         updateAttrs(
           { height: diagramHeight(diagramHeight(current.attrs.height) + (event.key === "ArrowUp" ? -10 : 10)) },
@@ -398,6 +415,7 @@ export const Diagram = Node.create({
         dom.classList.toggle("semlo-editor-diagram-fullscreen-active", value);
         fullscreen.setAttribute("aria-label", value ? "退出最大化文本绘图" : "最大化文本绘图");
         paint();
+        (value ? returnButton : fullscreen).focus({ preventScroll: true });
       };
       fullscreen.addEventListener("click", () => setFullscreen(!inFullscreen));
       returnButton.addEventListener("click", () => setFullscreen(false));
@@ -411,6 +429,7 @@ export const Diagram = Node.create({
       });
       input.addEventListener("input", () => updateAttrs({ source: input.value }));
       input.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229) return;
         const command = event.metaKey || event.ctrlKey;
         const key = event.key.toLowerCase();
         if (command && key === "p") {
@@ -430,14 +449,11 @@ export const Diagram = Node.create({
         if (menu && !actions.contains(event.target as globalThis.Node)) closeMenu();
       };
       const keydown = (event: KeyboardEvent) => {
-        if (event.key !== "Escape") return;
-        if (menu) {
-          event.preventDefault();
-          closeMenu();
-        } else if (inFullscreen) {
-          event.preventDefault();
-          setFullscreen(false);
-        }
+        if (event.key !== "Escape" || event.isComposing || event.keyCode === 229 || (!menu && !inFullscreen)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (menu) closeMenu(true);
+        else setFullscreen(false);
       };
       const editableChanged = () => {
         if (!editor.isEditable) {
@@ -447,7 +463,7 @@ export const Diagram = Node.create({
         paint();
       };
       doc.addEventListener("pointerdown", outside, true);
-      doc.addEventListener("keydown", keydown, true);
+      dom.addEventListener("keydown", keydown);
       view.dom.addEventListener("semlo-editor:editable", editableChanged);
       paint();
       return {
@@ -473,7 +489,7 @@ export const Diagram = Node.create({
           closeMenu();
           stopResizing(false);
           doc.removeEventListener("pointerdown", outside, true);
-          doc.removeEventListener("keydown", keydown, true);
+          dom.removeEventListener("keydown", keydown);
           view.dom.removeEventListener("semlo-editor:editable", editableChanged);
         },
       };
