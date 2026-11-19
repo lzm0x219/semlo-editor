@@ -76,7 +76,7 @@ test("block-below the details card is treated as a sibling insertion", async ({ 
   await page.locator("#example-select").selectOption("blocks");
   const host = page.locator("#editor-host");
   await host.locator(".semlo-editor-prose > p").first().click();
-  await host.locator('[data-type="detailsContent"] p').first().hover();
+  await host.locator('[data-type="details"] summary').first().hover();
   await page.locator(".semlo-editor-block-handle:visible").click();
   await page.getByRole("menu", { name: "块操作" }).getByRole("menuitem", { name: "在下方添加" }).click();
   const panel = page.getByRole("dialog", { name: "插入内容" });
@@ -84,4 +84,20 @@ test("block-below the details card is treated as a sibling insertion", async ({ 
   for (const id of ["table", "database", "details", "columns"]) {
     await expect(panel.locator(`[data-command="${id}"]`)).toHaveCount(1);
   }
+});
+
+test("block-below a details body paragraph uses the body insertion limits", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+  await page.locator("#example-select").selectOption("blocks");
+  const body = page.locator('#editor-host [data-type="detailsContent"] p').first();
+  await body.hover();
+  await page.locator(".semlo-editor-block-handle:visible").click();
+  await page.getByRole("menu", { name: "块操作" }).getByRole("menuitem", { name: "在下方添加" }).click();
+  const panel = page.getByRole("dialog", { name: "插入内容" });
+  await expect(panel).toBeVisible();
+  await expect(body).toHaveClass(/semlo-editor-block-actions-selected/);
+  for (const id of ["table", "database", "details", "columns"])
+    await expect(panel.locator(`[data-command="${id}"]`)).toHaveCount(0);
+  await expect(panel.locator('[data-command="callout"]')).toBeVisible();
 });

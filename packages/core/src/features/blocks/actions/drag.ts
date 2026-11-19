@@ -47,7 +47,8 @@ export function createBlockDrag({
   closeDrag,
 }: BlockDragContext) {
   const dragTarget = (event: DragEvent): { pos: number; rect: DOMRect; before: boolean; over: Target } | null => {
-    if (!getDrag()) return null;
+    const source = getDrag()?.source;
+    if (!source) return null;
     const element = event.target instanceof (win?.Element ?? Element) ? (event.target as Element) : null;
     let over = resolveElement(element);
     if (
@@ -86,6 +87,12 @@ export function createBlockDrag({
       }
     }
     if (!over) return null;
+    // 整块或列表项仍按外层容器定位；只有段落可以拖入已识别的正文位置。
+    if (over.kind === "block" && over.pos !== over.rootPos && source.node.type.name !== "paragraph") {
+      over = currentTarget(view, over.rootPos, over.rootPos, over.rootDOM, over.rootDOM, false);
+      if (!over) return null;
+    }
+    if (source.kind === "block" && source.pos !== source.rootPos && over.kind === "item") return null;
     const rect = over.dom.getBoundingClientRect(),
       before = event.clientY < rect.top + rect.height / 2;
     return { pos: before ? over.pos : over.pos + over.node.nodeSize, rect, before, over };
@@ -243,10 +250,17 @@ export function createBlockDrag({
       }
     }
     const range = removal(view.state, source);
-    if (!range || range.replaceWithParagraph) return;
-    let tr = view.state.tr.delete(range.from, range.to);
+    if (!range) return;
+    let tr = view.state.tr;
+    if (range.replaceWithParagraph) {
+      if (source.kind !== "block" || source.pos === source.rootPos) return;
+      const empty = source.node.type.createAndFill();
+      if (!empty) return;
+      tr.replaceWith(range.from, range.to, empty);
+    } else tr.delete(range.from, range.to);
     const mapped = tr.mapping.map(next.pos, 1),
       resolved = tr.doc.resolve(mapped);
+    let selectionPos = mapped;
     let movedSource = source.node;
 
     if (next.over.kind === "item" && source.kind === "item" && sourceParent.type === resolved.parent.type) {
@@ -312,8 +326,21 @@ export function createBlockDrag({
         if (!$list.parent.canReplace($list.index(), $list.index() + 1, replacement)) return;
         tr = tr.replaceWith(listPos, listPos + list.nodeSize, replacement);
       } else {
-        if (!resolved.parent.canReplaceWith(resolved.index(), resolved.index(), inserted.type)) return;
-        tr = tr.insert(mapped, inserted);
+        const emptyColumn =
+          resolved.parent.type.name === "semloEditorColumn" &&
+          resolved.parent.childCount === 1 &&
+          next.over.node.content.size === 0 &&
+          next.over.node.sameMarkup(next.over.node.type.create());
+        if (emptyColumn) {
+          const position = tr.mapping.map(next.over.pos, 1);
+          const target = tr.doc.resolve(position);
+          if (!target.parent.canReplaceWith(target.index(), target.index() + 1, inserted.type)) return;
+          tr.replaceWith(position, position + next.over.node.nodeSize, inserted);
+          selectionPos = position;
+        } else {
+          if (!resolved.parent.canReplaceWith(resolved.index(), resolved.index(), inserted.type)) return;
+          tr.insert(mapped, inserted);
+        }
       }
     }
     if (
@@ -391,9 +418,11 @@ export function createBlockDrag({
       if (!list || list.type !== sourceParent.type) return;
       tr.setNodeMarkup(position, undefined, { ...list.attrs, semloEditorListFirstContinue: true });
     }
-    tr = tr.setSelection(Selection.near(tr.doc.resolve(Math.min(mapped + 1, tr.doc.content.size)), 1)).scrollIntoView();
+    tr = tr
+      .setSelection(Selection.near(tr.doc.resolve(Math.min(selectionPos + 1, tr.doc.content.size)), 1))
+      .scrollIntoView();
     dispatchChange(editor, tr);
-    if (!editor.isDestroyed) view.focus();
+    if (!editor.isDestroyed && editor.view === view && !view.isDestroyed) view.focus();
   };
   return { dragStart, dragOver, drop };
 }

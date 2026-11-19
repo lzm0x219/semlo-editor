@@ -1,5 +1,5 @@
 import { type Editor } from "@tiptap/core";
-import { type Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { type Node as ProseMirrorNode, type ResolvedPos } from "@tiptap/pm/model";
 import { type SelectionBookmark } from "@tiptap/pm/state";
 import { type EditorView } from "@tiptap/pm/view";
 
@@ -34,6 +34,19 @@ export type Target = {
   rootDOM: HTMLElement;
   heading: HTMLElement | null;
 };
+
+/** 分栏及展开折叠块里的直接正文可作为独立块操作。 */
+export function isContainerParagraph(position: ResolvedPos): boolean {
+  if (position.depth !== 2 || position.nodeAfter?.type.name !== "paragraph") return false;
+  const container = position.node(1);
+  return (
+    (container.type.name === "semloEditorColumns" && position.parent.type.name === "semloEditorColumn") ||
+    (container.type.name === "details" &&
+      container.attrs.open === true &&
+      position.parent.type.name === "detailsContent")
+  );
+}
+
 export function currentTarget(
   view: EditorView,
   pos: number,
