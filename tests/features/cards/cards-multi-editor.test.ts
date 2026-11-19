@@ -245,23 +245,16 @@ test("Escape in another editor's date picker leaves the calendar event editor op
   await page.goto(origin);
   await page.waitForFunction(() => window.cardMultiEditors?.length === 2);
   await page.locator('[data-editor-name="甲"]').getByRole("button", { name: "日程：甲日程" }).first().click();
-  await page.locator('[data-editor-name="乙"]').getByRole("button", { name: "日期：2026-11-03" }).focus();
-  await page.keyboard.press("Enter");
+  const date = page.locator('[data-editor-name="乙"]').getByRole("button", { name: "日期：2026-11-03" });
+  await date.press("Enter");
   const eventDialog = page.getByRole("dialog", { name: "编辑日程" });
   const dateDialog = page.getByRole("dialog", { name: "选择日期" });
   await expect(eventDialog).toBeVisible();
-  await expect(dateDialog).toBeVisible();
-  const button = dateDialog.getByRole("button").first();
-  await button.evaluate((element) => {
-    element.addEventListener("keydown", (event) => {
-      if ((event as KeyboardEvent).key === "Escape") element.dataset.escapeReceived = "true";
-    });
-  });
-  await button.focus();
+  await expect(dateDialog.getByRole("button", { name: "上一年", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(eventDialog).toBeVisible();
-  await expect(dateDialog).toBeVisible();
-  await expect(button).toHaveAttribute("data-escape-received", "true");
+  await expect(dateDialog).toHaveCount(0);
+  await expect(date).toBeFocused();
 });
 
 for (const focused of [0, 1])
@@ -303,8 +296,7 @@ for (const kind of ["date", "calendar"] as const) {
     await (kind === "date" ? other.getByRole("button").first() : other.getByLabel("日程标题")).focus();
     await page.keyboard.press("Escape");
     await expect(status).toBeVisible();
-    if (kind === "date") await expect(other).toBeVisible();
-    else await expect(other).toHaveCount(0);
+    await expect(other).toHaveCount(0);
   });
 }
 

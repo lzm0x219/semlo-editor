@@ -71,6 +71,8 @@ export const DateCard = Node.create({
       const button = doc.createElement("button");
       button.type = "button";
       button.className = "semlo-editor-date";
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-expanded", "false");
       dom.append(button);
       let current = initial;
       let closePopup: (() => void) | undefined;
@@ -129,7 +131,7 @@ export const DateCard = Node.create({
           }
         }
       };
-      const open = () => {
+      const open = (keyboard = false) => {
         if (!editor.isEditable) return;
         if (closePopup) {
           closePopup();
@@ -154,6 +156,7 @@ export const DateCard = Node.create({
           if (!closePopup) return;
           closePopup = undefined;
           refreshPopup = undefined;
+          button.setAttribute("aria-expanded", "false");
           panel.remove();
           doc.removeEventListener("pointerdown", outside, true);
           doc.removeEventListener("scroll", schedulePosition, true);
@@ -232,6 +235,8 @@ export const DateCard = Node.create({
           draw();
         };
         const draw = () => {
+          const focused = keyboard && panel.contains(doc.activeElement) ? doc.activeElement : null;
+          const focusLabel = focused?.getAttribute("aria-label");
           panel.replaceChildren();
           panel.dataset.view = mode;
           const header = doc.createElement("div");
@@ -368,7 +373,7 @@ export const DateCard = Node.create({
           toggleLabel.append(toggle, doc.createTextNode("时刻"));
           timeRow.append(toggleLabel);
           toggle.addEventListener("change", () => {
-            const restoreFocus = toggle.checked && doc.activeElement === toggle;
+            const restoreFocus = !keyboard && toggle.checked && doc.activeElement === toggle;
             const priorDate = current.attrs.date;
             update({ time: toggle.checked ? rememberedTime : null });
             if (editor.isDestroyed || !closePopup) return;
@@ -378,7 +383,7 @@ export const DateCard = Node.create({
           });
           toggle.addEventListener("keydown", (event) => {
             if (event.isComposing || event.keyCode === 229) return;
-            if (event.key === "Tab" && !event.shiftKey && toggle.checked) {
+            if (!keyboard && event.key === "Tab" && !event.shiftKey && toggle.checked) {
               event.preventDefault();
               close();
               view.focus();
@@ -470,6 +475,15 @@ export const DateCard = Node.create({
           }
           panel.append(timeRow);
           position();
+          // 月份和时刻控件会重建，键盘焦点跟随原控件或当前选中项。
+          if (focused && panel.isConnected) {
+            const controls = Array.from(panel.querySelectorAll<HTMLElement>("button:not(:disabled), input"));
+            const target =
+              (focusLabel && controls.find((control) => control.getAttribute("aria-label") === focusLabel)) ||
+              controls.find((control) => control.classList.contains("is-selected")) ||
+              controls[0];
+            target?.focus({ preventScroll: true });
+          }
         };
         const outside = (event: Event) => {
           if (!panel.contains(event.target as globalThis.Node) && !dom.contains(event.target as globalThis.Node))
@@ -487,15 +501,27 @@ export const DateCard = Node.create({
           }
           draw();
         };
+        button.setAttribute("aria-expanded", "true");
         draw();
         if (!closePopup) return;
         doc.addEventListener("pointerdown", outside, true);
         doc.addEventListener("scroll", schedulePosition, true);
         win?.addEventListener("resize", schedulePosition);
+        if (keyboard) {
+          panel.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+            if (doc.activeElement === doc.body && button.isConnected && !button.disabled)
+              button.focus({ preventScroll: true });
+          });
+          panel.querySelector("button")?.focus({ preventScroll: true });
+        }
       };
       button.addEventListener("mousedown", (event) => event.preventDefault());
-      button.addEventListener("click", open);
-      dom.addEventListener("semlo-editor:open-date", open);
+      button.addEventListener("click", (event) => open(event.detail === 0));
+      dom.addEventListener("semlo-editor:open-date", () => open());
       const editableChanged = () => {
         closePopup?.();
         paint();

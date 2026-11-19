@@ -62,6 +62,40 @@ test("year and decade selectors navigate separately from the committed date", as
   await expect(page.getByRole("button", { name: "日期：1976-02-29", exact: true })).toBeVisible();
 });
 
+test("keyboard opening and browsing a date keep focus inside the picker until Escape", async ({ page }) => {
+  const date = await insertDate(page);
+  const picker = page.getByRole("dialog", { name: "选择日期" });
+  await date.press("Enter");
+  await expect(picker.getByRole("button", { name: "上一年", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  const previous = picker.getByRole("button", { name: "上个月", exact: true });
+  await expect(previous).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(picker.getByRole("button", { name: "选择月份" })).toHaveText("10月");
+  await expect(previous).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+  await expect(date).toBeFocused();
+  await expect(date).toHaveAttribute("aria-label", "日期：2026-11-03");
+});
+
+test("a keyboard-opened date picker can reach and select a time without a pointer", async ({ page }) => {
+  const date = await insertDate(page);
+  await date.press("Enter");
+  const picker = page.getByRole("dialog", { name: "选择日期" });
+  const toggle = picker.getByRole("checkbox", { name: "时刻" });
+  await toggle.press("Space");
+  await expect(toggle).toBeChecked();
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(picker.getByRole("button", { name: "选择时刻" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(picker.getByRole("option", { name: "11:30", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(date).toHaveAttribute("aria-label", "日期：2026-11-03 11:45");
+});
+
 test("Escape keeps the time selection open and a chosen time survives a date change", async ({ page }) => {
   const date = await insertDate(page);
   await date.click();
