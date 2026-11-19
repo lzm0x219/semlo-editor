@@ -96,6 +96,8 @@ index.ts        核心包公开导出
 
 列表命令及状态位于 `features/list/list-command.ts`，默认工具栏和自定义界面复用待办、无序及有序列表转换规则；不支持安全转换的复杂选区保持原内容。折叠卡片标题选区的分类位于 `features/blocks/details-selection.ts`，供列表状态和工具栏共同使用。
 
+`features/list/flat-list-tab.ts` 处理根级平铺有序、无序和待办列表。行首或选中文字时，Tab 和 Shift+Tab 通过工具栏使用的缩进命令调整层级，保留编辑器焦点、文字选区及待办勾选状态；段内空光标沿用平铺列表的制表符插入规则。实际嵌套列表继续由原有快捷键处理。
+
 版本化编号序列由 `features/list/numbering-sequences.ts` 负责校验、物化和独立派生，`numbering-sequence-document.ts` 处理节点投影，`numbering-sequence-transactions.ts` 约束尚未支持的结构写入。旧数值算法统一位于 `numbering-values.ts`，原 ordinals 入口复用并重导出。列表级 `semloEditorListSequences` 是唯一序列定义，项级 `semloEditorListSequence` 只保存局部引用；默认 null 不进入公开快照；首次受支持重排或所测旧嵌套列表的跨项纯文本粘贴才原子物化。同物理列表以实际位置识别，不能依赖不可变 Node 引用的相等。
 
 默认混合列表的罗马字形由 `features/list/mixed-roman.ts` 与 `base.css` 中同名 counter-style 共同派生，`ordinals.ts` 的可见标记、HTML 和跨项片段 plain 使用相同规则；不把当前标签写为第二份编号状态。新的静态回退只用于无显式 `type` 且列表样式缺省或 mixed 的路径；原通用 lower-roman 回退及显式类型、非默认和未知样式保留，避免改变旧 HTML 的非目标显示。序列数值、身份和快照正文不变；普通旧列表的复制路径没有因此扩张。
