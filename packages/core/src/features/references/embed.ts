@@ -370,7 +370,9 @@ export const SemloEditorEmbed = Node.create({
         const { paragraph } = view.state.schema.nodes;
         const { link } = view.state.schema.marks;
         if (typeof pos !== "number" || !node || node.type !== current.type || !target || !paragraph || !link) return;
-        const linkURL = ["bilibili", "youku", "codepen", "canva", "jinshuju"].includes(current.attrs.provider)
+        const linkURL = ["bilibili", "youku", "netease", "codepen", "canva", "jinshuju"].includes(
+          current.attrs.provider,
+        )
           ? target.embedUrl
           : target.url;
         const text = view.state.schema.text(linkURL, [link.create({ href: linkURL })]);
