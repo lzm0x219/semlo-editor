@@ -3,6 +3,7 @@ import { closeHistory } from "@tiptap/pm/history";
 import { Fragment, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 
+import { projectLegacyNumberingSelection } from "./legacy-numbering-selection";
 import { convertMixedSequenceList } from "./mixed-sequence-conversion";
 import { rejoinSequenceBridge, rejoinSequenceParagraphs, rejoinSequenceTail } from "./numbering-sequence-bridge";
 import {
@@ -37,9 +38,27 @@ export function convertOneTask(
 ): boolean | null {
   if (editor.isDestroyed || !editor.isEditable) return false;
   const current = editor.state;
-  const state = range
+  const sourceState = range
     ? EditorState.create({ doc: current.doc, selection: TextSelection.create(current.doc, range.from, range.to) })
     : current;
+  let legacy =
+    (listType === "taskList" || listType === "bulletList") &&
+    sourceState.selection.$from.sameParent(sourceState.selection.$to)
+      ? projectLegacyNumberingSelection(sourceState)
+      : null;
+  if (legacy) {
+    const { $from } = legacy.state.selection;
+    const list = $from.node(1);
+    const index = $from.index(1);
+    // 只在已对照的末尾直接子项转换中写入旧列表的编号序列。
+    if (
+      index !== list.childCount - 1 ||
+      list.child(index).attrs.semloEditorListIndent !== 1 ||
+      !sequenceConvertible(list, index)
+    )
+      legacy = null;
+  }
+  const state = legacy?.state ?? sourceState;
   const selection = state.selection;
   if (!(selection instanceof TextSelection) || selection.$from.depth !== 3 || selection.$to.depth !== 3) return null;
   const position = selection.$from;
@@ -328,7 +347,9 @@ export function convertOneTask(
     }
     markSequenceOperation(tr);
   }
-  editor.view.dispatch(tr);
+  const committed = legacy ? closeHistory(markSequenceOperation(legacy.apply(tr))).scrollIntoView() : tr;
+  editor.view.dispatch(committed);
+  if (legacy && (editor.isDestroyed || editor.state.doc.eq(current.doc))) return false;
   if (!editor.isDestroyed) {
     editor.view.dispatch(closeHistory(editor.state.tr).setMeta("addToHistory", false));
     editor.view.focus();

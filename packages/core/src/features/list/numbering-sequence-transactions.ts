@@ -5,6 +5,7 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { markSequenceCopyHook } from "../../shared/clipboard-hooks";
 import { isHeadingNumberingClipboardSerializer } from "../heading/numbering-clipboard";
+import { projectLegacyNumberingSelection } from "./legacy-numbering-selection";
 import { planNestedLegacyPlainPaste } from "./nested-legacy-plain-paste";
 import {
   projectNumberingSequenceClipboard,
@@ -197,7 +198,11 @@ const pasteInlineTags = new Set([
 ]);
 
 /** 解析前检查保留字段，避免未知/错位身份被schema丢弃后冒充普通片段。 */
-function rawSequencePaste(html: string, document: Document): "inline" | "list" | "reject" | { nativeStart: number } {
+function rawSequencePaste(
+  html: string,
+  document: Document,
+  allowStandaloneStart = false,
+): "inline" | "list" | "reject" | { nativeStart: number } {
   const template = document.createElement("template");
   template.innerHTML = html;
   const elements = [...template.content.querySelectorAll("*")];
@@ -227,7 +232,7 @@ function rawSequencePaste(html: string, document: Document): "inline" | "list" |
   const nativeStart = start === null ? 1 : Number(start);
   if (
     start !== null &&
-    (native
+    (native || allowStandaloneStart
       ? !/^[1-9]\d*$/.test(start.trim()) || !Number.isSafeInteger(nativeStart) || nativeStart > 2_147_483_647
       : !/^[+]?0*1$/.test(start.trim()))
   )
@@ -269,11 +274,11 @@ function rawSequencePaste(html: string, document: Document): "inline" | "list" |
         return "reject";
     }
   }
-  return native ? { nativeStart } : "list";
+  return native || (allowStandaloneStart && nativeStart !== 1) ? { nativeStart } : "list";
 }
 
-/** 语雀标准 HTML 的开放片段保留来源起始值；目标列表使用自己的编号。 */
-function normalizeNativeListSlice(slice: Slice, start: number): Slice | null {
+/** 校验开放列表片段的来源起始值，再将它作为独立输入交给目标编号规则。 */
+function normalizeOpenListSlice(slice: Slice, start: number): Slice | null {
   if (slice.openStart !== 3 || slice.openEnd !== 3 || slice.content.childCount !== 1) return null;
   const list = slice.content.firstChild;
   if (!list || list.type.name !== "orderedList" || list.attrs.start !== start) return null;
@@ -285,7 +290,13 @@ function normalizeNativeListSlice(slice: Slice, start: number): Slice | null {
 export function numberingSequencePolicy(): Plugin {
   let pastes = new WeakMap<
     ClipboardEvent,
-    { view: EditorView; state: EditorState; structure: boolean; nativeStart?: number }
+    {
+      view: EditorView;
+      state: EditorState;
+      structure: boolean;
+      nativeStart?: number;
+      legacy: ReturnType<typeof projectLegacyNumberingSelection>;
+    }
   >();
   let pasteOrigins = new WeakMap<ClipboardEvent, EditorState>();
   let parsedPastes = new WeakMap<EditorView, { state: EditorState; plain: boolean }>();
@@ -307,13 +318,15 @@ export function numberingSequencePolicy(): Plugin {
   const clipboard = (view: EditorView, event: ClipboardEvent, cut: boolean): boolean => {
     const state = view.state,
       selection = state.selection;
-    if (!sequenceLists(state.doc).length || selection.empty) return false;
+    if (selection.empty) return false;
     const { $from, $to } = selection;
     if ($from.sameParent($to) && $from.parent.isTextblock) return false;
     const touched = sequenceLists(state.doc).filter(
       ({ node, pos }) => selection.from < pos + node.nodeSize && selection.to > pos,
     );
-    if (touched.every(({ node, pos }) => selection.from <= pos && selection.to >= pos + node.nodeSize)) return false;
+    const legacy = touched.length ? null : projectLegacyNumberingSelection(state);
+    if (!legacy && touched.every(({ node, pos }) => selection.from <= pos && selection.to >= pos + node.nodeSize))
+      return false;
     event.preventDefault();
     clearNotice();
     if (cut && !view.editable) {
@@ -322,15 +335,20 @@ export function numberingSequencePolicy(): Plugin {
     }
     let commit: Transaction | null = null;
     try {
+      const projectedState = legacy?.state ?? state;
       const cutPlan =
-        projectNumberingSequenceClipboard(state) ?? (cut ? projectNumberingSequenceMixedCut(state) : null);
+        projectNumberingSequenceClipboard(projectedState) ??
+        (cut ? projectNumberingSequenceMixedCut(projectedState) : null);
       const projected =
         cutPlan ??
-        (!cut ? (projectNumberingSequenceMixedCopy(state) ?? projectNumberingSequenceRootCopy(state)) : null);
+        (!cut
+          ? (projectNumberingSequenceMixedCopy(projectedState) ?? projectNumberingSequenceRootCopy(projectedState))
+          : null);
       if (!projected) {
         announce(view, cut ? "暂不支持此范围的剪切" : "暂不支持此范围的复制");
         return true;
       }
+      if (cut && cutPlan) commit = legacy ? legacy.apply(cutPlan.cut) : cutPlan.cut;
       const data = event.clipboardData;
       if (!data) {
         announce(view, "无法写入剪贴板，原文已保留");
@@ -373,7 +391,6 @@ export function numberingSequencePolicy(): Plugin {
         return true;
       }
       if (!current()) return true;
-      if (cut && cutPlan) commit = cutPlan.cut;
     } catch {
       announce(view, "无法完成剪贴板操作，原文已保留");
       return true;
@@ -390,7 +407,18 @@ export function numberingSequencePolicy(): Plugin {
     if (event.defaultPrevented || view.isDestroyed) return;
     const state = view.state;
     pasteOrigins.set(event, state);
-    if (!partialSequenceTarget(state)) return;
+    const versioned = partialSequenceTarget(state);
+    const { $from, $to } = state.selection;
+    const legacy =
+      !versioned &&
+      $from.depth === 3 &&
+      $from.node(1).type.name === "orderedList" &&
+      $from.index(1) === 0 &&
+      !$from.sameParent($to)
+        ? projectLegacyNumberingSelection(state)
+        : null;
+    // 旧列表只接管从首个根项到直接子项的列表片段替换。
+    if (!versioned && legacy?.state.selection.$to.node(2).attrs.semloEditorListIndent !== 1) return;
     const current = () =>
       !view.isDestroyed && view.dom.isConnected && view.state === state && view.editable && !view.composing;
     try {
@@ -404,11 +432,12 @@ export function numberingSequencePolicy(): Plugin {
         text = data.getData("text/plain");
       if (!html && !text && types.some((type) => !["text/html", "text/plain", "text"].includes(type))) return;
       if (!current()) throw new Error("stale-paste");
-      const raw = rawSequencePaste(html, view.dom.ownerDocument);
+      const raw = rawSequencePaste(html, view.dom.ownerDocument, legacy != null);
       if (!current() || (!html && !text) || raw === "reject") throw new Error("unsupported-paste");
       pastes.set(event, {
         view,
         state,
+        legacy,
         structure: raw === "list" || typeof raw === "object",
         ...(typeof raw === "object" ? raw : {}),
       });
@@ -417,9 +446,13 @@ export function numberingSequencePolicy(): Plugin {
       announce(view, "无法安全粘贴列表，当前内容已保留");
     }
   };
-  const commitPaste = (view: EditorView, transaction: Transaction) => {
+  const commitPaste = (
+    view: EditorView,
+    transaction: Transaction,
+    legacy?: ReturnType<typeof projectLegacyNumberingSelection>,
+  ) => {
     try {
-      const tr = closeHistory(markSequenceOperation(transaction))
+      const tr = closeHistory(markSequenceOperation(legacy ? legacy.apply(transaction) : transaction))
         .setMeta("paste", true)
         .setMeta("uiEvent", "paste")
         .scrollIntoView();
@@ -498,14 +531,15 @@ export function numberingSequencePolicy(): Plugin {
       announce(view, "列表粘贴已中断，当前内容已保留");
       return true;
     }
-    const candidate =
-      captured.nativeStart === undefined ? slice : normalizeNativeListSlice(slice, captured.nativeStart);
-    const plan = candidate ? planNumberingSequencePaste(captured.state, candidate) : null;
+    const sourceStart =
+      captured.nativeStart ?? (captured.legacy && slice.openStart === 3 && slice.openEnd === 3 ? 1 : undefined);
+    const candidate = sourceStart === undefined ? slice : normalizeOpenListSlice(slice, sourceStart);
+    const plan = candidate ? planNumberingSequencePaste(captured.legacy?.state ?? captured.state, candidate) : null;
     if (!plan || plan.kind !== "apply" || !current()) {
       announce(view, "暂不支持此列表粘贴范围或格式，当前内容已保留");
       return true;
     }
-    commitPaste(view, plan.transaction);
+    commitPaste(view, plan.transaction, captured.legacy);
     return true;
   };
   const plugin = new Plugin({
