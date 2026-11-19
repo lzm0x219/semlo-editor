@@ -120,6 +120,7 @@ export function findDatabaseMatches(
   query: string,
   viewAt?: (position: number) => string | undefined,
   projectionAt?: (position: number, node: ProseMirrorNode, view: DatabaseView) => FindTableProjection | undefined,
+  recordQueryAt?: (position: number) => string | undefined,
 ): DatabaseFindMatch[] {
   if (!query) return [];
   const matches: DatabaseFindMatch[] = [];
@@ -128,7 +129,7 @@ export function findDatabaseMatches(
     if (!node.attrs.data) return false;
     const data = normalizeDatabaseData(node.attrs.data);
     const view = data.views.find((item) => item.id === (viewAt?.(position) ?? data.activeViewId)) ?? data.views[0];
-    let records = view ? visibleDatabaseRecords(data, view) : data.records;
+    let records = view ? visibleDatabaseRecords(data, view, recordQueryAt?.(position)) : data.records;
     if (view?.kind === "kanban") {
       const field =
         data.fields.find((item) => item.id === view.groupFieldId && item.type === "singleSelect") ??
