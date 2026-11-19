@@ -258,6 +258,33 @@ test("a pending play cannot update a replaced player", async ({ page }) => {
   expect(await page.evaluate(() => window.videoPlayerFixture.retained!.isConnected)).toBe(false);
 });
 
+test("a rejected fullscreen request reports only for the player that started it", async ({ page }) => {
+  await mount(page);
+  await metadata(page);
+  const fullscreen = card(page).getByRole("button", { name: "全屏", exact: true });
+  const status = card(page).getByRole("status");
+  await card(page).evaluate((element: HTMLElement) => {
+    element.requestFullscreen = () =>
+      new Promise<void>((_, reject) => {
+        element.addEventListener("test:reject-fullscreen", () => reject(new Error("simulated")), { once: true });
+      });
+  });
+  const rejectFullscreen = () =>
+    card(page).evaluate(async (element) => {
+      element.dispatchEvent(new Event("test:reject-fullscreen"));
+      await Promise.resolve();
+    });
+  await fullscreen.click();
+  await page.evaluate(() => window.videoPlayerFixture.setAttrs({ src: "https://video.semlo.invalid/second.mp4" }));
+  await metadata(page);
+  await rejectFullscreen();
+  await expect(status).toHaveCount(0);
+
+  await fullscreen.click();
+  await rejectFullscreen();
+  await expect(status).toContainText("无法切换全屏");
+});
+
 test("picture-in-picture rejection and synchronous failure are reported without an uncaught error", async ({
   page,
 }) => {
