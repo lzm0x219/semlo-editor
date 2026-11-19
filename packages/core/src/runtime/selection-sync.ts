@@ -1,5 +1,6 @@
 import { Extension, type Editor } from "@tiptap/core";
 import { Plugin, TextSelection, type Selection, type Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 
 import { runCleanupSteps } from "./cleanup";
 
@@ -14,15 +15,17 @@ export function createSelectionSync({
   let draggedFromSelection: Selection | undefined;
   let pointerViewDOM: HTMLElement | undefined;
 
-  const syncTextSelection = () => {
+  const syncTextSelection = (blurredView?: EditorView) => {
     const editor = getEditor();
-    if (!editor || editor.isDestroyed || !editor.view.hasFocus() || editor.view.composing) return false;
-    const selection = editor.view.dom.ownerDocument.getSelection();
+    if (!editor || editor.isDestroyed) return false;
+    const view = editor.view;
+    if ((!view.hasFocus() && view !== blurredView) || view.composing) return false;
+    const selection = view.dom.ownerDocument.getSelection();
     if (
       !selection?.anchorNode ||
       !selection.focusNode ||
-      !editor.view.dom.contains(selection.anchorNode) ||
-      !editor.view.dom.contains(selection.focusNode)
+      !view.dom.contains(selection.anchorNode) ||
+      !view.dom.contains(selection.focusNode)
     )
       return false;
     const current = editor.state.selection;
@@ -37,8 +40,8 @@ export function createSelectionSync({
     draggedFromSelection = undefined;
     let next: Selection | undefined;
     try {
-      const anchor = editor.view.posAtDOM(selection.anchorNode, selection.anchorOffset);
-      const head = editor.view.posAtDOM(selection.focusNode, selection.focusOffset);
+      const anchor = view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+      const head = view.posAtDOM(selection.focusNode, selection.focusOffset);
       const { doc: pmDoc } = editor.state;
       if (current.anchor !== anchor || current.head !== head)
         next = TextSelection.between(pmDoc.resolve(anchor), pmDoc.resolve(head));
@@ -48,7 +51,7 @@ export function createSelectionSync({
     }
     if (next) {
       const before = editor.state.doc;
-      editor.view.dispatch(editor.state.tr.setSelection(next));
+      view.dispatch(editor.state.tr.setSelection(next));
       return !editor.isDestroyed && editor.state.doc.eq(before) && editor.state.selection.eq(next);
     }
     return true;

@@ -55,3 +55,46 @@ test("alignment menu preserves selection and remains usable from overflow with t
   await expect(overflow).toBeVisible();
   await expect(paragraph).toHaveCSS("text-align", "right");
 });
+
+for (const width of [1280, 390]) {
+  test(`focusing the alignment button immediately uses the current text selection at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
+    await page.addScriptTag({
+      type: "module",
+      content: `
+        import { createEditor } from '/dist/index.js';
+        createEditor({ element: document.body.appendChild(document.createElement('main')), outline: false,
+          content: '<p>选中这段</p><p>保留后文</p>' });
+      `,
+    });
+    const prose = page.getByRole("textbox", { name: "文档内容" });
+    const paragraphs = prose.locator(":scope > p");
+    await paragraphs.last().click();
+    const toolbar = page.getByRole("toolbar", { name: "文本格式" });
+    const alignment = page.getByRole("button", { name: "文本对齐", exact: true });
+    if (width === 390) {
+      await toolbar.getByRole("button", { name: "更多", exact: true }).click();
+      await expect(
+        page.getByRole("toolbar", { name: "更多工具" }).getByRole("button", { name: "文本对齐" }),
+      ).toBeVisible();
+    }
+    await alignment.evaluate((button) => {
+      const paragraph = document.querySelector(".semlo-editor-prose > p")!;
+      const text = paragraph.firstChild!;
+      document.getSelection()!.setBaseAndExtent(text, 0, text, text.textContent!.length);
+      button.focus();
+    });
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu", { name: "对齐方式" });
+    await expect(menu.getByRole("menuitemradio", { name: "左对齐" })).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Enter");
+    await expect(paragraphs.first()).toHaveCSS("text-align", "center");
+    await expect(paragraphs.last()).not.toHaveCSS("text-align", "center");
+    await expect(prose).toBeFocused();
+    expect(await page.evaluate(() => document.getSelection()?.toString())).toBe("选中这段");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(paragraphs.first()).not.toHaveCSS("text-align", "center");
+  });
+}
