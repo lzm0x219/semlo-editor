@@ -19,9 +19,10 @@ const nested =
   '<ul><li><p>父项</p><ol start="7"><li><p><strong>甲项</strong></p></li><li><p>乙项</p></li><li><p>丙项</p></li></ol></li></ul><p>后文</p>';
 const nestedBullet =
   "<ul><li><p>父项</p><ul><li><p><strong>甲项</strong></p></li><li><p>乙项</p></li><li><p>丙项</p></li></ul></li></ul><p>后文</p>";
+const flatTasks =
+  '<ul data-type="taskList"><li data-type="taskItem" data-checked="true" data-semlo-editor-list-indent="1"><div><p><strong>甲项</strong></p></div></li><li data-type="taskItem" data-checked="false"><div><p>乙项</p></div></li></ul><p>后文</p>';
 
-async function mount(page: Page, kind: "ordered" | "bullet" = "ordered") {
-  const content = kind === "ordered" ? nested : nestedBullet;
+async function mountContent(page: Page, content: string) {
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -35,7 +36,11 @@ async function mount(page: Page, kind: "ordered" | "bullet" = "ordered") {
     `,
   });
   await page.waitForFunction(() => Boolean(window.flatListTabEditor));
-  const host = page.locator("#flat-list-tab");
+  return page.locator("#flat-list-tab");
+}
+
+async function mount(page: Page, kind: "ordered" | "bullet" = "ordered") {
+  const host = await mountContent(page, kind === "ordered" ? nested : nestedBullet);
   await host.locator(".semlo-editor-prose").getByText("父项", { exact: true }).click();
   await host.getByRole("button", { name: "段落样式" }).click();
   await page.getByRole("menuitemradio", { name: "标题3", exact: true }).click();
@@ -103,6 +108,46 @@ async function selection(page: Page) {
     };
   });
 }
+
+test("平铺待办减小缩进保留勾选状态，可撤销重做并重载", async ({ page }) => {
+  const host = await mountContent(page, flatTasks);
+  const prose = host.locator(".semlo-editor-prose");
+  const task = prose.locator(':scope > ul[data-type="taskList"] > li').first();
+  const snapshot = () => page.evaluate(() => window.__semloRequireFixture("flatListTabEditor").getSnapshot());
+  await select(page, "甲项", 0);
+  const before = await snapshot();
+  const originalSelection = await selection(page);
+  await page.keyboard.press("Shift+Tab");
+  await expect(prose.getByRole("checkbox").first()).toBeChecked();
+  await expect.poll(() => task.getAttribute("data-semlo-editor-list-indent")).toBeNull();
+  await expect(task.locator("strong")).toHaveText("甲项");
+  await expect(prose.locator(":scope > p")).toHaveText("后文");
+  await expect(prose).toBeFocused();
+  expect(await selection(page)).toEqual(originalSelection);
+  const after = await snapshot();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect((await snapshot()).json).toEqual(before.json);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect((await snapshot()).json).toEqual(after.json);
+  await mountContent(page, after.html);
+  expect((await snapshot()).json).toEqual(after.json);
+});
+
+test("Tab 按反向选区调整多个平铺待办的层级", async ({ page }) => {
+  const host = await mountContent(page, flatTasks);
+  const prose = host.locator(".semlo-editor-prose");
+  const tasks = prose.locator(':scope > ul[data-type="taskList"] > li');
+  await select(page, "甲项", 1, "乙项", 1, true);
+  const before = await selection(page);
+  await page.keyboard.press("Tab");
+  await expect(tasks).toHaveCount(2);
+  await expect(tasks.first()).toHaveAttribute("data-semlo-editor-list-indent", "2");
+  await expect(tasks.last()).toHaveAttribute("data-semlo-editor-list-indent", "1");
+  await expect(prose.getByRole("checkbox").first()).toBeChecked();
+  await expect(prose.getByRole("checkbox").last()).not.toBeChecked();
+  await expect(prose).toBeFocused();
+  expect(await selection(page)).toEqual(before);
+});
 
 for (const kind of ["ordered", "bullet"] as const) {
   test(`${kind}: Tab and Shift+Tab at a converted flat item's start adjust its level with one-step undo`, async ({
@@ -380,7 +425,10 @@ test("the new handler leaves genuine nested lists and non-list selections to the
   for (const [content, text] of [
     [nested, "甲项"],
     ["<p>普通段落</p>", "普通段落"],
-    ['<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><div><p>任务</p></div></li></ul>', "任务"],
+    [
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><div><p>任务</p><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><div><p>子任务</p></div></li></ul></div></li></ul>',
+      "任务",
+    ],
   ] as const) {
     const result = await page.evaluate(
       ({ content, text }) => {
