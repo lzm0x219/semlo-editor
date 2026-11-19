@@ -17,7 +17,7 @@ import { type EditorView } from "@tiptap/pm/view";
 import { rethrowTableViewSetup, runTableViewCleanup, type TableViewDisposerRegistration } from "./edges";
 import { selectionContainsCell, selectedTableText } from "./selection";
 import {
-  hasSequenceColumn,
+  sequenceColumnPresence,
   normalizeSequenceColumns,
   insertSequenceColumn,
   numberSequenceColumn,
@@ -258,7 +258,8 @@ export function tableContextMenu(registerViewDisposer?: TableViewDisposerRegistr
         insert("向下插入", "↓", "行", rect.bottom - rect.top, addRowAfter);
         insert("向左插入", "←", "列", rect.right - rect.left, addColumnBefore);
         insert("向右插入", "→", "列", rect.right - rect.left, addColumnAfter);
-        if (rect.left === 0 && rect.right === 1) {
+        const sequence = sequenceColumnPresence(rect.table, rect.map);
+        if (rect.left === 0 && rect.right === 1 && (!sequence.firstColumnOnly || sequence.first)) {
           const row = doc.createElement("div");
           row.className = "semlo-editor-table-context-numbering";
           const button = doc.createElement("button");
@@ -304,7 +305,7 @@ export function tableContextMenu(registerViewDisposer?: TableViewDisposerRegistr
           row.append(button, input, suffix);
           panel.append(row);
         }
-        if (!hasSequenceColumn(view.state) || rect.left === 0)
+        if (rect.left === 0 || (sequence.firstColumnOnly ? !sequence.first : !sequence.any))
           action("插入序号列到最左侧", "¹²", () => {
             if (insertSequenceColumn(view)) close(true);
           });

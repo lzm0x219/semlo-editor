@@ -9,6 +9,7 @@ import {
   sequenceLinkAttribute,
 } from "../../features/list/numbering-sequence-document";
 import { normalizeOrderedListLevelStarts } from "../../features/list/ordinals";
+import { sequenceFirstColumnAttribute } from "../../features/table/sequence";
 import type { EditorSnapshot } from "../../types";
 import { cloneContentValue } from "./clone-value";
 import { serializeEditorHTML } from "./html-output";
@@ -58,6 +59,12 @@ function snapshotJSON(content: ProseMirrorNode): JSONContent {
       node.attrs
     )
       delete node.attrs[sequenceConversionHintAttribute];
+    if (
+      (node.type === "tableCell" || node.type === "tableHeader") &&
+      node.attrs &&
+      node.attrs[sequenceFirstColumnAttribute] !== true
+    )
+      delete node.attrs[sequenceFirstColumnAttribute];
     if (node.type === "semloEditorAudio" && node.attrs?.allowDownload == null && node.attrs)
       delete node.attrs.allowDownload;
     if (node.type === "semloEditorAttachment" && node.attrs?.allowDownload == null && node.attrs)
