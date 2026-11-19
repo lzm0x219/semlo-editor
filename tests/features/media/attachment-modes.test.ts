@@ -295,8 +295,11 @@ test("keyboard height edits preserve an existing text selection outside the atta
   await mount(page);
   await page.evaluate(() => window.attachmentModeSetup({ displayMode: "embedded" }));
   await loaded(page);
-  await page.evaluate(() => window.attachmentEditor.editor.chain().focus().setTextSelection({ from: 1, to: 3 }).run());
+  await page.locator("#editor .semlo-editor-prose").focus();
+  await page.evaluate(() => window.attachmentEditor.editor.commands.setTextSelection({ from: 1, to: 3 }));
+  expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("文件");
   await resize(page).focus();
+  await expect(resize(page)).toBeFocused();
   await page.keyboard.press("ArrowDown");
   expect((await attrs(page)).previewHeight).toBe(428);
   expect(
