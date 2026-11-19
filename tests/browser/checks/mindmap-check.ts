@@ -2090,6 +2090,56 @@ try {
     await page.evaluate(() => window.__semloRequireFixture("mindmapTest").editor.getJSON().content?.[0]?.attrs?.tree),
     "{bad",
   );
+  // 通过字符串传递深层树，避开浏览器测试协议的对象嵌套深度限制。
+  const loadTree = (tree: { text: string; children: unknown[] }) =>
+    page.evaluate((json) => {
+      window.__semloRequireFixture("mindmapTest").editor.commands.setContent({
+        type: "doc",
+        content: [{ type: "semloEditorMindmap", attrs: { tree: JSON.parse(json) } }],
+      });
+    }, JSON.stringify(tree));
+  const readTree = async () =>
+    JSON.parse(
+      await page.evaluate(() =>
+        JSON.stringify(window.__semloRequireFixture("mindmapTest").editor.getJSON().content?.[0]?.attrs?.tree),
+      ),
+    );
+  const fullTree = {
+    text: "满容量导图",
+    children: [
+      {
+        text: "已折叠分支",
+        collapsed: true,
+        children: Array.from({ length: 4996 }, (_, index) => ({ text: `隐藏节点 ${index}`, children: [] })),
+      },
+      { text: "待整理分支", children: [] },
+      { text: "同级分支", children: [] },
+    ],
+  };
+  await loadTree(fullTree);
+  const branchAtLimit = page.getByRole("button", { name: "节点：待整理分支" });
+  const mindmapStatus = page.getByRole("status", { name: "", exact: true });
+  await branchAtLimit.click();
+  await branchAtLimit.press("Enter");
+  assert.deepEqual(await readTree(), fullTree, "adding a sibling at the size limit preserves the tree");
+  assert.match((await mindmapStatus.textContent()) ?? "", /节点数量上限/);
+  await page.getByRole("button", { name: "添加概要", exact: true }).click();
+  assert.deepEqual(await readTree(), fullTree, "adding a summary at the size limit preserves the tree");
+  await page.getByRole("button", { name: "节点：同级分支" }).click({ modifiers: ["Shift"] });
+  await page.getByRole("button", { name: "为选中节点添加概要" }).click();
+  assert.deepEqual(await readTree(), fullTree, "adding a range summary at the size limit preserves the tree");
+
+  let deepTree: { text: string; children: unknown[] } = { text: "最深节点", children: [] };
+  for (let index = 63; index >= 0; index--) deepTree = { text: `上级节点 ${index}`, children: [deepTree] };
+  await loadTree(deepTree);
+  const deepest = page.getByRole("button", { name: "节点：最深节点" });
+  await deepest.press("Tab");
+  assert.deepEqual(await readTree(), deepTree, "adding a child at the depth limit preserves the tree");
+  assert.match((await mindmapStatus.textContent()) ?? "", /层级上限/);
+  await deepest.press("Enter");
+  await page.getByLabel("编辑节点").fill("最深层同级节点");
+  await page.getByLabel("编辑节点").press("Enter");
+  assert.equal(await page.getByRole("button", { name: "节点：最深层同级节点" }).count(), 1);
   await page.evaluate(() => {
     const editor = window.__semloRequireFixture("mindmapTest").editor;
     editor.setEditable(true);
