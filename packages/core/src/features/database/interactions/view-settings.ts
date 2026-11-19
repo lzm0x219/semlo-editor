@@ -30,6 +30,7 @@ interface DatabaseViewSettingsContext {
   label(text: string, control: HTMLElement): HTMLLabelElement;
   repaintBody(): void;
   switchReadonlyView(viewId: string): void;
+  focusViewSwitch(): void;
 }
 
 const calendarColors = [
@@ -62,6 +63,7 @@ export function createDatabaseViewSettings({
   label,
   repaintBody,
   switchReadonlyView,
+  focusViewSwitch,
 }: DatabaseViewSettingsContext) {
   const fieldsPanel = (anchor: HTMLElement) => {
     const dialog = panel(anchor, "字段配置");
@@ -281,35 +283,51 @@ export function createDatabaseViewSettings({
     const dialog = panel(anchor, "切换视图");
     dialog.classList.add("semlo-editor-database-menu");
     const data = getData();
+    const activeId = getView(data).id;
+    let activeControl: HTMLButtonElement | undefined;
+    const closeViewPanel = (hadFocus: boolean) => {
+      closePopup();
+      if (hadFocus && doc.activeElement === doc.body) focusViewSwitch();
+    };
     for (const entry of data.views) {
       const control = button(
         `切换到${entry.name}`,
         entry.name,
         () => {
+          const hadFocus = dialog.matches(":focus-within");
           if (editor.isEditable)
             change((next) => {
               next.activeViewId = entry.id;
             });
           else switchReadonlyView(entry.id);
-          closePopup();
+          closeViewPanel(hadFocus);
         },
         "",
         true,
       );
-      control.setAttribute("aria-pressed", String(entry.id === getView(data).id));
+      control.setAttribute("aria-pressed", String(entry.id === activeId));
+      if (entry.id === activeId) activeControl = control;
       dialog.append(control);
     }
     if (data.views.length > 1) {
       dialog.append(
         button("删除当前视图", "删除当前视图", () => {
+          const hadFocus = dialog.matches(":focus-within");
           change((next) => {
             next.views = next.views.filter((entry) => entry.id !== next.activeViewId);
             next.activeViewId = next.views[0].id;
           });
-          closePopup();
+          closeViewPanel(hadFocus);
         }),
       );
     }
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeViewPanel(true);
+    });
+    activeControl?.focus({ preventScroll: true });
   };
 
   const heightPanel = (anchor: HTMLElement) => {
