@@ -530,7 +530,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       if (
         input.dataset.semloEditorHistory !== "cell" ||
         active.kind !== "table" ||
-        (!active.filters.length && !active.sorts.length && !active.groupFieldId)
+        (!query.trim() && !active.filters.length && !active.sorts.length && !active.groupFieldId)
       )
         return;
       pendingBodyRefresh = true;

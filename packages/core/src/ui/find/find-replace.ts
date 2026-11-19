@@ -58,18 +58,23 @@ export function findTextMatches(doc: ProseMirrorNode, query: string): TextRange[
 }
 
 function findMatches(doc: ProseMirrorNode, query: string, editor: Editor): Match[] {
+  const databaseElementAt = (position: number) => {
+    const element = editor.view.nodeDOM(position);
+    const win = editor.view.dom.ownerDocument.defaultView;
+    return win && element instanceof win.HTMLElement && element.dataset.type === "semloEditorDatabase"
+      ? element
+      : undefined;
+  };
   // Read-only view switches are local to the node view and do not change document attrs.
   const viewAt = editor.isEditable
     ? undefined
-    : (position: number) => {
-        const element = editor.view.nodeDOM(position);
-        const win = editor.view.dom.ownerDocument.defaultView;
-        return win && element instanceof win.HTMLElement ? element.dataset.semloEditorDatabaseViewId : undefined;
-      };
+    : (position: number) => databaseElementAt(position)?.dataset.semloEditorDatabaseViewId;
+  // 表内搜索由当前节点视图持有，各数据表可使用不同的查询。
+  const recordQueryAt = (position: number) =>
+    databaseElementAt(position)?.querySelector<HTMLInputElement>(".semlo-editor-database-search")?.value;
   const projectionAt = (position: number, node: ProseMirrorNode, view: DatabaseView) => {
-    const element = editor.view.nodeDOM(position);
-    const win = editor.view.dom.ownerDocument.defaultView;
-    if (!win || !(element instanceof win.HTMLElement)) return undefined;
+    const element = databaseElementAt(position);
+    if (!element) return undefined;
     const projection = getDatabaseViewProjection(element);
     return projection?.node === node && projection.viewId === view.id && projection.groupFieldId === view.groupFieldId
       ? projection
@@ -88,21 +93,24 @@ function findMatches(doc: ProseMirrorNode, query: string, editor: Editor): Match
         return !folds.some((fold) => match.from < pos + 1 + fold.to && match.to > pos + 1 + fold.from);
       })
       .map((match): Match => ({ kind: "text", ...match })),
-    ...findDatabaseMatches(doc, query, viewAt, projectionAt).filter((match) => {
+    ...findDatabaseMatches(doc, query, viewAt, projectionAt, recordQueryAt).filter((match) => {
       const cached = collapsedRecords.get(match.from);
       if (cached) return !cached.has(match.recordId);
       const hidden = new Set<string>();
       collapsedRecords.set(match.from, hidden);
       const node = doc.nodeAt(match.from);
-      const element = editor.view.nodeDOM(match.from);
-      const win = editor.view.dom.ownerDocument.defaultView;
-      if (!node?.attrs.data || !win || !(element instanceof win.HTMLElement)) return true;
+      const element = databaseElementAt(match.from);
+      if (!node?.attrs.data || !element) return true;
       const data = normalizeDatabaseData(node.attrs.data);
       const view = data.views.find((item) => item.id === (viewAt?.(match.from) ?? data.activeViewId)) ?? data.views[0];
       if (view?.kind !== "table" || !view.groupFieldId || projectionAt(match.from, node, view)) return true;
       const field = data.fields.find((item) => item.id === view.groupFieldId);
       if (!field) return true;
-      const ordered = orderedFindTableGroups(visibleDatabaseRecords(data, view), field, view);
+      const ordered = orderedFindTableGroups(
+        visibleDatabaseRecords(data, view, recordQueryAt(match.from)),
+        field,
+        view,
+      );
       const headings = element.querySelectorAll<HTMLElement>(".semlo-editor-database-group-heading");
       ordered.forEach((group, index) => {
         if (headings[index]?.getAttribute("aria-expanded") === "false")
