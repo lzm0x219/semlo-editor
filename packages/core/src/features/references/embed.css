@@ -77,6 +77,18 @@
   font-size: 13px;
 }
 
+.semlo-editor-embed-read-link {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 32px;
+  margin: 0 0 4px auto;
+  padding: 0 4px;
+  color: #2f6fc7;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
 .semlo-editor-embed-preview {
   position: relative;
   box-sizing: border-box;

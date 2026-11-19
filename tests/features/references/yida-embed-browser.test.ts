@@ -13,8 +13,12 @@ declare global {
   }
 }
 
-test("Yida validates input, supports undo, and survives HTML and JSON round trips", async ({ page }) => {
-  await page.route("https://www.aliwork.com/**", (route) => route.fulfill({ status: 200, body: "Yida fixture" }));
+test("Yida validates input, restores history and offers the original link when framing is refused", async ({
+  page,
+}) => {
+  await page.route("https://www.aliwork.com/**", (route) =>
+    route.fulfill({ status: 200, headers: { "x-frame-options": "DENY" }, body: "Yida fixture" }),
+  );
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -53,5 +57,26 @@ test("Yida validates input, supports undo, and survives HTML and JSON round trip
     );
     await expect(frame).toHaveAttribute("src", url);
   }
+  await page.setViewportSize({ width: 375, height: 700 });
+  await page.evaluate(() => window.__semloRequireFixture("yidaTestEditor").setEditable(false));
+  const original = host.getByRole("link", { name: "打开链接" });
+  await expect(original).toBeVisible({ timeout: 2_000 });
+  await expect(original).toHaveAttribute("href", url);
+  await expect(original).toHaveAttribute("target", "_blank");
+  await original.focus();
+  await expect(original).toBeFocused();
+  await expect(host.getByRole("button", { name: "转换为链接" })).toBeHidden();
+  expect((await page.evaluate(() => window.__semloRequireFixture("yidaTestEditor").getSnapshot())).json).toEqual(
+    snapshot.json,
+  );
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("yidaTestEditor");
+    editor.setEditable(true);
+    editor.editor.commands.setTextSelection(1);
+  });
+  await expect(host.locator(".semlo-editor-embed-read-link")).toBeHidden();
+  await host.getByRole("button", { name: "选择嵌入内容" }).click();
+  await expect(original).toHaveCount(1);
+  await expect(original).toHaveAttribute("href", url);
   await page.evaluate(() => window.__semloRequireFixture("yidaTestEditor").destroy());
 });
