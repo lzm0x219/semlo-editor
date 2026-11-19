@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import { createRsbuild } from "@rsbuild/core";
 import { expect, test, type Page } from "@rstest/playwright";
+import type { JSONContent } from "@tiptap/core";
 
 import type { EditorControllerWithResults } from "../../../../packages/core/src/types";
 import { dragSequence } from "../../../fixtures/list/sequences/browser-helpers";
@@ -600,6 +601,103 @@ test("空续接子项退格尊重组合输入、宿主拒绝和实例隔离", as
   expect(await page.evaluate(() => window.sequencePasteFixture.observed)).toContain("key-reject");
   expect(await snapshot(page)).toEqual(before);
   expect(await page.evaluate(() => window.sequencePasteFixture.get("peer").getSnapshot())).toEqual(peer);
+});
+
+function emptyTailContent(version: 1 | 2 | 3 | null): JSONContent {
+  const paragraph = (text: string): JSONContent =>
+    text
+      ? { type: "paragraph", content: [{ type: "text", text }] }
+      : { type: "paragraph", attrs: { semloEditorLineHeight: "2" } };
+  const ordered = (texts: string[], start: number, link?: string): JSONContent => ({
+    type: "orderedList",
+    attrs: {
+      semloEditorListSequences: { version: 1, sequences: [{ id: "A", start, origin: "initial" }] },
+      ...(link ? { semloEditorListSequenceLink: link } : {}),
+    },
+    content: texts.map((text) => ({
+      type: "listItem",
+      attrs: { semloEditorListSequence: "A" },
+      content: [paragraph(text)],
+    })),
+  });
+  const gap: JSONContent =
+    version === 2
+      ? {
+          type: "taskList",
+          content: [{ type: "taskItem", attrs: { checked: true }, content: [paragraph("间隔待办")] }],
+        }
+      : version === 3
+        ? { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "间隔标题" }] }
+        : paragraph("间隔正文");
+  return {
+    type: "doc",
+    content: version
+      ? [
+          ordered(["甲项", "乙项"], 1, `v${version}:_:first`),
+          paragraph("前段间隔"),
+          ordered(["丙项"], 3, `v${version}:first:last`),
+          gap,
+          ordered([""], 4, `v${version}:last:_`),
+          paragraph("后文"),
+        ]
+      : [paragraph("前文"), ordered([""], 1), paragraph("后文")],
+  };
+}
+
+for (const [version, key] of [
+  [null, "Enter"],
+  [1, "Backspace"],
+  [2, "Enter"],
+  [3, "Backspace"],
+] as const) {
+  test(`${key} 退出${version ? ` v${version} 续接尾段` : "独立编号列表"}的空项并保留其它内容`, async ({ page }) => {
+    await page.evaluate(
+      (content) => window.sequencePasteFixture.mount("primary", content, "html"),
+      emptyTailContent(version),
+    );
+    const prose = page.locator("#primary .semlo-editor-prose");
+    await select(page, "", 0);
+    await expect(prose).toBeFocused();
+    const before = await snapshot(page);
+    const expected = structuredClone(before.json);
+    const index = version ? 4 : 1;
+    expected.content![index] = expected.content![index].content![0].content![0];
+    if (version) expected.content![2].attrs!.semloEditorListSequenceLink = `v${version}:first:_`;
+    await page.keyboard.press(key);
+    await expect.poll(async () => (await snapshot(page)).json).toEqual(expected);
+    await expect(prose.locator(":scope > p[data-semlo-editor-line-height='2']")).toHaveText("");
+    await expect(prose).toBeFocused();
+    expect(await page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.$from.index(0))).toBe(
+      index,
+    );
+    const after = await snapshot(page);
+    await history(page, "undo");
+    expect(await snapshot(page)).toEqual(before);
+    await history(page, "redo");
+    expect(await snapshot(page)).toEqual(after);
+    await page.evaluate((html) => window.sequencePasteFixture.mount("primary", html), after.html);
+    expect((await snapshot(page)).json).toEqual(expected);
+  });
+}
+
+test("空续接尾段退出保留宿主属性并尊重宿主拒绝", async ({ page }) => {
+  const content = emptyTailContent(2);
+  const customItem = structuredClone(content);
+  customItem.content![4].content![0].attrs!.hostItemSetting = "保留";
+  await page.evaluate((value) => window.sequencePasteFixture.mount("primary", value), customItem);
+  await select(page, "", 0);
+  await expect(page.locator("#primary .semlo-editor-prose")).toBeFocused();
+  const custom = await snapshot(page);
+  await page.keyboard.press("Enter");
+  expect(await snapshot(page)).toEqual(custom);
+  await page.evaluate((value) => window.sequencePasteFixture.mount("primary", value), content);
+  await select(page, "", 0);
+  await expect(page.locator("#primary .semlo-editor-prose")).toBeFocused();
+  const before = await snapshot(page);
+  await page.evaluate(() => window.sequencePasteFixture.setFault("key-reject"));
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => window.sequencePasteFixture.observed)).toContain("key-reject");
+  expect(await snapshot(page)).toEqual(before);
 });
 
 for (const [name, sourceA, sourceLast, sourceB, target, a, b, expected] of [
