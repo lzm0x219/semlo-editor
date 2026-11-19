@@ -112,6 +112,52 @@ test("ciphertext survives JSON and HTML round trips without plaintext", async ({
   expect(JSON.stringify(result)).not.toContain("fixture secret");
 });
 
+for (const mode of ["insert", "edit"] as const) {
+  test(`host rejection during encrypted ${mode} keeps the draft available for retry`, async ({ page }) => {
+    await page.goto(origin);
+    await page.waitForFunction(() => Boolean((window as any).encryptedEditor));
+    if (mode === "edit") {
+      await page.evaluate(() => {
+        const controller = (window as any).encryptedEditor;
+        controller.setContent({
+          type: "doc",
+          content: [{ type: "semloEditorEncryptedText", attrs: { ciphertext: btoa("original content") } }],
+        });
+      });
+      await page.getByRole("button", { name: "解锁加密文本" }).click();
+      const unlock = page.getByRole("dialog", { name: "解锁加密文本" });
+      await unlock.getByLabel("密码").fill("test-password");
+      await unlock.getByRole("button", { name: "解锁", exact: true }).click();
+    } else {
+      await page.locator("#encrypted-fixture .semlo-editor-prose p").click();
+      await page.keyboard.type("/jm");
+      await page.getByRole("option", { name: /加密文本/ }).click();
+    }
+
+    const dialog = page.getByRole("dialog", { name: mode === "edit" ? "编辑加密文本" : "新建加密文本" });
+    await dialog.getByLabel("密码").fill("test-password");
+    const text = dialog.getByLabel("加密文本内容");
+    await text.fill("draft for encrypted retry");
+    const snapshot = () => page.evaluate(() => (window as any).encryptedEditor.getSnapshot());
+    const before = await snapshot();
+    await page.evaluate(() => Reflect.set(window, "rejectEncryptedSave", true));
+    const save = dialog.getByRole("button", { name: "加密并保存" });
+    await save.click();
+    await expect(dialog.getByRole("status")).toContainText("草稿仍保留");
+    await expect(text).toHaveValue("draft for encrypted retry");
+    expect(await snapshot()).toEqual(before);
+
+    await page.evaluate(() => Reflect.set(window, "rejectEncryptedSave", false));
+    await save.click();
+    await expect(dialog).toHaveCount(0);
+    const after = await snapshot();
+    const cards = after.json.content.filter((node: { type: string }) => node.type === "semloEditorEncryptedText");
+    expect(cards).toHaveLength(1);
+    expect(cards[0].attrs.ciphertext).toBe(btoa("draft for encrypted retry"));
+    expect(JSON.stringify(after)).not.toContain("draft for encrypted retry");
+  });
+}
+
 test("replacing provider while encryption is pending preserves the draft", async ({ page }) => {
   await page.goto(origin);
   await page.locator("#encrypted-fixture .semlo-editor-prose p").click();
