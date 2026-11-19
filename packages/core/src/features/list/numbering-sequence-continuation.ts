@@ -10,6 +10,7 @@ import {
   formatSequenceLink,
   parseSequenceLink,
   assertNumberingSequenceDocument,
+  hasNumberingSequences,
   resolveListNumbering,
   sequenceLinkAttribute,
   sequenceMemberAttribute,
@@ -264,26 +265,73 @@ export function planSequenceContinuation(
   return [...updates].map(([pos, node]) => ({ pos, node }));
 }
 
+function emptySequenceTarget(state: EditorState) {
+  const selection = state.selection;
+  if (!(selection instanceof TextSelection) || !selection.empty || selection.$from.depth !== 3) return null;
+  const { $from } = selection;
+  const list = $from.node(1),
+    item = $from.node(2),
+    paragraph = $from.parent;
+  if (
+    list.type.name !== "orderedList" ||
+    !hasNumberingSequences(list) ||
+    list.childCount !== 1 ||
+    item.type.name !== "listItem" ||
+    item.childCount !== 1 ||
+    paragraph.type.name !== "paragraph" ||
+    paragraph.content.size !== 0
+  )
+    return null;
+  return { list, item, paragraph, listPos: $from.before(1), itemPos: $from.before(2) };
+}
+
+function finishEmptySequenceEdit(state: EditorState, tr: Transaction, position: number): Transaction | null {
+  const updates = planSequenceContinuation(tr.doc, state.doc);
+  if (!updates) return null;
+  for (const { pos, node } of updates) tr.setNodeMarkup(pos, undefined, node.attrs, node.marks);
+  tr.setSelection(TextSelection.create(tr.doc, position));
+  tr.doc.check();
+  assertNumberingSequenceDocument(tr.doc);
+  return tr;
+}
+
+/** 独立编号列表或有效续接尾段的唯一根级空项可退出为正文。 */
+export function planEmptySequenceExit(state: EditorState): Transaction | null {
+  try {
+    const target = emptySequenceTarget(state);
+    if (!target) return null;
+    const { list, item, paragraph, listPos } = target;
+    if (item.attrs.semloEditorListIndent !== 0) return null;
+    const rawLink = list.attrs[sequenceLinkAttribute];
+    const link = parseSequenceLink(rawLink);
+    if (rawLink != null && (!link?.previous || link.next || !sequenceChain(state.doc, listPos))) return null;
+
+    // 只移除内置列表属性。装有宿主自定义数据或标记的列表仍由原流程保护。
+    const defaultList = list.type.create({
+      start: list.attrs.start,
+      type: list.attrs.type,
+      semloEditorOrderedStyle: list.attrs.semloEditorOrderedStyle,
+      [sequenceLinkAttribute]: rawLink,
+      [sequenceRegistryAttribute]: list.attrs[sequenceRegistryAttribute],
+    });
+    const defaultItem = item.type.create({ [sequenceMemberAttribute]: item.attrs[sequenceMemberAttribute] });
+    if (!list.sameMarkup(defaultList) || !item.sameMarkup(defaultItem)) return null;
+
+    const tr = state.tr.replaceWith(listPos, listPos + list.nodeSize, paragraph);
+    return finishEmptySequenceEdit(state, tr, listPos + 1);
+  } catch {
+    return null;
+  }
+}
+
 /** 所测三段续接中的空子项依次退到根级、再退出列表，保留两端内容。 */
 export function planEmptySequenceBackspace(state: EditorState): Transaction | null {
   try {
-    const selection = state.selection;
-    if (!(selection instanceof TextSelection) || !selection.empty || selection.$from.depth !== 3) return null;
-    const { $from } = selection;
-    if ($from.parent.type.name !== "paragraph" || $from.parent.content.size !== 0) return null;
-    const list = $from.node(1),
-      item = $from.node(2),
-      listPos = $from.before(1),
-      itemPos = $from.before(2);
+    const target = emptySequenceTarget(state);
+    if (!target) return null;
+    const { list, item, paragraph, listPos, itemPos } = target;
     const link = parseSequenceLink(list.attrs[sequenceLinkAttribute]);
-    if (
-      list.type.name !== "orderedList" ||
-      list.childCount !== 1 ||
-      item.childCount !== 1 ||
-      !link?.previous ||
-      !link.next
-    )
-      return null;
+    if (!link?.previous || !link.next) return null;
     const edges = collect(state.doc),
       previous = edges.get(link.previous),
       following = edges.get(link.next);
@@ -349,15 +397,9 @@ export function planEmptySequenceBackspace(state: EditorState): Transaction | nu
         [sequenceMemberAttribute]: rootId,
       });
     } else if (level === 0 && middleId === rootId) {
-      tr = state.tr.replaceWith(listPos, listPos + list.nodeSize, $from.parent);
+      tr = state.tr.replaceWith(listPos, listPos + list.nodeSize, paragraph);
     } else return null;
-    const updates = planSequenceContinuation(tr.doc, state.doc);
-    if (!updates) return null;
-    for (const { pos, node } of updates) tr.setNodeMarkup(pos, undefined, node.attrs, node.marks);
-    tr.setSelection(TextSelection.create(tr.doc, level === 1 ? itemPos + 2 : listPos + 1));
-    tr.doc.check();
-    assertNumberingSequenceDocument(tr.doc);
-    return tr;
+    return finishEmptySequenceEdit(state, tr, level === 1 ? itemPos + 2 : listPos + 1);
   } catch {
     return null;
   }
