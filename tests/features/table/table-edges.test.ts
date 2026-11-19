@@ -41,15 +41,17 @@ async function mount(page: Page, html = content) {
   });
   await page.waitForFunction(() => Boolean(window.tableEdgeEditor));
   const prose = page.locator("#table-edge-test .semlo-editor-prose");
-  await prose.locator("td,th").first().hover();
-  await expect(page.getByRole("button", { name: "选择第 1 行" })).toBeVisible();
+  if (await prose.locator("td,th").count()) {
+    await prose.locator("td,th").first().hover();
+    await expect(page.getByRole("button", { name: "选择第 1 行" })).toBeVisible();
+  }
   return prose;
 }
 
 const snapshot = (page: Page) =>
   page.evaluate(() => window.__semloRequireFixture("tableEdgeEditor").getSnapshot().json);
 
-async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" | "column") {
+async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" | "column", before = false) {
   // 选区变化和撤销会在下一帧更新手柄位置，等待源和目标都完成布局。
   const geometry: {
     from?: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
@@ -69,7 +71,7 @@ async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" 
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(
-    axis === "row" ? to.x + to.width / 2 : to.x + to.width - 2,
+    axis === "row" ? to.x + to.width / 2 : before ? to.x + 2 : to.x + to.width - 2,
     axis === "row" ? to.y + to.height - 2 : to.y + to.height / 2,
     { steps: 8 },
   );
@@ -78,6 +80,87 @@ async function dragTo(page: Page, source: Locator, target: Locator, axis: "row" 
 
 test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
+});
+
+test("生成的序号列移出首列后暂停续号，移回后恢复", async ({ page }) => {
+  const prose = await mount(page);
+  const open = async (text: string) => {
+    await prose.getByRole("cell", { name: text, exact: true }).click();
+    await prose.getByRole("cell", { name: text, exact: true }).click({ button: "right" });
+    return page.getByRole("menu", { name: "表格操作" });
+  };
+  const insertSequence = async () => (await open("B2")).getByRole("menuitem", { name: "插入序号列到最左侧" }).click();
+  const insertRow = async () => (await open("B2")).getByRole("menuitem", { name: "向下插入" }).click();
+  const column = (index: number) => page.getByRole("button", { name: `选择第 ${index} 列` });
+  const undo = () => page.evaluate(() => window.tableEdgeEditor!.editor.commands.undo());
+  const cells = (index: number) => prose.locator(`tr > td:nth-child(${index})`);
+  const original = await snapshot(page);
+  expect(JSON.stringify(original)).not.toContain("semloEditorSequenceFirstColumnOnly");
+  await insertSequence();
+  await expect(cells(1).nth(1)).toHaveAttribute("colwidth", "80");
+  await dragTo(page, column(1), column(2), "column");
+  await expect(cells(1)).toHaveText(["A1", "B1", "C1"]);
+  await expect(cells(2)).toHaveText(["", "1", "2"]);
+  await expect(cells(2).nth(1)).toHaveAttribute("colwidth", "80");
+  const moved = await page.evaluate(() => window.tableEdgeEditor!.getSnapshot());
+  for (const content of [moved.html, moved.json]) {
+    await page.evaluate((value) => {
+      window.tableEdgeEditor!.setContent("<p></p>");
+      window.tableEdgeEditor!.setContent(value);
+    }, content);
+    expect(await snapshot(page)).toEqual(moved.json);
+  }
+  await insertRow();
+  await expect(cells(2)).toHaveText(["", "1", "", "2"]);
+  expect(await undo()).toBe(true);
+  expect(await snapshot(page)).toEqual(moved.json);
+  await prose.getByRole("cell", { name: "B1", exact: true }).hover();
+  await dragTo(page, column(2), column(1), "column", true);
+  await expect(cells(1)).toHaveText(["", "1", "2"]);
+  await insertRow();
+  await expect(cells(1)).toHaveText(["", "1", "2", "3"]);
+  expect(await undo()).toBe(true);
+  expect(await undo()).toBe(true);
+  expect(await snapshot(page)).toEqual(moved.json);
+  await insertSequence();
+  await insertRow();
+  await expect(cells(1)).toHaveText(["", "1", "2", "3"]);
+  await expect(cells(3)).toHaveText(["", "1", "", "2"]);
+});
+
+test("标准 HTML 跨行跨列单元格拆分时保留各列宽度", async ({ page }) => {
+  const html =
+    '<table><colgroup><col width="110"><col width="190"><col width="260"></colgroup><tbody>' +
+    '<tr><th rowspan="2" colspan="2"><p><strong>标题</strong></p><p>续行</p></th><td>R1C3</td></tr>' +
+    "<tr><td>R2C3</td></tr><tr><td>R3C1</td><td>R3C2</td><td>R3C3</td></tr></tbody></table>";
+  const prose = await mount(page, "<p></p>");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(async (value) => {
+    await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([value], { type: "text/html" }) })]);
+  }, html);
+  await prose.locator("p").click();
+  await page.keyboard.press("ControlOrMeta+v");
+  const merged = prose.locator("th[rowspan='2'][colspan='2']");
+  await expect(merged.locator("strong")).toHaveText("标题");
+  const widths = () =>
+    prose
+      .locator("table col")
+      .evaluateAll((columns) => columns.map((col) => Math.round(col.getBoundingClientRect().width)));
+  expect(await widths()).toEqual([110, 190, 260]);
+  const original = await snapshot(page);
+  await merged.click({ button: "right" });
+  await page.getByRole("menu", { name: "表格操作" }).getByRole("menuitem", { name: "拆分单元格" }).click();
+  const firstRow = prose.locator("tr").nth(0).locator("th,td");
+  await expect(firstRow).toHaveText(["标题续行", "", "R1C3"]);
+  await expect(firstRow.first().locator("p")).toHaveText(["标题", "续行"]);
+  await expect(firstRow.first().locator("strong")).toHaveText("标题");
+  await expect(prose.locator("tr").nth(1).locator("th,td")).toHaveText(["", "", "R2C3"]);
+  expect(await widths()).toEqual([110, 190, 260]);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot(page)).toEqual(original);
+  await page.evaluate((value) => window.tableEdgeEditor!.setContent(value), html);
+  expect(await snapshot(page)).toEqual(original);
+  expect(await widths()).toEqual([110, 190, 260]);
 });
 
 test("edge bands select a row or column and add or delete it with one undo", async ({ page }) => {

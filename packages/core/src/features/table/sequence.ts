@@ -5,9 +5,21 @@ import { type EditorView } from "@tiptap/pm/view";
 
 import { dispatchTableChange, type TableCommand } from "./transactions";
 
-export function hasSequenceColumn(state: EditorState): boolean {
-  const { map, table } = selectedRect(state);
-  return map.map.some((position) => table.nodeAt(position)?.attrs.semloEditorSequence);
+export const sequenceFirstColumnAttribute = "semloEditorSequenceFirstColumnOnly";
+
+export function sequenceColumnPresence(table: ProseMirrorNode, map: TableMap) {
+  const firstColumn = new Set(Array.from({ length: map.height }, (_, row) => map.map[row * map.width]));
+  let any = false,
+    first = false,
+    firstColumnOnly = false;
+  for (const position of new Set(map.map)) {
+    const cell = table.nodeAt(position);
+    if (!cell?.attrs.semloEditorSequence) continue;
+    any = true;
+    first ||= firstColumn.has(position);
+    firstColumnOnly ||= cell.attrs[sequenceFirstColumnAttribute] === true;
+  }
+  return { any, first, firstColumnOnly };
 }
 
 /** Renumber an untouched sequence by distinct cells when the first column contains rowspans. */
@@ -27,7 +39,9 @@ function normalizeMergedSequence(
     ...new Set(Array.from({ length: oldMap.height }, (_, row) => oldMap.map[row * oldMap.width + column])),
   ];
   const newCells = [...new Set(Array.from({ length: map.height }, (_, row) => map.map[row * map.width + column]))];
-  const start = Number(oldTable.nodeAt(oldCells[0])?.attrs.semloEditorSequence);
+  const firstCell = oldTable.nodeAt(oldCells[0]);
+  const start = Number(firstCell?.attrs.semloEditorSequence);
+  const scope = firstCell?.attrs[sequenceFirstColumnAttribute] === true ? { [sequenceFirstColumnAttribute]: true } : {};
   if (!Number.isSafeInteger(start) || start < 1 || start > oldCells.length) return;
   const plain = (cell: ProseMirrorNode | null, expected: string) =>
     !!cell &&
@@ -86,7 +100,7 @@ function normalizeMergedSequence(
     if (!cell) return;
     const nextStart = first + 1;
     if (cell.attrs.semloEditorSequence !== nextStart)
-      tr.setNodeMarkup(position, undefined, { ...cell.attrs, semloEditorSequence: nextStart });
+      tr.setNodeMarkup(position, undefined, { ...cell.attrs, ...scope, semloEditorSequence: nextStart });
     if (index >= first && cell.textContent !== String(index - first + 1)) {
       const paragraph = cell.firstChild!;
       const attrs =
@@ -121,8 +135,13 @@ export function normalizeSequenceColumns(
     if (!oldTable) continue;
     const oldMap = TableMap.get(oldTable);
     const oldColumns = new Set<number>();
+    const scopedColumns = new Set<number>();
     for (const pos of new Set(oldMap.map)) {
-      if (oldTable.nodeAt(pos)?.attrs.semloEditorSequence) oldColumns.add(oldMap.findCell(pos).left);
+      const cell = oldTable.nodeAt(pos);
+      if (!cell?.attrs.semloEditorSequence) continue;
+      const column = oldMap.findCell(pos).left;
+      oldColumns.add(column);
+      if (cell.attrs[sequenceFirstColumnAttribute] === true) scopedColumns.add(column);
     }
     if (!oldColumns.size) continue;
     let mapped = original;
@@ -147,7 +166,9 @@ export function normalizeSequenceColumns(
     }
     if (initialMap.width !== oldMap.width || initialMap.height === oldMap.height) continue;
     for (const column of oldColumns) {
-      if (!columns.has(column)) continue;
+      // 移出首列的内置序号保留原文字和标记，移回首列后仍能恢复续号。
+      if (!columns.has(column) || (column !== 0 && scopedColumns.has(column))) continue;
+      const scope = scopedColumns.has(column) ? { [sequenceFirstColumnAttribute]: true } : {};
       if (
         Array.from({ length: oldMap.height }, (_, row) => oldMap.map[row * oldMap.width + column]).some(
           (offset) => (oldTable.nodeAt(offset)?.attrs.rowspan ?? 1) > 1,
@@ -230,7 +251,7 @@ export function normalizeSequenceColumns(
         if (!cell) break;
         const expected = row + 1 < startRow ? null : String(row + 2 - startRow);
         if (!cell.attrs.semloEditorSequence)
-          tr.setNodeMarkup(cellPosition, undefined, { ...cell.attrs, semloEditorSequence: startRow });
+          tr.setNodeMarkup(cellPosition, undefined, { ...cell.attrs, ...scope, semloEditorSequence: startRow });
         if (expected !== null && paragraph && paragraph.textContent !== expected) {
           const text = expected ? state.schema.text(expected) : null;
           const attrs =
@@ -257,7 +278,12 @@ export function insertSequenceColumn(view: EditorView): boolean {
     const position = rect.tableStart + map.map[row * map.width];
     const cell = tr.doc.nodeAt(position);
     if (!cell || !cell.firstChild?.isTextblock) return false;
-    tr.setNodeMarkup(position, undefined, { ...cell.attrs, semloEditorSequence: 2 });
+    tr.setNodeMarkup(position, undefined, {
+      ...cell.attrs,
+      colwidth: [80],
+      semloEditorSequence: 2,
+      [sequenceFirstColumnAttribute]: true,
+    });
     const paragraph = cell.firstChild;
     if (row > 0 && paragraph.type.spec.attrs?.textAlign)
       tr.setNodeMarkup(position + 1, undefined, { ...paragraph.attrs, textAlign: "center" });

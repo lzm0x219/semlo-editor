@@ -16,6 +16,7 @@ import { tableContextMenu } from "./context-menu";
 import { tableEdgesPlugin, type TableViewDisposerRegistration } from "./edges";
 import { mergedTablePaste } from "./paste";
 import { SemloEditorTableView, managedResize, fitColumnChanges } from "./resize";
+import { sequenceFirstColumnAttribute } from "./sequence";
 import { tableHeaderDecorations, tableStyleAttributes, tableStyleOutput } from "./toolbar";
 
 export const SemloEditorTable = Table.extend<TableOptions & { registerViewDisposer?: TableViewDisposerRegistration }>({
@@ -138,6 +139,15 @@ export const SemloEditorTable = Table.extend<TableOptions & { registerViewDispos
             renderHTML: (attributes: Record<string, unknown>) =>
               attributes.semloEditorSequence
                 ? { "data-semlo-editor-sequence": String(attributes.semloEditorSequence) }
+                : {},
+          },
+          [sequenceFirstColumnAttribute]: {
+            default: null,
+            parseHTML: (element: HTMLElement) =>
+              element.getAttribute("data-semlo-editor-sequence-first-column-only") === "true" ? true : null,
+            renderHTML: (attributes: Record<string, unknown>) =>
+              attributes[sequenceFirstColumnAttribute] === true
+                ? { "data-semlo-editor-sequence-first-column-only": "true" }
                 : {},
           },
         },
