@@ -271,6 +271,16 @@ export function insertSequenceColumn(view: EditorView): boolean {
   const state = view.state;
   const rect = selectedRect(state);
   const tr = addColumn(state.tr, rect, 0);
+  // 在已有首列序号上主动再插一列时，原列仍应独立续号。
+  const previousFirstColumn = new Set(
+    Array.from({ length: rect.map.height }, (_, row) => rect.map.map[row * rect.map.width]),
+  );
+  for (const offset of previousFirstColumn) {
+    const position = tr.mapping.map(rect.tableStart + offset);
+    const cell = tr.doc.nodeAt(position);
+    if (cell?.attrs[sequenceFirstColumnAttribute] === true)
+      tr.setNodeMarkup(position, undefined, { ...cell.attrs, [sequenceFirstColumnAttribute]: null });
+  }
   for (let row = 0; row < rect.map.height; row++) {
     const table = tr.doc.nodeAt(rect.tableStart - 1);
     if (!table) return false;

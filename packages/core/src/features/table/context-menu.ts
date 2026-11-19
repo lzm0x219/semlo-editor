@@ -305,7 +305,7 @@ export function tableContextMenu(registerViewDisposer?: TableViewDisposerRegistr
           row.append(button, input, suffix);
           panel.append(row);
         }
-        if (sequence.firstColumnOnly ? !sequence.first : !sequence.any || rect.left === 0)
+        if (rect.left === 0 || (sequence.firstColumnOnly ? !sequence.first : !sequence.any))
           action("插入序号列到最左侧", "¹²", () => {
             if (insertSequenceColumn(view)) close(true);
           });
