@@ -50,6 +50,7 @@ import { withWritingAssistantGuard } from "../features/writing-assistant/guard";
 import { installWritingAssistant } from "../features/writing-assistant/session";
 import { createIntegrationBindings } from "../integrations/bindings";
 import { createIntegrationUpdateCoordinator } from "../integrations/update-coordinator";
+import { popupEditorOwner } from "../platform/dom/popup-owner";
 import { createSelectionSync } from "../runtime/selection-sync";
 import type { EditorControllerWithResults, EditorOptions } from "../types";
 import { mountFindReplace, type FindReplaceController } from "../ui/find/find-replace";
@@ -531,6 +532,19 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
           "aria-multiline": "true",
         },
         handleDOMEvents: {
+          blur: (view, event) => {
+            const next = event.relatedTarget as HTMLElement | null;
+            if (
+              event.target === view.dom &&
+              next?.nodeType === 1 &&
+              (toolbar?.contains(next) ||
+                (next.closest(".semlo-editor-toolbar-overflow-panel") && popupEditorOwner(next) === shell))
+            ) {
+              // 焦点可能在浏览器提交选区变化之前就已移入工具栏。
+              syncTextSelection(view);
+            }
+            return false;
+          },
           // A click or arrow-key movement can update the browser selection
           // before ProseMirror's deferred selectionchange handler runs.
           // Capture it before operations that modify content; non-text
