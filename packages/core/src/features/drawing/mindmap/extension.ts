@@ -116,6 +116,8 @@ type TimelineLayout = "timeline-right" | "timeline-left";
 type MindmapLayout = "right" | "left" | "balanced" | "up" | "down" | TreeLayout | TimelineLayout;
 type MindmapSubtreeLayout = "branch" | "tree-down" | "tree-up" | "timeline";
 type BranchSide = "right" | "left";
+const maxMindmapDepth = 64;
+const maxMindmapNodes = 5000;
 
 function supportedLayout(value: unknown): value is MindmapLayout | null {
   return (
@@ -184,7 +186,7 @@ function treeFrom(value: unknown, labels?: unknown, onInvalid: () => void = () =
   let count = 0;
   const nodeIds = new Set<string>();
   const visit = (item: unknown, depth: number): MindmapItem | null => {
-    if (!item || typeof item !== "object" || depth > 64 || ++count > 5000) return null;
+    if (!item || typeof item !== "object" || depth > maxMindmapDepth || ++count > maxMindmapNodes) return null;
     const candidate = item as Record<string, unknown>;
     const style = candidate.style;
     if (
@@ -2050,14 +2052,33 @@ export const Mindmap = Node.create({
         field.focus();
         field.select();
       };
+      const showMindmapStatus = (message: string) => {
+        const status = dom.querySelector<HTMLElement>(".semlo-editor-mindmap-drawing-status");
+        if (!status) return;
+        status.textContent = message;
+        status.hidden = false;
+      };
+      const canAddNode = (tree: MindmapItem, depth: number) => {
+        if (depth > maxMindmapDepth) {
+          showMindmapStatus("已达到导图层级上限");
+          return false;
+        }
+        // 折叠节点和概要也计入容量，中心节点不在后代计数内。
+        if (descendantCount(tree) >= maxMindmapNodes - 1) {
+          showMindmapStatus("已达到导图节点数量上限");
+          return false;
+        }
+        return true;
+      };
       const add = (path: number[], sibling: boolean) => {
         if (!editor.isEditable || destroyed) return;
         if (sibling && path[path.length - 1] === -1) return;
-        selectedRange = null;
         const tree = treeFrom(current.attrs.tree, current.attrs.labels);
         const parentPath = sibling ? path.slice(0, -1) : path;
         const parent = itemAt(tree, parentPath);
         if (!parent || (sibling && !path.length)) return;
+        if (!canAddNode(tree, parentPath.length + 1)) return;
+        selectedRange = null;
         const index = sibling ? path[path.length - 1] + 1 : parent.children.length;
         for (let i = 0; i < parent.children.length; i++) {
           const span = parent.children[i].summarySpan;
@@ -2077,10 +2098,10 @@ export const Mindmap = Node.create({
       };
       const addSummary = (path: number[]) => {
         if (!path.length || !editor.isEditable || destroyed) return;
-        selectedRange = null;
         const tree = treeFrom(current.attrs.tree, current.attrs.labels);
         const item = itemAt(tree, path);
-        if (!item) return;
+        if (!item || (!item.summary && !canAddNode(tree, path.length + 1))) return;
+        selectedRange = null;
         selected = [...path, -1];
         branchMenuOpen = shapeMenuOpen = markerMenuOpen = styleMenuOpen = linkMenuOpen = false;
         markerCategory = null;
@@ -2103,6 +2124,7 @@ export const Mindmap = Node.create({
         const tree = treeFrom(current.attrs.tree, current.attrs.labels);
         if (!rangeCanSummarize(tree)) return;
         const { parent: parentPath, first, last } = selectedRange;
+        if (!canAddNode(tree, parentPath.length + 2)) return;
         const item = itemAt(tree, parentPath)!.children[first];
         item.summary = {
           text: "概要",
@@ -2135,11 +2157,7 @@ export const Mindmap = Node.create({
             if (index === i) {
               const successor = parent.children[i + 1];
               if (successor.summary) {
-                const status = dom.querySelector<HTMLElement>(".semlo-editor-mindmap-drawing-status");
-                if (status) {
-                  status.textContent = "后续节点已有概要，请先处理概要再删除";
-                  status.hidden = false;
-                }
+                showMindmapStatus("后续节点已有概要，请先处理概要再删除");
                 return;
               }
               successor.summary = item.summary;
