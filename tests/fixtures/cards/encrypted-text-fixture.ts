@@ -1,3 +1,5 @@
+import { Plugin } from "@tiptap/pm/state";
+
 import "../../../packages/core/src/styles/style.css";
 import { createEditor } from "../../../packages/core/src/index";
 
@@ -24,14 +26,20 @@ const provider = {
     return result;
   },
 };
+const controller = createEditor({
+  element: host,
+  outline: false,
+  encryptedTextProvider: provider,
+  onChange: (s) => observations.push(s),
+});
+controller.editor.registerPlugin(
+  new Plugin({
+    filterTransaction: (transaction) => !transaction.docChanged || !Reflect.get(window, "rejectEncryptedSave"),
+  }),
+);
 Object.assign(window, {
   encryptedProvider: provider,
   createEncryptedTestEditor: createEditor,
   encryptedObservations: observations,
-  encryptedEditor: createEditor({
-    element: host,
-    outline: false,
-    encryptedTextProvider: provider,
-    onChange: (s) => observations.push(s),
-  }),
+  encryptedEditor: controller,
 });
