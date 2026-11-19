@@ -111,6 +111,49 @@ test("text diagrams can be inserted, switched, resized and maximized", async ({ 
   await expect(diagram).not.toHaveClass(/semlo-editor-diagram-fullscreen-active/);
 });
 
+test("diagram keyboard focus follows its menu and maximized controls", async ({ page }) => {
+  const host = await mount(page);
+  const diagram = await insertFromMenu(page, host);
+  await expect(diagram.getByLabel("绘图代码")).toBeFocused();
+  const language = diagram.getByRole("button", { name: "绘图语言" });
+  await language.press("Enter");
+  const menu = diagram.getByRole("menu", { name: "绘图语言" });
+  await expect(menu.getByRole("menuitem", { name: "PlantUML", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(menu.getByRole("menuitem", { name: "Mermaid", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(language).toBeFocused();
+
+  const maximize = diagram.getByRole("button", { name: "最大化文本绘图" });
+  await maximize.press("Enter");
+  const back = diagram.getByRole("button", { name: "返回文档" });
+  await expect(back).toBeFocused();
+  await page.locator("#editor-host .semlo-editor-prose").focus();
+  await page.keyboard.press("Escape");
+  await expect(diagram).toHaveClass(/semlo-editor-diagram-fullscreen-active/);
+  await back.press("Escape");
+  await expect(diagram).not.toHaveClass(/semlo-editor-diagram-fullscreen-active/);
+  await expect(maximize).toBeFocused();
+});
+
+test("diagram shortcuts leave input-method composition to the browser", async ({ page }) => {
+  const host = await mount(page);
+  const diagram = await insertFromMenu(page, host);
+  const source = diagram.getByLabel("绘图代码");
+  await source.fill("Alice -> Bob");
+  const before = await page.evaluate(() => window.__semloRequireFixture("diagramEditor").getSnapshot().json);
+  for (const key of [
+    { key: "Tab", isComposing: true },
+    { key: "p", ctrlKey: true, keyCode: 229 },
+  ]) {
+    await source.dispatchEvent("keydown", key);
+  }
+  await expect(source).toHaveValue("Alice -> Bob");
+  await expect(diagram.getByRole("region", { name: "绘图预览" })).toBeVisible();
+  expect(await page.evaluate(() => window.__semloRequireFixture("diagramEditor").getSnapshot().json)).toEqual(before);
+});
+
 test("the maximize control stays outside the card when space allows and works in a narrow editor", async ({ page }) => {
   const host = await mount(page);
   const diagram = await insertFromMenu(page, host);
