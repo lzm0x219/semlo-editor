@@ -43,10 +43,19 @@ export function openGalleryLightbox(
   let scaleChanged = false;
   let fitActivated = false;
   let closed = false;
-  let pan: { id: number; x: number; y: number; left: number; top: number; canPan: boolean } | undefined;
-  let panMoved = false;
-  let suppressClick = false;
-  let panStartedOnImage = false;
+  let pan:
+    | {
+        id: number;
+        x: number;
+        y: number;
+        left: number;
+        top: number;
+        canPan: boolean;
+        moved: boolean;
+        startedOnImage: boolean;
+      }
+    | undefined;
+  let releasedPan: { id: number; moved: boolean; startedOnImage: boolean } | undefined;
   let zoomAnimation: Animation | undefined;
   let slideOld: HTMLElement | undefined;
   let slideOffset = 0;
@@ -315,6 +324,14 @@ export function openGalleryLightbox(
       fitImage();
     }, 100);
   });
+  // 释放与 click 可能跨事件循环任务；由同一指针的 click 或下一次按下结束这次手势。
+  overlay.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.isPrimary && event.button === 0 && !pan) releasedPan = undefined;
+    },
+    true,
+  );
   stage.addEventListener("pointerdown", (event) => {
     if (pan || !event.isPrimary || event.button !== 0) return;
     clearSlide();
@@ -327,19 +344,18 @@ export function openGalleryLightbox(
       left: stage.scrollLeft,
       top: stage.scrollTop,
       canPan: stage.classList.contains("can-pan"),
+      moved: false,
+      startedOnImage: imageFrame.contains(event.target as globalThis.Node),
     };
-    panMoved = false;
-    suppressClick = false;
-    panStartedOnImage = imageFrame.contains(event.target as globalThis.Node);
     stage.classList.add("panning");
     stage.setPointerCapture(event.pointerId);
     event.preventDefault();
   });
   stage.addEventListener("pointermove", (event) => {
     if (!pan || pan.id !== event.pointerId) return;
-    if (Math.abs(event.clientX - pan.x) > 3 || Math.abs(event.clientY - pan.y) > 3) panMoved = true;
     const dx = event.clientX - pan.x;
     const dy = event.clientY - pan.y;
+    pan.moved ||= Math.abs(dx) > 3 || Math.abs(dy) > 3;
     if (pan.canPan) {
       stage.scrollLeft = pan.left - dx;
       stage.scrollTop = pan.top - dy;
@@ -398,13 +414,10 @@ export function openGalleryLightbox(
       imageFrame.style.removeProperty("transform");
       if (swipe) selectImage(index + (dx < 0 ? 1 : -1));
     }
-    suppressClick = event.type === "pointerup" && panMoved;
-    if (event.type !== "pointerup") panStartedOnImage = false;
-    else
-      doc.defaultView?.setTimeout(() => {
-        suppressClick = false;
-        panStartedOnImage = false;
-      }, 0);
+    releasedPan =
+      event.type === "pointerup"
+        ? { id: pan.id, moved: pan.moved || Math.abs(dx) > 3 || Math.abs(dy) > 3, startedOnImage: pan.startedOnImage }
+        : undefined;
     pan = undefined;
     stage.classList.remove("panning");
   };
@@ -473,21 +486,24 @@ export function openGalleryLightbox(
     },
     { passive: false },
   );
-  overlay.addEventListener("click", (event) => {
-    if (
-      pan ||
-      ("pointerType" in event && event.pointerType === "touch" && "isPrimary" in event && event.isPrimary === false)
-    )
-      return;
-    if (suppressClick) {
-      suppressClick = false;
-      panStartedOnImage = false;
-      return;
-    }
+  overlay.addEventListener("click", (event: MouseEvent) => {
+    if (pan) return;
     const target = event.target as globalThis.Node;
     if (controls.contains(target) || closeButton.contains(target)) return;
-    const clickedImage = imageFrame.contains(target) || panStartedOnImage;
-    panStartedOnImage = false;
+    const matchesPointer = "pointerId" in event ? event.pointerId === releasedPan?.id : event.detail > 0;
+    const gesture = matchesPointer ? releasedPan : undefined;
+    // Chromium 的触屏 click 可能丢失 isPrimary，匹配已释放的主要指针时仍应处理。
+    if (
+      !gesture &&
+      "pointerType" in event &&
+      event.pointerType === "touch" &&
+      "isPrimary" in event &&
+      event.isPrimary === false
+    )
+      return;
+    if (gesture) releasedPan = undefined;
+    if (gesture?.moved) return;
+    const clickedImage = imageFrame.contains(target) || gesture?.startedOnImage;
     if (clickedImage && fitScale < 1 && Math.abs(scale - fitScale) <= 0.000001) {
       animateResize(() => {
         fitToViewport = false;

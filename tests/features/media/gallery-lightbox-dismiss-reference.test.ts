@@ -37,31 +37,67 @@ for (const target of ["image", "background"] as const) {
   });
 }
 
-test("dragging a zoomed image does not dismiss the preview", async ({ page }) => {
-  await page.setContent("<body></body>");
-  await page.addStyleTag({ content: readFileSync("packages/core/src/features/media/shared/lightbox.css", "utf8") });
-  await page.addScriptTag({
-    type: "module",
-    content: `${source}
-      const src = URL.createObjectURL(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1000"/>'], {type:'image/svg+xml'}))
-      openGalleryLightbox(document, [{id:'test', src, title:'大图', href:''}], 0)`,
+for (const delayClick of [false, true]) {
+  test(`dragging a zoomed image keeps the preview open (${delayClick ? "delayed" : "native"} click)`, async ({
+    page,
+  }) => {
+    await page.setContent("<body></body>");
+    await page.addStyleTag({ content: readFileSync("packages/core/src/features/media/shared/lightbox.css", "utf8") });
+    await page.addScriptTag({
+      type: "module",
+      content: `${source}
+        const src = URL.createObjectURL(new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1000"/>'], {type:'image/svg+xml'}))
+        openGalleryLightbox(document, [{id:'test', src, title:'大图', href:''}], 0)`,
+    });
+    const viewer = page.getByRole("dialog", { name: "图册图片预览" });
+    const image = viewer.getByRole("img", { name: "大图" });
+    const actualSize = viewer.getByRole("button", { name: "原始大小" });
+    await expect(image).toBeVisible();
+    await actualSize.click();
+    await expect.poll(async () => (await image.boundingBox())!.width).toBe(2000);
+    const stage = viewer.locator(".semlo-editor-gallery-lightbox-stage");
+    const before = await stage.evaluate((element) => element.scrollLeft);
+    const bounds = (await stage.boundingBox())!;
+    const x = bounds.x + bounds.width / 2;
+    const y = bounds.y + bounds.height / 2;
+    if (delayClick) {
+      // 拖动使用真实鼠标。把释放后生成的 click 延到另一个任务，验证事件间隔不会改变语义。
+      await stage.evaluate((element) => {
+        const stage = element as HTMLElement;
+        stage.addEventListener(
+          "click",
+          (event) => {
+            event.stopImmediatePropagation();
+            const replay = new PointerEvent("click", {
+              bubbles: true,
+              pointerId: event.pointerId,
+              pointerType: event.pointerType,
+              isPrimary: event.isPrimary,
+              detail: event.detail,
+            });
+            setTimeout(() => {
+              stage.ownerDocument.body.setAttribute("data-replayed-click", "true");
+              event.target!.dispatchEvent(replay);
+            }, 30);
+          },
+          { capture: true, once: true },
+        );
+      });
+    }
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 100, y, { steps: 5 });
+    await page.mouse.up();
+    if (delayClick) await expect(page.locator("body")).toHaveAttribute("data-replayed-click", "true");
+    await expect(actualSize).toHaveAttribute("aria-pressed", "true");
+    expect(await stage.evaluate((element) => element.scrollLeft)).toBeGreaterThan(before);
+    await page.mouse.click(x, y);
+    await expect(viewer).toBeVisible();
+    await expect.poll(async () => (await image.boundingBox())!.width).toBeLessThan(2000);
+    await viewer.getByRole("button", { name: "关闭图片预览" }).click();
+    await expect(viewer).toHaveCount(0);
   });
-  const viewer = page.getByRole("dialog", { name: "图册图片预览" });
-  await expect(viewer.getByRole("img", { name: "大图" })).toBeVisible();
-  await viewer.getByRole("button", { name: "原始大小" }).click();
-  const stage = viewer.locator(".semlo-editor-gallery-lightbox-stage");
-  const bounds = (await stage.boundingBox())!;
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width / 2 - 100, bounds.y + bounds.height / 2, { steps: 5 });
-  await page.mouse.up();
-  await expect(viewer).toBeVisible();
-  await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-  await expect(viewer).toBeVisible();
-  await expect
-    .poll(async () => (await viewer.getByRole("img", { name: "大图" }).boundingBox())!.width)
-    .toBeLessThan(2000);
-});
+}
 
 test("clicking a manually zoomed image restores the fitted size before a second click closes it", async ({ page }) => {
   await page.setContent("<body></body>");
