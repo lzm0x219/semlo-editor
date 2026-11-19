@@ -28,7 +28,7 @@ import {
   writeClipboard,
   type Conversion,
 } from "./operations";
-import { currentTarget, type Target, type BlockActionsOptions } from "./target";
+import { currentTarget, isContainerParagraph, type Target, type BlockActionsOptions } from "./target";
 
 type HeadingControls = {
   pos: number;
@@ -198,6 +198,19 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
               const rootDOM = top as HTMLElement,
                 li = listNodes.has(root.node.type.name) ? element.closest("li") : null;
               const heading = element.closest<HTMLElement>(".semlo-editor-heading-foldable");
+              if (root.node.type.name === "details" || root.node.type.name === "semloEditorColumns") {
+                const paragraph = element.closest<HTMLElement>("p");
+                if (paragraph && rootDOM.contains(paragraph)) {
+                  try {
+                    const pos = view.posAtDOM(paragraph, 0) - 1;
+                    if (view.nodeDOM(pos) === paragraph && isContainerParagraph(view.state.doc.resolve(pos)))
+                      return currentTarget(view, pos, root.pos, paragraph, rootDOM, false);
+                  } catch {
+                    // 段落位置失效时避免把这次操作落到整个容器。
+                    return null;
+                  }
+                }
+              }
               if (li && rootDOM.contains(li)) {
                 try {
                   const resolved = view.state.doc.resolve(view.posAtDOM(li, 0));
@@ -251,6 +264,15 @@ export function createBlockActions(options: BlockActionsOptions = {}) {
               const rootPos = $from.before(1),
                 rootDOM = view.nodeDOM(rootPos);
               if (!(rootDOM instanceof (win?.HTMLElement ?? HTMLElement))) return null;
+              if ($from.depth === 3 && $from.parent.type.name === "paragraph") {
+                const pos = $from.before(3);
+                const dom = view.nodeDOM(pos);
+                if (
+                  dom instanceof (win?.HTMLElement ?? HTMLElement) &&
+                  isContainerParagraph(view.state.doc.resolve(pos))
+                )
+                  return currentTarget(view, pos, rootPos, dom as HTMLElement, rootDOM as HTMLElement, false);
+              }
               const rootNode = view.state.doc.nodeAt(rootPos);
               if (rootNode && listNodes.has(rootNode.type.name)) {
                 for (let depth = $from.depth; depth > 0; depth--)
