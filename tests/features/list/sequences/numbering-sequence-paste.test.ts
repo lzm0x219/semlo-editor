@@ -83,6 +83,173 @@ async function writeNativeList(page: Page, html: string) {
   }, html);
 }
 
+async function typeNumberedItems(page: Page, rows: readonly (readonly [string, number])[]) {
+  const prose = page.locator("#primary .semlo-editor-prose");
+  await prose.click();
+  await page.keyboard.type("1. ");
+  let level = 0;
+  for (const [index, [text, targetLevel]] of rows.entries()) {
+    if (index > 0) await page.keyboard.press("Enter");
+    await page.keyboard.type(text);
+    if (targetLevel === level) continue;
+    await page.keyboard.press("Home");
+    await page.keyboard.press(targetLevel > level ? "Tab" : "Shift+Tab");
+    await page.keyboard.press("End");
+    level = targetLevel;
+  }
+  return prose;
+}
+
+const legacyCrossParentHTML =
+  "<ol><li><p>RootA</p><ol><li><p>ChildAX</p><ol><li><p>GrandAX</p></li></ol></li><li><p>ChildAY</p></li></ol></li>" +
+  "<li><p>RootB</p><ol><li><p>ChildBX</p></li><li><p>ChildBY</p></li></ol></li><li><p>RootC</p></li></ol>";
+
+for (const source of ["输入", "HTML"] as const) {
+  test(`普通${source}列表跨父项复制与剪切保留编号和原选区`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate(
+      (content) => window.sequencePasteFixture.mount("primary", content, "html"),
+      source === "HTML" ? legacyCrossParentHTML : "<p></p>",
+    );
+    if (source === "输入")
+      await typeNumberedItems(page, [
+        ["RootA", 0],
+        ["ChildAX", 1],
+        ["GrandAX", 2],
+        ["ChildAY", 1],
+        ["RootB", 0],
+        ["ChildBX", 1],
+        ["ChildBY", 1],
+        ["RootC", 0],
+      ]);
+    const original = await snapshot(page);
+    expect(original.json.content?.[0].attrs?.semloEditorListSequences).toBeUndefined();
+    await select(page, "ChildAX", 1, "ChildBX", 1);
+    const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+    const originalSelection = await selection();
+    const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+    const expectedCopy = "  a. hildAX\n    ⅰ. GrandAX\n  b. ChildAY\n2. RootB\n  a. C";
+    await page.keyboard.press("ControlOrMeta+c");
+    expect(await clipboard()).toBe(expectedCopy);
+    expect(await snapshot(page)).toEqual(original);
+    expect(await selection()).toEqual(originalSelection);
+    await page.keyboard.press("ControlOrMeta+x");
+    expect(await clipboard()).toBe(expectedCopy);
+    const items = page.locator("#primary .semlo-editor-prose > ol > li");
+    await expect(items).toHaveText(["RootA", "ChildBX", "ChildBY", "RootC"]);
+    expect(await items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value))).toEqual([
+      1, 1, 2, 2,
+    ]);
+    const after = await snapshot(page);
+    const retained = after.json.content?.[0].content;
+    expect(retained?.map((item) => item.attrs?.semloEditorListIndent)).toEqual([0, 1, 1, 0]);
+    expect(retained?.[1].attrs?.semloEditorListSequence).toBe(retained?.[2].attrs?.semloEditorListSequence);
+    await history(page, "undo");
+    expect(await snapshot(page)).toEqual(original);
+    expect(await selection()).toEqual(originalSelection);
+    await history(page, "redo");
+    expect(await snapshot(page)).toEqual(after);
+  });
+}
+
+test("普通嵌套列表跨父项剪切保留末项未选中的深层子树", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(
+    (content) => window.sequencePasteFixture.mount("primary", content),
+    legacyCrossParentHTML.replace("<p>ChildBX</p>", "<p>ChildBX</p><ol><li><p>GrandKeep</p></li></ol>"),
+  );
+  await select(page, "ChildAX", 1, "ChildBX", 1);
+  const original = await snapshot(page);
+  await page.evaluate(() => navigator.clipboard.writeText("保留剪贴板"));
+  await page.keyboard.press("ControlOrMeta+x");
+  await expect(page.locator(".semlo-editor-list-clipboard-status")).toHaveText("暂不支持此范围的剪切");
+  expect(await snapshot(page)).toEqual(original);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("保留剪贴板");
+});
+
+test("键盘创建的子项跨项粘贴后可续接和移动", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => window.sequencePasteFixture.mount("primary", "<p></p>", "html"));
+  const prose = await typeNumberedItems(page, [
+    ["Parent", 0],
+    ["First", 1],
+    ["Second", 1],
+    ["Third", 1],
+    ["Fourth", 1],
+  ]);
+  await select(page, "First", 1, "Second", 1);
+  const original = await snapshot(page);
+  await page.evaluate(() => navigator.clipboard.writeText("ONE\nTWO"));
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(prose.locator(":scope > p")).toHaveText("TWO");
+  await expect(prose.locator(":scope > ol > li")).toHaveText(["Parent", "FONE", "econd", "Third", "Fourth"]);
+  const split = await snapshot(page);
+  await dragSequence(page, prose.getByText("econd", { exact: true }), prose.getByText("FONE", { exact: true }), true);
+  const items = prose.locator(":scope > ol > li");
+  await expect(items).toHaveText(["Parent", "econd", "FONE", "Third", "Fourth"]);
+  expect(await items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value))).toEqual([
+    1, 2, 1, 2, 3,
+  ]);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(split);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(original);
+});
+
+test("导入嵌套 HTML 的末尾子项转待办再转回保持同一编号序列", async ({ page }) => {
+  await page.evaluate(() =>
+    window.sequencePasteFixture.mount(
+      "primary",
+      "<ol><li><p>Parent</p><ol><li><p>First</p></li><li><p>Second</p></li></ol></li></ol>",
+      "html",
+    ),
+  );
+  const original = await snapshot(page);
+  await select(page, "Second", 1);
+  await page.getByRole("button", { name: "待办事项", exact: true }).click();
+  const task = page.locator("#primary .semlo-editor-prose > ul > li");
+  await expect(task.locator("p")).toHaveText("Second");
+  await expect(task).toHaveAttribute("data-semlo-editor-list-indent", "1");
+  const converted = await snapshot(page);
+  await page.getByRole("button", { name: "有序列表", exact: true }).click();
+  const items = page.locator("#primary .semlo-editor-prose > ol > li");
+  await expect(items).toHaveText(["Parent", "First", "Second"]);
+  await expect(items.last()).toHaveAttribute("value", "2");
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(converted);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(original);
+});
+
+test("旧嵌套 HTML 中根项至直接子项的富文本粘贴独立撤销", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => {
+    window.sequencePasteFixture.mount("primary", "<p></p>", "html");
+    window.sequencePasteFixture
+      .get()
+      .setContent(
+        "<ol><li><p>ParentFirst</p><ol><li><p>ChildFirst</p></li><li><p>ChildKeep</p></li></ol></li>" +
+          "<li><p>ParentKeep</p></li></ol>",
+      );
+  });
+  const original = await snapshot(page);
+  await select(page, "ParentFirst", 1, "ChildFirst", 1);
+  const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+  const originalSelection = await selection();
+  await writeNativeList(page, '<ol start="2"><li><p>PasteOne</p></li><li><p>PasteTwo</p></li></ol>');
+  await page.keyboard.press("ControlOrMeta+v");
+  const items = page.locator("#primary .semlo-editor-prose > ol > li");
+  await expect(items).toHaveText(["PPasteOne", "PasteTwohildFirst", "ChildKeep", "ParentKeep"]);
+  expect(await items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value))).toEqual([1, 2, 1, 3]);
+  await expect(items.nth(2)).toHaveAttribute("data-semlo-editor-list-indent", "1");
+  const after = await snapshot(page);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(original);
+  expect(await selection()).toEqual(originalSelection);
+  await history(page, "redo");
+  expect(await snapshot(page)).toEqual(after);
+});
+
 test("从空白创建的编号列表用多行纯文本拆分，续接与空尾项退出可撤销", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => window.sequencePasteFixture.mount("primary", "<p></p>", "html"));
