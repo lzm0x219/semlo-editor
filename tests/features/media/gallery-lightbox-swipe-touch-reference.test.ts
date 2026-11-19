@@ -32,6 +32,29 @@ test("a primary touch drag switches preview images and a cancelled drag does not
   await expect(first).toBeVisible();
   const client = await page.context().newCDPSession(page);
   await client.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+  await page.evaluate(() => {
+    const trace: unknown[] = [];
+    for (const type of ["pointerdown", "pointerup", "pointercancel", "lostpointercapture", "click", "touchend"]) {
+      document.addEventListener(
+        type,
+        (event) => {
+          const pointer = event as PointerEvent;
+          const target = event.target as HTMLElement;
+          trace.push([
+            type,
+            pointer.pointerId,
+            pointer.isPrimary,
+            pointer.pointerType,
+            pointer.clientX,
+            pointer.clientY,
+            target.className,
+          ]);
+          document.body.dataset.previewTestTrace = JSON.stringify(trace);
+        },
+        true,
+      );
+    }
+  });
   try {
     const bounds = (await first.boundingBox())!;
     const x = Math.round(bounds.x + bounds.width / 2);
@@ -49,7 +72,13 @@ test("a primary touch drag switches preview images and a cancelled drag does not
     await expect.poll(async () => (await second.boundingBox())?.x).toBeCloseTo(bounds.x, 0);
     await start();
     await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    await expect(viewer).toHaveCount(0);
+    try {
+      await expect(viewer).toHaveCount(0);
+    } catch (error) {
+      throw new Error(`[DEBUG-29-TOUCH] ${await page.locator("body").getAttribute("data-preview-test-trace")}`, {
+        cause: error,
+      });
+    }
   } finally {
     await client.detach();
   }
