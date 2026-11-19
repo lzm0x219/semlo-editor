@@ -280,9 +280,10 @@ test("splitting an ordered list numbers remaining items consecutively", async ({
   await shortcut(page, 3);
   const lists = host.locator(".semlo-editor-prose > ol");
   await expect(lists).toHaveCount(2);
-  expect(await lists.nth(0).evaluate((list) => (list as HTMLOListElement).start)).toBe(1);
-  await expect(lists.nth(1)).toHaveAttribute("start", "2");
-  await expect(lists.nth(1).locator("li")).toHaveText("第三项");
+  await expect(lists.nth(0).locator("li")).toHaveAttribute("value", "1");
+  const tail = lists.nth(1).locator("li");
+  await expect(tail).toHaveAttribute("value", "2");
+  await expect(tail).toHaveText("第三项");
   expect(await page.evaluate(() => window.__semloRequireFixture("numberedHeadingEditor").editor.commands.undo())).toBe(
     true,
   );
@@ -292,7 +293,7 @@ test("splitting an ordered list numbers remaining items consecutively", async ({
   expect(await page.evaluate(() => window.__semloRequireFixture("numberedHeadingEditor").editor.commands.redo())).toBe(
     true,
   );
-  await expect(lists.nth(1)).toHaveAttribute("start", "2");
+  await expect(tail).toHaveAttribute("value", "2");
 });
 
 test("a custom-start ordered list continues after converting its middle item", async ({ page }) => {

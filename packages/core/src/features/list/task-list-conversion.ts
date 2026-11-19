@@ -16,6 +16,7 @@ import {
   assertNumberingSequenceDocument,
   formatSequenceLink,
   hasNumberingSequences,
+  materializeFlatLegacyList,
   parseSequenceLink,
   resolveListNumbering,
   selectionHasNumberingSequences,
@@ -42,21 +43,22 @@ export function convertOneTask(
   const selection = state.selection;
   if (!(selection instanceof TextSelection) || selection.$from.depth !== 3 || selection.$to.depth !== 3) return null;
   const position = selection.$from;
-  const list = position.node(1);
+  const originalList = position.node(1);
   const item = position.node(2);
-  const sourceIsTask = listType !== "taskList" && list.type.name === "taskList" && item.type.name === "taskItem";
+  const sourceIsTask =
+    listType !== "taskList" && originalList.type.name === "taskList" && item.type.name === "taskItem";
   const sourceIsBullet =
     listType !== "bulletList" &&
     listType !== "paragraph" &&
-    list.type.name === "bulletList" &&
+    originalList.type.name === "bulletList" &&
     item.type.name === "listItem";
   const sourceIsOrdered =
     listType !== "orderedList" &&
     listType !== "paragraph" &&
-    list.type.name === "orderedList" &&
+    originalList.type.name === "orderedList" &&
     item.type.name === "listItem";
   if ((!sourceIsTask && !sourceIsBullet && !sourceIsOrdered) || item.firstChild !== position.parent) return null;
-  if (selection.$to.node(1) !== list || selection.$to.node(2).type !== item.type) return null;
+  if (position.before(1) !== selection.$to.before(1) || selection.$to.node(2).type !== item.type) return null;
   if (listType === "orderedList" && (sourceIsTask || sourceIsBullet)) {
     const rejoin =
       rejoinSequenceBridge(state, listAttrs, Boolean(range)) ?? rejoinSequenceTail(state, listAttrs, Boolean(range));
@@ -71,7 +73,7 @@ export function convertOneTask(
     }
     for (let index = position.index(1); index <= selection.$to.index(1); index++) {
       // 不将无法确认续接位置的转换项当成新的普通编号项。
-      if (list.child(index).attrs[sequenceConversionHintAttribute] != null) return false;
+      if (originalList.child(index).attrs[sequenceConversionHintAttribute] != null) return false;
     }
   }
   const targetList = listType === "paragraph" ? null : state.schema.nodes[listType];
@@ -79,6 +81,10 @@ export function convertOneTask(
   if ((!targetList && listType !== "paragraph") || !targetItem) return null;
   const first = position.index(1);
   const last = selection.$to.index(1);
+  const list =
+    sourceIsOrdered && first > 0 && last < originalList.childCount - 1
+      ? (materializeFlatLegacyList(originalList) ?? originalList)
+      : originalList;
   const sequence = hasNumberingSequences(list);
   if (
     sequence &&

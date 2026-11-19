@@ -83,6 +83,59 @@ async function writeNativeList(page: Page, html: string) {
   }, html);
 }
 
+test("从空白创建的编号列表用多行纯文本拆分，续接与空尾项退出可撤销", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => window.sequencePasteFixture.mount("primary", "<p></p>", "html"));
+  const prose = page.locator("#primary .semlo-editor-prose");
+  const items = prose.locator(":scope > ol > li");
+  const values = () => items.evaluateAll((nodes) => nodes.map((node) => (node as HTMLLIElement).value));
+  await prose.click();
+  await page.keyboard.type("1. First");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Second");
+  await select(page, "Second", 5);
+  const original = await snapshot(page);
+  expect(original.json.content?.[0].attrs?.semloEditorListSequences).toBeUndefined();
+  await page.evaluate(() => {
+    window.sequencePasteFixture.setFault("slice-selection");
+    return navigator.clipboard.writeText("X\nGap");
+  });
+  await page.keyboard.press("ControlOrMeta+v");
+  expect(await snapshot(page)).toEqual(original);
+  await select(page, "Second", 5);
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(prose.locator(":scope > ol")).toHaveCount(2, { timeout: 1000 });
+  await expect(items).toHaveText(["First", "SeconX", "d"]);
+  await expect(prose.locator(":scope > p")).toHaveText("Gap");
+  expect(await values()).toEqual([1, 2, 3]);
+  const split = await snapshot(page);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(original);
+  await history(page, "redo");
+  expect(await snapshot(page)).toEqual(split);
+  await select(page, "SeconX", 0);
+  await page.keyboard.press("Tab");
+  expect(await values()).toEqual([1, 1, 2]);
+  await history(page, "undo");
+  expect(await snapshot(page)).toEqual(split);
+  await select(page, "d", 0, "d", 1);
+  await page.keyboard.press("Backspace");
+  const empty = await snapshot(page);
+  for (const key of ["Enter", "Backspace"]) {
+    await page.keyboard.press(key);
+    await expect(prose.locator(":scope > ol")).toHaveCount(1);
+    await expect(prose.locator(":scope > p")).toHaveText(["Gap", ""]);
+    expect(await values()).toEqual([1, 2]);
+    expect((await snapshot(page)).json.content?.[0].attrs?.semloEditorListSequenceLink).toBeUndefined();
+    await history(page, "undo");
+    expect(await snapshot(page)).toEqual(empty);
+  }
+  for (const content of [split.json, split.html]) {
+    await page.evaluate((value) => window.sequencePasteFixture.mount("peer", value), content);
+    expect(await page.evaluate(() => window.sequencePasteFixture.get("peer").getSnapshot())).toEqual(split);
+  }
+});
+
 test("旧嵌套列表跨子项粘贴后拆分并保持续接，拖动后仍可撤销", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate((content) => window.sequencePasteFixture.mount("primary", content), nestedLegacyPasteContent());
