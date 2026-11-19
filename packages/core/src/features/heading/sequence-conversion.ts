@@ -18,8 +18,10 @@ import {
   assertNumberingSequenceDocument,
   formatSequenceLink,
   hasNumberingSequences,
+  materializeFlatLegacyList,
   parseSequenceLink,
   resolveListNumbering,
+  selectionHasNumberingSequences,
   sequenceLinkAttribute,
   sequenceMemberAttribute,
 } from "../list/numbering-sequence-document";
@@ -202,12 +204,12 @@ function convertMixedSequenceTextblocks(
   return true;
 }
 
-/** 转换时保留未选列表、选区和宿主属性；无法无损处理时不修改文档。 */
+/** 保留未选列表、选区和宿主属性；未涉及编号续接的旧结构交由普通转换。 */
 export function convertSequenceTextblocks(
   editor: Editor,
   level: HeadingStyleLevel,
   options: { selection?: { from: number; to: number }; focus?: boolean; preserveInlineMarks?: boolean },
-): boolean {
+): boolean | null {
   if (editor.isDestroyed || !editor.isEditable) return false;
   const state = editor.state;
   let selection = state.selection;
@@ -221,18 +223,24 @@ export function convertSequenceTextblocks(
       return false;
     }
   }
-  if (!(selection instanceof TextSelection)) return false;
+  const versioned = selectionHasNumberingSequences(state, selection.from, selection.to);
+  if (!(selection instanceof TextSelection)) return versioned ? false : null;
   if (selection.$from.depth !== 3 || selection.$to.depth !== 3 || selection.$from.before(1) !== selection.$to.before(1))
-    return convertMixedSequenceTextblocks(editor, level, selection, options);
+    return versioned ? convertMixedSequenceTextblocks(editor, level, selection, options) : null;
   const { $from, $to } = selection;
-  const list = $from.node(1),
+  const originalList = $from.node(1),
     listPos = $from.before(1),
     first = $from.index(1),
     last = $to.index(1),
     targetType = state.schema.nodes[level ? "heading" : "paragraph"];
+  const list = versioned
+    ? originalList
+    : first > 0 && last < originalList.childCount - 1
+      ? materializeFlatLegacyList(originalList)
+      : null;
+  if (!list) return null;
   if (
     !targetType ||
-    $to.before(1) !== $from.before(1) ||
     !canConvertSequenceTextblocks(list, first, last) ||
     !canConvertSequenceChain(state.doc, listPos) ||
     first > last ||

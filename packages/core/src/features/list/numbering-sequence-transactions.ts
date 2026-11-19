@@ -287,6 +287,7 @@ export function numberingSequencePolicy(): Plugin {
     ClipboardEvent,
     { view: EditorView; state: EditorState; structure: boolean; nativeStart?: number }
   >();
+  let pasteOrigins = new WeakMap<ClipboardEvent, EditorState>();
   let parsedPastes = new WeakMap<EditorView, { state: EditorState; plain: boolean }>();
   let notice: HTMLElement | undefined;
   const clearNotice = () => {
@@ -386,8 +387,10 @@ export function numberingSequencePolicy(): Plugin {
     return true;
   };
   const capturePaste = (view: EditorView, event: ClipboardEvent) => {
-    if (event.defaultPrevented || view.isDestroyed || !partialSequenceTarget(view.state)) return;
+    if (event.defaultPrevented || view.isDestroyed) return;
     const state = view.state;
+    pasteOrigins.set(event, state);
+    if (!partialSequenceTarget(state)) return;
     const current = () =>
       !view.isDestroyed && view.dom.isConnected && view.state === state && view.editable && !view.composing;
     try {
@@ -433,16 +436,27 @@ export function numberingSequencePolicy(): Plugin {
     pastes.delete(event);
     const parsed = parsedPastes.get(view);
     parsedPastes.delete(view);
+    const original = pasteOrigins.get(event);
+    pasteOrigins.delete(event);
     let hasList = false;
     slice.content.descendants((node) => {
       if (node.type.name === "orderedList") hasList = true;
     });
-    const origin = captured?.state ?? parsed?.state;
+    const origin = original ?? parsed?.state;
     if (parsed?.plain && !hasList && slice.content.childCount > 1 && origin && !partialSequenceTarget(origin)) {
-      const transaction = planNestedLegacyPlainPaste(origin, slice);
+      const flat = planNumberingSequencePlainPaste(origin, slice);
+      const transaction = flat.kind === "apply" ? flat.transaction : planNestedLegacyPlainPaste(origin, slice);
       if (transaction) {
         clearNotice();
-        if (view.isDestroyed || !view.dom.isConnected || view.state !== origin || !view.editable || view.composing)
+        if (
+          (captured && captured.view !== view) ||
+          parsed.state !== origin ||
+          view.isDestroyed ||
+          !view.dom.isConnected ||
+          view.state !== origin ||
+          !view.editable ||
+          view.composing
+        )
           announce(view, "列表粘贴已中断，当前内容已保留");
         else commitPaste(view, transaction);
         return true;
@@ -525,6 +539,7 @@ export function numberingSequencePolicy(): Plugin {
         destroy() {
           view.dom.removeEventListener("paste", capture, true);
           pastes = new WeakMap();
+          pasteOrigins = new WeakMap();
           parsedPastes = new WeakMap();
           clearNotice();
         },

@@ -25,6 +25,114 @@ test.afterAll(async () => {
 });
 
 for (const kind of ["taskList", "bulletList"] as const) {
+  test(`从空白创建的编号列表转 ${kind} 后，缩进会更新后段编号`, async ({ page }) => {
+    await page.goto(origin);
+    await page.waitForFunction(() => window.taskConversionCreate);
+    await page.evaluate(() => {
+      const element = document.createElement("div");
+      document.body.replaceChildren(element);
+      window.taskConversionEditor = window.__semloRequireFixture("taskConversionCreate")({
+        element,
+        content: "<p></p>",
+        onChange: (snapshot) => window.taskConversionEditor!.setContent(snapshot.html),
+      });
+    });
+    const prose = page.locator(".semlo-editor-prose");
+    const snapshot = () => page.evaluate(() => window.taskConversionEditor!.getSnapshot());
+    const values = () =>
+      prose
+        .locator(":scope > ol > li")
+        .evaluateAll((items) =>
+          items.map((item) => (item as HTMLLIElement).value || Number(item.parentElement!.getAttribute("start") ?? 1)),
+        );
+    await prose.click();
+    await page.keyboard.type("1. First");
+    for (const text of ["Second", "Third", "Fourth"]) {
+      await page.keyboard.press("Enter");
+      await page.keyboard.type(text);
+    }
+    const before = await snapshot();
+    expect(before.json.content?.[0].attrs?.semloEditorListSequences).toBeUndefined();
+    await prose.getByText("Third", { exact: true }).click();
+    await page.getByRole("button", { name: kind === "taskList" ? "待办事项" : "无序列表", exact: true }).click();
+    await expect(prose.locator(":scope > ul > li p")).toHaveText("Third");
+    const split = await snapshot();
+    await prose.getByText("Second", { exact: true }).click();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Tab");
+    expect(await values()).toEqual([1, 1, 2]);
+    await expect(prose.getByText("Second", { exact: true }).locator("..")).toHaveCSS("list-style-type", "lower-alpha");
+    const indented = await snapshot();
+    const links = indented.json.content?.filter((node) => node.type === "orderedList");
+    const firstLink = links?.[0].attrs?.semloEditorListSequenceLink as string;
+    expect(firstLink).toMatch(/^v2:_:/);
+    expect(links?.[1].attrs?.semloEditorListSequenceLink).toBe(firstLink.replace("v2:_:", "v2:") + ":_");
+    const undo = () => page.evaluate(() => window.taskConversionEditor!.editor.commands.undo());
+    const redo = () => page.evaluate(() => window.taskConversionEditor!.editor.commands.redo());
+    expect(await undo()).toBe(true);
+    expect(await snapshot()).toEqual(split);
+    expect(await values()).toEqual([1, 2, 3]);
+    expect(await undo()).toBe(true);
+    expect(await snapshot()).toEqual(before);
+    expect(await redo()).toBe(true);
+    expect(await redo()).toBe(true);
+    expect(await snapshot()).toEqual(indented);
+    for (const content of [indented.html, indented.json]) {
+      await page.evaluate((value) => window.taskConversionEditor!.setContent(value), "<p></p>");
+      await page.evaluate((value) => window.taskConversionEditor!.setContent(value), content);
+      expect(await snapshot()).toEqual(indented);
+      expect(await values()).toEqual([1, 1, 2]);
+    }
+  });
+}
+
+for (const sample of [
+  { key: "0", tag: "p", link: "v1" },
+  { key: "3", tag: "h3", link: "v3" },
+] as const) {
+  test(`从空白创建的编号列表转 ${sample.tag} 后，前段新增会更新后段编号`, async ({ page }) => {
+    await page.goto(origin);
+    await page.waitForFunction(() => window.taskConversionCreate);
+    await page.evaluate(() => {
+      const element = document.createElement("div");
+      document.body.replaceChildren(element);
+      window.taskConversionEditor = window.__semloRequireFixture("taskConversionCreate")({
+        element,
+        content: "<p></p>",
+      });
+    });
+    const prose = page.locator(".semlo-editor-prose");
+    const snapshot = () => page.evaluate(() => window.taskConversionEditor!.getSnapshot());
+    await prose.click();
+    await page.keyboard.type("1. First");
+    for (const text of ["Second", "Third"]) {
+      await page.keyboard.press("Enter");
+      await page.keyboard.type(text);
+    }
+    const before = await snapshot();
+    await prose.getByText("Second", { exact: true }).click();
+    await page.keyboard.press(`ControlOrMeta+Alt+${sample.key}`);
+    await expect(prose.locator(`:scope > ${sample.tag}`)).toHaveText(sample.tag === "h3" ? "1. Second" : "Second");
+    const split = await snapshot();
+    const tail = prose.locator(":scope > ol").last().locator("li");
+    const tailValue = () =>
+      tail.evaluate((item) => (item as HTMLLIElement).value || (item.parentElement as HTMLOListElement).start);
+    const splitValue = await tailValue();
+    await prose.getByText("First", { exact: true }).click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    expect(await tailValue()).toBe(3);
+    expect(splitValue).toBe(2);
+    expect(split.json.content?.[0].attrs?.semloEditorListSequenceLink).toMatch(new RegExp(`^${sample.link}:_:`));
+    const undo = () => page.evaluate(() => window.taskConversionEditor!.editor.commands.undo());
+    expect(await undo()).toBe(true);
+    expect(await snapshot()).toEqual(split);
+    expect(await undo()).toBe(true);
+    expect(await snapshot()).toEqual(before);
+  });
+}
+
+for (const kind of ["taskList", "bulletList"] as const) {
   test(`新版编号末项转换为 ${kind} 并保留编号与历史`, async ({ page }) => {
     await page.goto(origin);
     await page.waitForFunction(() => window.taskConversionCreate);

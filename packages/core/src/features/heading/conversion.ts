@@ -5,11 +5,7 @@ import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { Mapping } from "@tiptap/pm/transform";
 
 import { sequenceConversionHintAttribute } from "../list/numbering-sequence-conversion-hint";
-import {
-  selectionHasNumberingSequences,
-  sequenceLinkAttribute,
-  sequenceRegistryAttribute,
-} from "../list/numbering-sequence-document";
+import { sequenceLinkAttribute, sequenceRegistryAttribute } from "../list/numbering-sequence-document";
 import { normalizeOrderedAncestorPath } from "../list/ordered-path";
 import {
   deriveOrderedListValues,
@@ -1218,8 +1214,8 @@ export function setHeadingStyle(
   } = {},
 ): boolean {
   if (editor.isDestroyed || !editor.isEditable) return false;
-  if (selectionHasNumberingSequences(editor.state, options.selection?.from, options.selection?.to))
-    return convertSequenceTextblocks(editor, level, options);
+  const sequenceConversion = convertSequenceTextblocks(editor, level, options);
+  if (sequenceConversion !== null) return sequenceConversion;
   const joinQuoteHistory = options.joinQuoteHistory === true && canJoinQuoteHeading(editor.state, level);
   const preplanned = options.selection ? null : headingPlan(editor.state, level, options);
   if (!options.selection && !preplanned) return false;

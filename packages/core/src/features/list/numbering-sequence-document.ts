@@ -3,7 +3,11 @@ import type { EditorState } from "@tiptap/pm/state";
 
 import { ContentValidationError } from "../../shared/content-error";
 import { parseSequenceConversionHint, sequenceConversionHintAttribute } from "./numbering-sequence-conversion-hint";
-import { resolveNumberingSequences, type NumberingSequenceInput } from "./numbering-sequences";
+import {
+  materializeNumberingSequences,
+  resolveNumberingSequences,
+  type NumberingSequenceInput,
+} from "./numbering-sequences";
 
 export const sequenceRegistryAttribute = "semloEditorListSequences";
 export const sequenceMemberAttribute = "semloEditorListSequence";
@@ -63,6 +67,38 @@ export function numberingSequenceInput(list: ProseMirrorNode, resetStart = false
 
 export function resolveListNumbering(list: ProseMirrorNode, resetStart = false) {
   return resolveNumberingSequences(numberingSequenceInput(list, resetStart));
+}
+
+/** 仅在拆分时物化普通平铺列表，旧续接、重启及额外列表属性沿用原路径。 */
+export function materializeFlatLegacyList(list: ProseMirrorNode): ProseMirrorNode | null {
+  const style = list.attrs.semloEditorOrderedStyle;
+  if (
+    list.type.name !== "orderedList" ||
+    list.childCount < 2 ||
+    !Object.hasOwn(list.type.spec.attrs ?? {}, sequenceRegistryAttribute) ||
+    (style != null && style !== "mixed") ||
+    !list.sameMarkup(list.type.create({ semloEditorOrderedStyle: style }))
+  )
+    return null;
+  const items = Array.from({ length: list.childCount }, (_, index) => list.child(index));
+  if (
+    items.some(
+      (item) =>
+        !Object.hasOwn(item.type.spec.attrs ?? {}, sequenceMemberAttribute) ||
+        !item.sameMarkup(item.type.create()) ||
+        item.childCount !== 1 ||
+        item.firstChild?.type.name !== "paragraph",
+    )
+  )
+    return null;
+  const plan = materializeNumberingSequences(numberingSequenceInput(list));
+  if (!plan.ok) return null;
+  return list.type.create(
+    { ...list.attrs, [sequenceRegistryAttribute]: plan.value.registry },
+    items.map((item, index) =>
+      item.type.create({ ...item.attrs, [sequenceMemberAttribute]: plan.value.sequenceIds[index] }, item.content),
+    ),
+  );
 }
 
 export function sequenceListValues(list: ProseMirrorNode, resetStart = false): number[] {
