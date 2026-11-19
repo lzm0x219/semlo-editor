@@ -5,7 +5,11 @@ import {
   findDatabaseMatches,
   findStringRanges,
 } from "../../../packages/core/src/features/database/find-database-matches";
-import { createDatabaseData } from "../../../packages/core/src/features/database/model";
+import {
+  createDatabaseChart,
+  createDatabaseData,
+  createDatabaseView,
+} from "../../../packages/core/src/features/database/model";
 import type { EditorController } from "../../../packages/core/src/types";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
 
@@ -335,4 +339,62 @@ test("the shortcut inside a data table opens its own search, not document search
   await expect(page.getByRole("dialog", { name: "查找替换" })).toHaveCount(0);
   await second.getByRole("searchbox", { name: "搜索记录" }).fill("甲记录");
   await expect(second.getByLabel("第 1 行 文本")).toHaveValue("甲记录甲记录");
+});
+
+test("document find follows record search across table, calendar and chart views", async ({ page }) => {
+  const data = sampleData();
+  const [title, , date] = data.fields;
+  data.records[0].values[date.id] = "2026-11-03";
+  data.records[1].values[date.id] = "2026-12-04";
+  const calendar = createDatabaseView("日历视图", "calendar");
+  calendar.calendar.titleFieldId = title.id;
+  calendar.calendar.startFieldId = date.id;
+  const charts = createDatabaseView("图表视图", "chart");
+  charts.charts.push(createDatabaseChart("column", data.fields));
+  data.views.push(calendar, charts);
+
+  const host = await mount(page, 1, sampleDocument(data));
+  const database = host.locator(".semlo-editor-database");
+  const toggle = database.getByRole("button", { name: "搜索", exact: true });
+  await host.getByRole("button", { name: "查找替换" }).click();
+  const panel = page.getByRole("dialog", { name: "查找替换" });
+  const counter = panel.locator(".semlo-editor-find-counter");
+  await panel.getByRole("textbox", { name: "查找内容" }).fill("甲记录");
+  await expect(counter).toHaveText("1/4");
+  const before = await page.evaluate(() => window.__semloRequireFixture("databaseFindEditors")[0].getSnapshot().json);
+
+  await toggle.click();
+  await database.getByRole("searchbox", { name: "搜索记录" }).fill("另一件");
+  await expect(database.getByRole("textbox", { name: /行 文本$/ })).toHaveCount(1);
+  await expect(counter).toHaveText("1/2");
+  expect(await page.evaluate(() => window.__semloRequireFixture("databaseFindEditors")[0].getSnapshot().json)).toEqual(
+    before,
+  );
+
+  for (const name of ["日历视图", "图表视图"]) {
+    await database.getByRole("button", { name: "切换视图", exact: true }).click();
+    await database.getByRole("button", { name: `切换到${name}`, exact: true }).click();
+    await expect(database.getByLabel("视图名称")).toHaveValue(name);
+    await expect(counter).toHaveText("1/2");
+  }
+  await toggle.click();
+  await expect(counter).toHaveText("1/4");
+});
+
+test("finishing an edit refreshes rows excluded by the active record search", async ({ page }) => {
+  const host = await mount(page);
+  const database = host.locator(".semlo-editor-database");
+  await database.getByRole("button", { name: "搜索", exact: true }).click();
+  await database.getByRole("searchbox", { name: "搜索记录" }).fill("甲记录");
+  const row = database.getByRole("textbox", { name: "第 1 行 文本" });
+  await row.fill("修改后");
+  await row.press("Enter");
+  await expect(row).toHaveCount(0);
+
+  await database.getByRole("button", { name: "搜索", exact: true }).click();
+  await expect(row).toHaveValue("修改后");
+  expect(await page.evaluate(() => window.__semloRequireFixture("databaseFindEditors")[0].editor.commands.undo())).toBe(
+    true,
+  );
+  await expect(row).toHaveValue("甲记录甲记录");
 });
