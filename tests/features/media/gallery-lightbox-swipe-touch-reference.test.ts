@@ -17,9 +17,11 @@ const source = [
   )
   .join("\n");
 
-test("a primary touch drag switches preview images and a cancelled drag does not", async ({ page }) => {
+test("touch swipes and taps work without a synthesized click", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.setContent("<body></body>");
+  await page.setContent(
+    '<button style="position:fixed;inset:0" onclick="this.dataset.clicked=\'true\'">预览下方的按钮</button>',
+  );
   await page.addStyleTag({ content: readFileSync("packages/core/src/features/media/shared/lightbox.css", "utf8") });
   await page.addScriptTag({
     type: "module",
@@ -32,29 +34,6 @@ test("a primary touch drag switches preview images and a cancelled drag does not
   await expect(first).toBeVisible();
   const client = await page.context().newCDPSession(page);
   await client.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
-  await page.evaluate(() => {
-    const trace: unknown[] = [];
-    for (const type of ["pointerdown", "pointerup", "pointercancel", "lostpointercapture", "click", "touchend"]) {
-      document.addEventListener(
-        type,
-        (event) => {
-          const pointer = event as PointerEvent;
-          const target = event.target as HTMLElement;
-          trace.push([
-            type,
-            pointer.pointerId,
-            pointer.isPrimary,
-            pointer.pointerType,
-            pointer.clientX,
-            pointer.clientY,
-            target.className,
-          ]);
-          document.body.dataset.previewTestTrace = JSON.stringify(trace);
-        },
-        true,
-      );
-    }
-  });
   try {
     const bounds = (await first.boundingBox())!;
     const x = Math.round(bounds.x + bounds.width / 2);
@@ -70,15 +49,28 @@ test("a primary touch drag switches preview images and a cancelled drag does not
     await drag("touchEnd");
     const second = viewer.getByRole("img", { name: "第二张" });
     await expect.poll(async () => (await second.boundingBox())?.x).toBeCloseTo(bounds.x, 0);
-    await start();
-    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    try {
-      await expect(viewer).toHaveCount(0);
-    } catch (error) {
-      throw new Error(`[DEBUG-29-TOUCH] ${await page.locator("body").getAttribute("data-preview-test-trace")}`, {
-        cause: error,
-      });
-    }
+    const tap = async () => {
+      await start();
+      await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    await viewer.getByRole("button", { name: "放大" }).click();
+    await expect.poll(async () => (await second.boundingBox())?.width).toBeGreaterThan(bounds.width);
+    await tap();
+    await expect.poll(async () => (await second.boundingBox())?.width).toBe(bounds.width);
+
+    // Linux Chromium 可能只发出触屏手势事件，在其他平台拦截兼容 click 以复现同一路径。
+    await page.evaluate(() => {
+      document.addEventListener(
+        "click",
+        (event) => {
+          if ((event.target as Element).closest(".semlo-editor-gallery-lightbox")) event.stopImmediatePropagation();
+        },
+        true,
+      );
+    });
+    await tap();
+    await expect(viewer).toHaveCount(0);
+    expect(await page.getByRole("button", { name: "预览下方的按钮" }).getAttribute("data-clicked")).toBeNull();
   } finally {
     await client.detach();
   }

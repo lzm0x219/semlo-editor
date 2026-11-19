@@ -55,7 +55,7 @@ export function openGalleryLightbox(
         startedOnImage: boolean;
       }
     | undefined;
-  let releasedPan: { id: number; moved: boolean; startedOnImage: boolean } | undefined;
+  let releasedPan: { id: number; touch: boolean; handled: boolean; startedOnImage: boolean } | undefined;
   let zoomAnimation: Animation | undefined;
   let slideOld: HTMLElement | undefined;
   let slideOffset = 0;
@@ -416,7 +416,12 @@ export function openGalleryLightbox(
     }
     releasedPan =
       event.type === "pointerup"
-        ? { id: pan.id, moved: pan.moved || Math.abs(dx) > 3 || Math.abs(dy) > 3, startedOnImage: pan.startedOnImage }
+        ? {
+            id: pan.id,
+            touch: event.pointerType === "touch",
+            handled: pan.moved || Math.abs(dx) > 3 || Math.abs(dy) > 3,
+            startedOnImage: pan.startedOnImage,
+          }
         : undefined;
     pan = undefined;
     stage.classList.remove("panning");
@@ -424,6 +429,19 @@ export function openGalleryLightbox(
   stage.addEventListener("pointerup", stopPan);
   stage.addEventListener("pointercancel", stopPan);
   stage.addEventListener("lostpointercapture", stopPan);
+  stage.addEventListener(
+    "touchend",
+    (event) => {
+      const gesture = releasedPan;
+      if (!gesture?.touch || gesture.handled) return;
+      gesture.handled = true;
+      if (event.touches.length > 0) return;
+      // Chromium 可能不生成兼容 click。直接处理轻点并取消兼容点击，避免双重缩放或点击穿透。
+      event.preventDefault();
+      activatePreview(gesture.startedOnImage);
+    },
+    { passive: false },
+  );
 
   const close = () => {
     if (closed) return;
@@ -486,24 +504,7 @@ export function openGalleryLightbox(
     },
     { passive: false },
   );
-  overlay.addEventListener("click", (event: MouseEvent) => {
-    if (pan) return;
-    const target = event.target as globalThis.Node;
-    if (controls.contains(target) || closeButton.contains(target)) return;
-    const matchesPointer = "pointerId" in event ? event.pointerId === releasedPan?.id : event.detail > 0;
-    const gesture = matchesPointer ? releasedPan : undefined;
-    // Chromium 的触屏 click 可能丢失 isPrimary，匹配已释放的主要指针时仍应处理。
-    if (
-      !gesture &&
-      "pointerType" in event &&
-      event.pointerType === "touch" &&
-      "isPrimary" in event &&
-      event.isPrimary === false
-    )
-      return;
-    if (gesture) releasedPan = undefined;
-    if (gesture?.moved) return;
-    const clickedImage = imageFrame.contains(target) || gesture?.startedOnImage;
+  function activatePreview(clickedImage: boolean) {
     if (clickedImage && fitScale < 1 && Math.abs(scale - fitScale) <= 0.000001) {
       animateResize(() => {
         fitToViewport = false;
@@ -525,6 +526,25 @@ export function openGalleryLightbox(
       return;
     }
     close();
+  }
+  overlay.addEventListener("click", (event: MouseEvent) => {
+    if (pan) return;
+    const target = event.target as globalThis.Node;
+    if (controls.contains(target) || closeButton.contains(target)) return;
+    const matchesPointer = "pointerId" in event ? event.pointerId === releasedPan?.id : event.detail > 0;
+    const gesture = matchesPointer ? releasedPan : undefined;
+    // Chromium 的触屏 click 可能丢失 isPrimary，匹配已释放的主要指针时仍可处理。
+    if (
+      !gesture &&
+      "pointerType" in event &&
+      event.pointerType === "touch" &&
+      "isPrimary" in event &&
+      event.isPrimary === false
+    )
+      return;
+    if (gesture) releasedPan = undefined;
+    if (gesture?.handled) return;
+    activatePreview(imageFrame.contains(target) || gesture?.startedOnImage === true);
   });
   doc.addEventListener("keydown", keyboard, true);
   doc.defaultView?.addEventListener("resize", resizeViewport);
