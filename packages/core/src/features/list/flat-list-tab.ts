@@ -7,17 +7,16 @@ import { adjustParagraphIndent } from "../text/paragraph-layout";
 
 type FlatItem = { list: ProseMirrorNode; listPos: number; itemPos: number; indent: number };
 
-/** Only top-level, flattened ordinary lists have been observed. */
+/** 根级平铺列表用项属性表示层级，调整时保留列表项类型。 */
 function flatItem(position: ResolvedPos): FlatItem | null {
   if (position.depth !== 3 || position.parent.type.name !== "paragraph") return null;
   const list = position.node(1);
   const item = position.node(2);
-  if (
-    !["orderedList", "bulletList"].includes(list.type.name) ||
-    item.type.name !== "listItem" ||
-    item.firstChild !== position.parent
-  )
-    return null;
+  const itemMatchesList =
+    list.type.name === "taskList"
+      ? item.type.name === "taskItem"
+      : ["orderedList", "bulletList"].includes(list.type.name) && item.type.name === "listItem";
+  if (!itemMatchesList || item.firstChild !== position.parent) return null;
   const indent = Number(item.attrs.semloEditorListIndent);
   if (!Number.isInteger(indent) || indent < 0 || indent > 8) return null;
   return { list, listPos: position.before(1), itemPos: position.before(2), indent };
