@@ -19,7 +19,7 @@ import { orderedListLabels } from "../../list/ordered-style";
 import { serializeOrderedListOrdinals } from "../../list/ordinals";
 import { deriveOrderedListValues, rebaseOrderedListLevelStarts } from "../../list/ordinals";
 import { clipboardSourceAttribute } from "../../text/quote-paste";
-import type { Target } from "./target";
+import { isContainerParagraph, type Target } from "./target";
 
 export type Conversion = { label: string; type: string; level?: 1 | 2 | 3 | 4 | 5 | 6 };
 export const listNodes = new Set(["bulletList", "orderedList", "taskList"]);
@@ -499,6 +499,14 @@ export function removal(
   const resolved = state.doc.resolve(target.pos);
   let from = target.pos,
     to = target.pos + current.nodeSize;
+  if (target.kind === "block" && isContainerParagraph(resolved)) {
+    const index = resolved.index();
+    if (resolved.parent.canReplace(index, index + 1)) return { from, to, replaceWithParagraph: false };
+    // 移除一栏中的最后一个段落时保留空栏及其宽度。
+    return resolved.parent.canReplaceWith(index, index + 1, current.type)
+      ? { from, to, replaceWithParagraph: true }
+      : null;
+  }
   for (let depth = resolved.depth; depth >= 0; depth--) {
     const parent = resolved.node(depth),
       index = resolved.index(depth);
@@ -649,7 +657,9 @@ export function deleteTarget(editor: Editor, target: Target): boolean {
     const empty = editor.schema.nodes.paragraph.createAndFill();
     if (!empty) return false;
     tr = tr.replaceWith(range.from, range.to, empty);
-  } else tr = tr.deleteRange(range.from, range.to);
+  } else if (target.kind === "block" && isContainerParagraph(tr.doc.resolve(target.pos)))
+    tr = tr.delete(range.from, range.to);
+  else tr = tr.deleteRange(range.from, range.to);
   if (restartSuccessor !== null) {
     const position = tr.mapping.map(restartSuccessor, 1);
     const item = tr.doc.nodeAt(position);
