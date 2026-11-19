@@ -372,8 +372,8 @@ test("plain text automatic indentation follows the observed first-line rule", as
   await setCode(page, "    alpha\n      beta", { language: "plaintext", indentMode: "space", indentWidth: 2 });
   await selection(page, 9);
   await page.keyboard.press("ControlOrMeta+Shift+F");
-  expect((await state(page)).text).toBe("alpha\n      beta");
   await expect(page.getByText("自动缩进成功", { exact: true })).toBeVisible();
+  expect((await state(page)).text).toBe("alpha\n      beta");
   expect(await page.evaluate(() => window.__semloRequireFixture("codeKeyboardEditor").editor.commands.undo())).toBe(
     true,
   );
@@ -390,11 +390,11 @@ test("automatic indentation shortcut reformats the whole block, preserves a back
   const from = original.indexOf("console");
   await selection(page, from + "console".length, from);
   await page.keyboard.press("ControlOrMeta+Shift+F");
+  await expect(page.getByText("自动缩进成功", { exact: true })).toBeVisible();
   const result = await state(page);
   expect(result.text).toBe(formatted);
   expect(result.anchor).toBeGreaterThan(result.head);
   expect(result.text.slice(result.head, result.anchor)).toBe("console");
-  await expect(page.getByText("自动缩进成功", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.__semloRequireFixture("codeKeyboardEditor").editor.commands.undo())).toBe(
     true,
   );
@@ -479,6 +479,7 @@ test("Enter and automatic indentation preserve existing code text-style marks", 
   );
   await selection(page, 8);
   await page.keyboard.press("ControlOrMeta+Shift+F");
+  await expect(page.getByText("自动缩进成功", { exact: true })).toBeVisible();
   await selection(page, 8);
   await page.keyboard.press("Enter");
   const content = await page.evaluate(
