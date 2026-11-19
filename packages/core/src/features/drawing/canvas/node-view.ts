@@ -457,6 +457,11 @@ export function createCanvasNodeView(): NodeViewRenderer {
     };
     let disposeToolbar = () => {};
     const paint = () => {
+      const activeElement = view.root.activeElement;
+      const viewControls = ".semlo-editor-canvas-view-controls";
+      const focusedViewControl = toolbar.querySelector(viewControls)?.contains(activeElement)
+        ? activeElement?.getAttribute("aria-label")
+        : null;
       disposeToolbar();
       disposeToolbar = () => {};
       const previousHeightHandle = dom.querySelector(".semlo-editor-canvas-height-handle");
@@ -515,6 +520,13 @@ export function createCanvasNodeView(): NodeViewRenderer {
       paintShapeControls();
       paintEdgeControls();
       mountCanvasHeight(dom, canvasState.current.attrs.height, editor.isEditable, commitHeight);
+      if (focusedViewControl) {
+        // 活动按钮在重绘时会被替换，缩放到极限后将焦点留在当前画布。
+        const button = Array.from(toolbar.querySelectorAll<HTMLButtonElement>(`${viewControls} button:enabled`)).find(
+          (control) => control.getAttribute("aria-label") === focusedViewControl,
+        );
+        (button ?? stage).focus({ preventScroll: true });
+      }
       if (restoreHeightFocus && editor.isEditable)
         dom.querySelector<HTMLElement>(".semlo-editor-canvas-height-handle")?.focus({ preventScroll: true });
     };
