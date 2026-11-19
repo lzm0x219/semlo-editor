@@ -106,6 +106,30 @@ try {
       await node.getByLabel("编辑图形文字").fill("验证图形");
       await node.getByLabel("编辑图形文字").press("Tab");
     }
+    if (kind !== "mindmap") {
+      const activeControl = () => page.evaluate(() => document.activeElement?.getAttribute("aria-label"));
+      await node.getByRole("button", { name: "平移", exact: true }).focus();
+      await page.keyboard.press("Enter");
+      assert.equal(await activeControl(), "平移", `${kind} pan keeps focus`);
+      await page.keyboard.press("Tab");
+      assert.equal(await activeControl(), "适应画布", `${kind} tab reaches fit`);
+      await page.keyboard.press("Enter");
+      assert.equal(await activeControl(), "适应画布", `${kind} fit keeps focus`);
+      await page.keyboard.press("Tab");
+      assert.equal(await activeControl(), "缩小画布", `${kind} tab reaches zoom out`);
+      const zoomValue = node.locator(".semlo-editor-canvas-zoom");
+      const initialZoom = Number.parseInt((await zoomValue.textContent())!, 10);
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Enter");
+      assert.equal(await zoomValue.textContent(), `${initialZoom - 20}%`, `${kind} repeated keyboard zoom`);
+      assert.equal(await activeControl(), "缩小画布", `${kind} zoom keeps focus`);
+      if (kind === "board") {
+        for (let zoom = initialZoom - 20; zoom > 10; zoom -= 10) await page.keyboard.press("Enter");
+        assert.equal(await zoomValue.textContent(), "10%", "keyboard reaches minimum zoom");
+        assert.equal(await activeControl(), "画布", "focus stays in canvas at the zoom limit");
+        await node.getByRole("button", { name: "适应画布" }).click();
+      }
+    }
     const height = node.getByRole("separator", { name: "调整画布高度" });
     await height.focus();
     await height.press("ArrowDown");
