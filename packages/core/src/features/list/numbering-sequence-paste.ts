@@ -6,6 +6,7 @@ import { canConvertSequenceChain, newSequenceLinkId } from "./numbering-sequence
 import {
   assertNumberingSequenceDocument,
   hasNumberingSequences,
+  materializeFlatLegacyList,
   resolveListNumbering,
   sequenceLeaf,
   sequenceMemberAttribute,
@@ -44,9 +45,14 @@ export function planNumberingSequencePlainPaste(state: EditorState, slice: Slice
     )
       return reject("target");
     const { $from, $to } = selection;
-    const list = $from.node(1),
+    const originalList = $from.node(1),
       index = $from.index(1),
       last = $to.index(1);
+    // 旧平铺列表只开放实测的项内插入，跨项或边界选区继续走原有规则。
+    const list =
+      selection.empty && index > 0 && $from.parentOffset > 0 && $from.parentOffset < $from.parent.content.size
+        ? (materializeFlatLegacyList(originalList) ?? originalList)
+        : originalList;
     if (list.type.name !== "orderedList" || !hasNumberingSequences(list) || !sequenceLeaf(list, index))
       return reject("target");
     const item = list.child(index),
