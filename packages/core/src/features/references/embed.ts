@@ -206,11 +206,16 @@ export const SemloEditorEmbed = Node.create({
       embed.setAttribute("aria-pressed", "true");
       const open = doc.createElement("a");
       setToolbarIcon(open, "打开链接", "open");
-      open.target = "_blank";
-      open.rel = "noopener noreferrer";
+      const readLink = doc.createElement("a");
+      readLink.className = "semlo-editor-embed-read-link";
+      readLink.textContent = "打开链接";
+      for (const link of [open, readLink]) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
       toolbar.append(convert, title, card, embed, open);
       preview.append(select);
-      dom.append(form, error, preview, toolbar);
+      dom.append(form, error, readLink, preview, toolbar);
 
       let current = initial;
       let selected = false;
@@ -256,6 +261,7 @@ export const SemloEditorEmbed = Node.create({
         form.hidden = !!target;
         error.hidden = !invalid && !(untrustedURL && !draft);
         preview.hidden = !target;
+        readLink.hidden = !target || editor.isEditable;
         toolbar.hidden = !target || !selected || !editor.isEditable;
         select.hidden = !target || selected || !editor.isEditable;
         convert.disabled = !editor.isEditable || !view.state.schema.marks.link;
@@ -264,9 +270,11 @@ export const SemloEditorEmbed = Node.create({
         if (!target) {
           removePlayer();
           open.removeAttribute("href");
+          readLink.removeAttribute("href");
           return;
         }
         open.href = target.url;
+        readLink.href = target.url;
         if (playerURL !== target.embedUrl || (provider === "taobao") !== (player?.tagName === "VIDEO")) {
           removePlayer();
           if (provider === "taobao") {
@@ -370,7 +378,7 @@ export const SemloEditorEmbed = Node.create({
         const { paragraph } = view.state.schema.nodes;
         const { link } = view.state.schema.marks;
         if (typeof pos !== "number" || !node || node.type !== current.type || !target || !paragraph || !link) return;
-        const linkURL = ["bilibili", "youku", "netease", "codepen", "canva", "jinshuju"].includes(
+        const linkURL = ["bilibili", "youku", "netease", "codepen", "canva", "jinshuju", "juejin"].includes(
           current.attrs.provider,
         )
           ? target.embedUrl
@@ -413,6 +421,7 @@ export const SemloEditorEmbed = Node.create({
           return (
             form.contains(event.target as globalThis.Node) ||
             toolbar.contains(event.target as globalThis.Node) ||
+            readLink.contains(event.target as globalThis.Node) ||
             select.contains(event.target as globalThis.Node) ||
             !!player?.contains(event.target as globalThis.Node)
           );

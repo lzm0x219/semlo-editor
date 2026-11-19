@@ -14,6 +14,8 @@ declare global {
 }
 
 test("Juejin input, undo, conversion, HTML and JSON round trips", async ({ page }) => {
+  const penUrl = "https://code.juejin.cn/pen/7111233570496053255";
+  const embedUrl = `${penUrl}?embed=true`;
   await page.route("https://code.juejin.cn/**", (route) => route.fulfill({ status: 200, body: "Juejin fixture" }));
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
@@ -32,14 +34,15 @@ test("Juejin input, undo, conversion, HTML and JSON round trips", async ({ page 
   await panel.locator('[data-command="juejin"]').click();
   const input = host.getByLabel("码上掘金链接");
   await expect(input).toBeFocused();
-  await input.fill("https://code.juejin.cn/pen/7111233570496053255");
+  await input.fill(penUrl);
   await input.press("Enter");
   const frame = host.locator("iframe");
-  await expect(frame).toHaveAttribute("src", "https://code.juejin.cn/pen/7111233570496053255?embed=true");
+  await expect(frame).toHaveAttribute("src", embedUrl);
   expect(await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").editor.commands.undo())).toBe(true);
-  await expect(input).toHaveValue("https://code.juejin.cn/pen/7111233570496053255");
+  await expect(input).toHaveValue(penUrl);
   expect(await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").editor.commands.redo())).toBe(true);
   const snapshot = await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").getSnapshot());
+  expect(snapshot.json.content?.find((node) => node.type === "semloEditorEmbed")?.attrs?.url).toBe(penUrl);
   for (const content of [snapshot.html, snapshot.json]) {
     await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").setContent("<p>替换</p>"));
     await expect(frame).toHaveCount(0);
@@ -51,12 +54,15 @@ test("Juejin input, undo, conversion, HTML and JSON round trips", async ({ page 
   }
   await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").editor.commands.setTextSelection(1));
   await host.getByRole("button", { name: "选择嵌入内容" }).click();
+  await expect(host.getByRole("link", { name: "打开链接" })).toHaveAttribute("href", penUrl);
   await host.getByRole("button", { name: "转换为链接" }).click();
-  await expect(host.locator(".semlo-editor-prose a")).toHaveAttribute(
-    "href",
-    "https://code.juejin.cn/pen/7111233570496053255",
-  );
+  const link = host.locator(".semlo-editor-prose a");
+  await expect(link).toHaveText(embedUrl, { timeout: 2_000 });
+  await expect(link).toHaveAttribute("href", embedUrl);
   expect(await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").editor.commands.undo())).toBe(true);
-  await expect(frame).toHaveCount(1);
+  await expect(frame).toHaveAttribute("src", embedUrl);
+  expect((await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").getSnapshot())).json).toEqual(
+    snapshot.json,
+  );
   await page.evaluate(() => window.__semloRequireFixture("juejinTestEditor").destroy());
 });
