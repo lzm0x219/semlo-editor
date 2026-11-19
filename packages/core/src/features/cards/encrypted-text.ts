@@ -1,4 +1,6 @@
 import { Node, type Editor, type Range } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { EditorView } from "@tiptap/pm/view";
 
 /** Provider must perform authenticated encryption and return an opaque ciphertext string.
  * The editor cannot verify provider security; providers receive plaintext and passwords. */
@@ -14,6 +16,17 @@ const validCiphertext = (value: unknown): value is string =>
 
 type ProviderSessions = { revision: number; listeners: Set<() => void> };
 const providerSessions = new WeakMap<Editor, ProviderSessions>();
+
+function hasCommittedNode(editor: Editor, view: EditorView, target: ProseMirrorNode): boolean {
+  if (editor.isDestroyed || editor.view !== view) return false;
+  let found = false;
+  // 同一密文可能已存在于别处。仅用本次事务创建的节点确认写入。
+  editor.state.doc.descendants((node) => {
+    if (node === target) found = true;
+    return !found;
+  });
+  return found;
+}
 
 /** 先记录更换，阻止其他同步回调在旧会话完成清理前提交。 */
 export function markEncryptedProviderChanged(editor: Editor): void {
@@ -183,7 +196,7 @@ function openDialog(
         }
         if (!validCiphertext(ciphertext)) throw new Error("Invalid ciphertext");
         if (!save(ciphertext)) {
-          message.textContent = "文档已变化，无法保存；请先复制草稿。";
+          message.textContent = "保存未应用，草稿仍保留。若文档已变化，请先复制草稿。";
           return;
         }
         close(true);
@@ -212,21 +225,28 @@ function openDialog(
 
 export function openEncryptedInsertion(editor: Editor, getProvider: ProviderGetter, target: Target) {
   if (editor.isDestroyed || !editor.isEditable) return;
+  const view = editor.view;
   const originalDoc = editor.state.doc;
   const originalSelection = editor.state.selection;
   openDialog(editor, getProvider, null, (ciphertext) => {
     if (
       editor.isDestroyed ||
       !editor.isEditable ||
+      editor.view !== view ||
       editor.state.doc !== originalDoc ||
       !editor.state.selection.eq(originalSelection)
     )
       return false;
-    const content = { type: "semloEditorEncryptedText", attrs: { ciphertext } };
-    if (target.kind === "below") return editor.chain().focus().insertContentAt(target.position, content).run();
-    let chain = editor.chain().focus();
-    if (target.range) chain = chain.deleteRange(target.range);
-    return chain.insertContent(content).run();
+    const type = editor.schema.nodes.semloEditorEncryptedText;
+    if (!type) return false;
+    const content = type.create({ ciphertext });
+    const chain = editor.chain().focus();
+    if (target.kind === "below") chain.insertContentAt(target.position, content);
+    else {
+      if (target.range) chain.deleteRange(target.range);
+      chain.insertContent(content);
+    }
+    return chain.run() && hasCommittedNode(editor, view, content);
   });
 }
 
@@ -282,8 +302,11 @@ export const EncryptedText = Node.create<{ getProvider: ProviderGetter }>({
             if (!editor.isEditable || !targetIsCurrent()) return false;
             const pos = getPos();
             if (typeof pos !== "number") return false;
-            editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ciphertext }));
-            return true;
+            if (ciphertext === original.attrs.ciphertext) return true;
+            const transaction = editor.state.tr.setNodeMarkup(pos, undefined, { ...original.attrs, ciphertext });
+            const expected = transaction.doc.nodeAt(pos);
+            view.dispatch(transaction);
+            return !!expected && hasCommittedNode(editor, view, expected);
           },
           targetIsCurrent,
         );
