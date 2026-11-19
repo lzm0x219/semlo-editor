@@ -661,6 +661,12 @@ test("表格查询的原生输入范围先于模型选区时仍保存空单元�
   expect(harness.editor.getText()).toContain("/p");
 });
 
+function expectSnapshotPreservesTableDocument(harness: ReturnType<typeof createNestedHarness>) {
+  // 公开快照可以省略缺省属性，经 schema 恢复后应保留完整的文档内容与属性。
+  const restored = harness.editor.schema.nodeFromJSON(harness.snapshot().json);
+  expect(restored.toJSON()).toEqual(harness.editor.getJSON());
+}
+
 for (const source of ["loaded", "paste", "programmatic"] as const) {
   test(`表格内 ${source} 的字面 /p 不被保存投影隐藏`, () => {
     const harness = createNestedHarness(
@@ -677,7 +683,7 @@ for (const source of ["loaded", "paste", "programmatic"] as const) {
       });
       harness.view.dispatch(harness.state().tr.setSelection(TextSelection.create(harness.state().doc, from + 2)));
     }
-    expect(harness.snapshot().json).toEqual(harness.editor.getJSON());
+    expectSnapshotPreservesTableDocument(harness);
     expect(harness.snapshot().text).toContain("/p");
     expect(harness.snapshot().html).toBe(harness.editor.getHTML());
   });
@@ -696,7 +702,7 @@ for (const [name, node] of unsupportedTableContexts) {
   test(`${name}不扩大直接正文查询保存边界`, () => {
     const harness = createNestedHarness(node);
     harness.type("/p");
-    expect(harness.snapshot().json).toEqual(harness.editor.getJSON());
+    expectSnapshotPreservesTableDocument(harness);
     expect(harness.snapshot().text).toContain("/p");
   });
 }
@@ -713,7 +719,7 @@ test("表格查询多步删除越入同表其他单元格时保留剩余正文",
   expect(harness.snapshot().text).toContain("/");
   expect(harness.snapshot().text).toContain("元格甲");
   expect(harness.snapshot().text).toContain("单元格后文");
-  expect(harness.snapshot().json).toEqual(harness.editor.getJSON());
+  expectSnapshotPreservesTableDocument(harness);
 });
 
 test("表格查询删去斜杠再程序重插同字后按失去证据的正文保存", () => {
@@ -728,7 +734,7 @@ test("表格查询删去斜杠再程序重插同字后按失去证据的正文�
   );
   expect(harness.state().doc.eq(before)).toBe(true);
   expect(slashSuggestionKey.getState(harness.state())?.active).toBe(true);
-  expect(harness.snapshot().json).toEqual(harness.editor.getJSON());
+  expectSnapshotPreservesTableDocument(harness);
   expect(harness.snapshot().text).toContain("/p");
 });
 
