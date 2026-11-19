@@ -157,3 +157,92 @@ test("search expands a folded parent and replacement undo keeps the child visibl
   await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(prose.locator(":scope > h3")).toBeVisible();
 });
+
+for (const { width, format } of [
+  { width: 1280, format: "json" },
+  { width: 375, format: "html" },
+] as const) {
+  test(`mixed long article survives a page reload using ${format} storage at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 });
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(process.env.SEMLO_FIXTURE_URL!);
+    async function mountFromStorage() {
+      await page.addScriptTag({
+        type: "module",
+        content: `
+          import { createEditor } from '/dist/index.js';
+          const host = document.createElement('div');
+          host.id = 'long-writing';
+          document.body.replaceChildren(host);
+          const saved = sessionStorage.getItem('article');
+          window.longWritingEditor = createEditor({
+            element: host, outline: false,
+            content: saved ? ${format === "json" ? "JSON.parse(saved)" : "saved"} : '<p></p>',
+            onChange: snapshot => sessionStorage.setItem('article', ${format === "json" ? "JSON.stringify(snapshot.json)" : "snapshot.html"}),
+          });
+        `,
+      });
+      await page.waitForFunction(() => Boolean(window.longWritingEditor));
+    }
+    await mountFromStorage();
+    await page.evaluate(async (html) => {
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }) })]);
+    }, body);
+    const prose = page.locator("#long-writing .semlo-editor-prose");
+    await prose.click();
+    await page.keyboard.insertText("长文整合验收");
+    await page.keyboard.press("ControlOrMeta+Alt+Digit2");
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText("开篇仍应保持可见。");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("ControlOrMeta+v");
+    await expect(prose.locator(":scope > h2")).toHaveCount(11);
+
+    await prose.locator(":scope > p").last().click();
+    const mac = await page.evaluate(() => navigator.platform.includes("Mac"));
+    await page.keyboard.press(mac ? "Meta+ArrowDown" : "Control+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("1. ");
+    await page.keyboard.insertText("校对引文");
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText("整理附表");
+    await expect(prose.locator("ol li")).toHaveText(["校对引文", "整理附表"]);
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("/");
+    await page.getByRole("option", { name: "表格 插入表格", exact: true }).hover();
+    await page.getByLabel("2行2列", { exact: true }).click();
+    const cells = prose.locator("table :is(td, th)");
+    await expect(cells).toHaveCount(4);
+    // 给插表与单元格输入留出历史分组间隔，避免依赖 CI 机器的操作速度。
+    await page.clock.setFixedTime(Date.now() + 1000);
+    await cells.first().click();
+    await page.keyboard.insertText("材料已核对");
+    await expect(cells.first()).toHaveText("材料已核对");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(cells.first()).toHaveText("");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await expect(cells.first()).toHaveText("材料已核对");
+
+    const section = "第10节 写作与整理";
+    await page.getByRole("button", { name: `折叠标题：${section}`, exact: true }).click();
+    await expect(cells.first()).toBeHidden();
+    const saved = await page.evaluate(() => window.longWritingEditor!.getSnapshot());
+    expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(
+      format === "json" ? JSON.stringify(saved.json) : saved.html,
+    );
+    await page.reload();
+    await mountFromStorage();
+    expect(await page.evaluate(() => window.longWritingEditor!.getSnapshot())).toEqual(saved);
+    await expect(prose.locator("ol li").last()).toBeHidden();
+    await expect(cells.first()).toBeHidden();
+    await page.getByRole("button", { name: `展开标题：${section}`, exact: true }).click();
+    await expect(prose.locator("ol li")).toHaveText(["校对引文", "整理附表"]);
+    await expect(cells.first()).toHaveText("材料已核对");
+    await cells.last().click();
+    await page.keyboard.insertText("重载后继续编辑");
+    await expect(cells.last()).toHaveText("重载后继续编辑");
+    expect(await page.evaluate(() => sessionStorage.getItem("article"))).toContain("重载后继续编辑");
+  });
+}
