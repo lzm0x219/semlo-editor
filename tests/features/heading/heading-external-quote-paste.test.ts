@@ -251,10 +251,11 @@ for (const sample of [
 ]) {
   test(`语雀跨正文与引用复制的片段${sample.name}，可撤销重做`, async ({ page }) => {
     await mountBoundaryEditor(page, sample.content, sample.controlled);
+    await page.locator("#quote-paste .semlo-editor-prose").focus();
     const before = await page.evaluate((selection) => {
       const controller = window.__semloRequireFixture("quotePasteEditor");
-      controller.editor.commands.focus("end");
-      if (selection) controller.editor.commands.setTextSelection(selection);
+      const { editor } = controller;
+      editor.commands.setTextSelection(selection ?? editor.state.doc.content.size - 1);
       return controller.getSnapshot().json;
     }, sample.selection);
     await pasteBoundary(page, sample.html ?? yuqueCrossBlockQuoteHTML);
@@ -503,33 +504,42 @@ test("段中粘贴后组合输入与后缀分段，并保留受控回写和撤�
   );
 });
 
-test("Chromium 组合输入更新并上屏后可分别撤销和重做", async ({ page }) => {
+test("通过浏览器剪贴板粘贴引用后，Chromium 组合输入可分别撤销和重做", async ({ page }) => {
   await mountBoundaryEditor(page, "<p>目标</p>");
   await page.locator("#quote-paste .semlo-editor-prose p").click();
-  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.focus("end"));
-  await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
-  const pasted = await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot());
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(async (html) => {
+    window.__semloRequireFixture("quotePasteEditor").editor.commands.setTextSelection(3);
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob(["\n引用甲乙"], { type: "text/plain" }),
+      }),
+    ]);
+  }, yuqueCrossBlockQuoteHTML);
+  const snapshot = () => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html);
+  const initial = "<p>目标</p>";
+  const pasted = `${initial}<blockquote><p>引用甲乙</p></blockquote>`;
+  const composed = `${pasted}<p>测试</p>`;
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect.poll(snapshot).toBe(pasted);
   const session = await page.context().newCDPSession(page);
-  await session.send("Input.imeSetComposition", { text: "ce", selectionStart: 2, selectionEnd: 2 });
-  await session.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
-  await session.send("Input.insertText", { text: "测试" });
-  await expect
-    .poll(() => page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html))
-    .toBe("<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>");
+  try {
+    await session.send("Input.imeSetComposition", { text: "ce", selectionStart: 2, selectionEnd: 2 });
+    await session.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
+    await session.send("Input.insertText", { text: "测试" });
+    await expect.poll(snapshot).toBe(composed);
+  } finally {
+    await session.detach();
+  }
   await page.keyboard.press("ControlOrMeta+z");
-  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().json)).toEqual(
-    pasted.json,
-  );
+  await expect.poll(snapshot).toBe(pasted);
   await page.keyboard.press("ControlOrMeta+z");
-  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
-    "<p>目标</p>",
-  );
+  await expect.poll(snapshot).toBe(initial);
   await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect.poll(snapshot).toBe(pasted);
   await page.keyboard.press("ControlOrMeta+Shift+z");
-  expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
-    "<p>目标</p><blockquote><p>引用甲乙</p></blockquote><p>测试</p>",
-  );
-  await session.detach();
+  await expect.poll(snapshot).toBe(composed);
 });
 
 test("取消组合输入不创建空段且撤销粘贴", async ({ page }) => {
@@ -613,11 +623,9 @@ test("组合期间切换只读后不移动已输入文字", async ({ page }) => 
 
 test("粘贴后选区移动使继续输入候选失效", async ({ page }) => {
   await mountBoundaryEditor(page, "<p>甲乙</p>");
-  await page.evaluate(() => {
-    const editor = window.__semloRequireFixture("quotePasteEditor").editor;
-    editor.commands.focus();
-    editor.commands.setTextSelection(2);
-  });
+  const prose = page.locator("#quote-paste .semlo-editor-prose");
+  await prose.click();
+  await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").editor.commands.setTextSelection(2));
   await pasteBoundary(page, yuqueCrossBlockQuoteHTML);
   await page.evaluate(() => {
     const editor = window.__semloRequireFixture("quotePasteEditor").editor;
@@ -626,6 +634,7 @@ test("粘贴后选区移动使继续输入候选失效", async ({ page }) => {
     editor.commands.setTextSelection(position);
   });
   await page.keyboard.insertText("续");
+  await expect(prose.locator(":scope > p").last()).toHaveText("续乙");
   expect(await page.evaluate(() => window.__semloRequireFixture("quotePasteEditor").getSnapshot().html)).toBe(
     "<p>甲</p><blockquote><p>引用甲乙</p></blockquote><p>续乙</p>",
   );
