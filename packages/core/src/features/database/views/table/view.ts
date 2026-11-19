@@ -84,14 +84,13 @@ export function createTableView({
     const checkAll = doc.createElement("input");
     checkAll.type = "checkbox";
     checkAll.setAttribute("aria-label", "选择所有记录");
-    checkAll.disabled = !editor.isEditable || records.length === 0;
-    checkAll.checked = records.length > 0 && records.every((record) => getSelected().has(record.id));
-    checkAll.indeterminate = records.some((record) => getSelected().has(record.id)) && !checkAll.checked;
+    const renderedIds = new Set<string>();
     checkAll.addEventListener("change", () => {
       if (!dom.contains(checkAll)) return;
-      for (const record of records) {
-        if (checkAll.checked) getSelected().add(record.id);
-        else getSelected().delete(record.id);
+      const selected = getSelected();
+      for (const id of renderedIds) {
+        if (checkAll.checked) selected.add(id);
+        else selected.delete(id);
       }
       paint();
     });
@@ -129,6 +128,7 @@ export function createTableView({
 
     const recordIndexes = new Map(records.map((record, index) => [record.id, index]));
     const paintRow = (record: DatabaseRecord) => {
+      renderedIds.add(record.id);
       const index = recordIndexes.get(record.id) ?? 0;
       const row = doc.createElement("div");
       row.className = "semlo-editor-database-row";
@@ -366,6 +366,12 @@ export function createTableView({
         }
       }
     }
+    const selected = getSelected();
+    let visibleSelectionCount = 0;
+    for (const id of selected) if (renderedIds.has(id)) visibleSelectionCount++;
+    checkAll.disabled = !editor.isEditable || renderedIds.size === 0;
+    checkAll.checked = renderedIds.size > 0 && visibleSelectionCount === renderedIds.size;
+    checkAll.indeterminate = visibleSelectionCount > 0 && !checkAll.checked;
     if (!groupField) {
       const addRow = doc.createElement("div");
       addRow.className = "semlo-editor-database-add-row";
@@ -398,5 +404,6 @@ export function createTableView({
     foot.append(doc.createElement("div"));
     grid.append(foot);
     container.append(grid);
+    return renderedIds;
   };
 }
