@@ -19,6 +19,15 @@ import {
   type DatabaseView,
 } from "../model";
 
+const automaticRecordFields: Partial<
+  Record<DatabaseFieldType, "createdAt" | "modifiedAt" | "createdBy" | "modifiedBy">
+> = {
+  createdTime: "createdAt",
+  modifiedTime: "modifiedAt",
+  createdBy: "createdBy",
+  modifiedBy: "modifiedBy",
+};
+
 interface DatabaseFieldInteractionsContext {
   doc: Document;
   optionColors: readonly string[];
@@ -521,35 +530,37 @@ export function createDatabaseFieldInteractions({
       };
       const currentData = getData();
       const existing = currentData.fields.find((item) => item.id === draft.id);
+      const metadataField = automaticRecordFields[field.type];
       const converted = existing
-        ? currentData.records.map((record) => ({
-            id: record.id,
-            ...(field.type === "createdBy" || field.type === "modifiedBy"
+        ? currentData.records.map((record) => {
+            const stored = record.values[field.id];
+            const previous = stored ?? existing.defaultValue;
+            const replacesValue =
+              existing.type !== field.type &&
+              previous !== "" &&
+              previous !== false &&
+              (!Array.isArray(previous) || previous.length > 0);
+            const result = metadataField
               ? {
-                  value:
-                    (field.type === "createdBy" ? record.createdBy : record.modifiedBy) ??
-                    (existing.type === field.type ? record.values[field.id] : "") ??
-                    "",
-                  lost: false,
+                  value: record[metadataField] ?? (existing.type === field.type ? stored : "") ?? "",
+                  lost: replacesValue,
                 }
-              : field.type === "createdTime" || field.type === "modifiedTime"
-                ? {
-                    value:
-                      (field.type === "createdTime" ? record.createdAt : record.modifiedAt) ??
-                      (existing.type === field.type ? record.values[field.id] : "") ??
-                      "",
-                    lost: false,
-                  }
-                : convertDatabaseValue(existing, field, record.values[field.id])),
-          }))
+              : convertDatabaseValue(existing, field, stored);
+            return { id: record.id, ...result, ...(result.lost ? { previous } : {}) };
+          })
         : [];
       const lossCount = converted.filter((item) => item.lost).length;
-      const fingerprint = JSON.stringify({ field, converted });
-      if (lossCount && pendingLoss !== fingerprint) {
-        pendingLoss = fingerprint;
-        warning.textContent = `${lossCount} 条记录中无法转换的值将被清除，请再次点击确定。操作可以撤销。`;
-        warning.hidden = false;
-        return;
+      if (lossCount) {
+        // 再次确认须对应同一批原值，期间更新的记录需要重新确认。
+        const fingerprint = JSON.stringify({ field, converted });
+        if (pendingLoss !== fingerprint) {
+          pendingLoss = fingerprint;
+          warning.textContent = metadataField
+            ? `${lossCount} 条记录的原值将被自动字段替换，请再次点击确定。操作可以撤销。`
+            : `${lossCount} 条记录中无法转换的值将被清除，请再次点击确定。操作可以撤销。`;
+          warning.hidden = false;
+          return;
+        }
       }
       let rejectedContent = false;
       change(
@@ -587,23 +598,16 @@ export function createDatabaseFieldInteractions({
             }
             next.fields.splice(position, 0, field);
             for (const record of next.records)
-              record.values[field.id] =
-                field.type === "createdBy"
-                  ? (record.createdBy ?? "")
-                  : field.type === "modifiedBy"
-                    ? (record.modifiedBy ?? "")
-                    : field.type === "createdTime"
-                      ? (record.createdAt ?? "")
-                      : field.type === "modifiedTime"
-                        ? (record.modifiedAt ?? "")
-                        : field.type === "checkbox"
-                          ? false
-                          : field.type === "multiSelect" ||
-                              field.type === "person" ||
-                              field.type === "image" ||
-                              field.type === "attachment"
-                            ? []
-                            : structuredClone(field.defaultValue);
+              record.values[field.id] = metadataField
+                ? (record[metadataField] ?? "")
+                : field.type === "checkbox"
+                  ? false
+                  : field.type === "multiSelect" ||
+                      field.type === "person" ||
+                      field.type === "image" ||
+                      field.type === "attachment"
+                    ? []
+                    : structuredClone(field.defaultValue);
           }
         },
         true,

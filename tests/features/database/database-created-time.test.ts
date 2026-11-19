@@ -78,3 +78,71 @@ test("creation time records the actual record time and survives field changes an
   await expect(root.getByLabel("第 2 行 创建时间")).toHaveText("");
   await expect(root.getByLabel("第 4 行 创建时间")).toHaveText("2026");
 });
+
+for (const kind of ["createdTime", "createdBy"] as const) {
+  test(`switching a populated field to ${kind} requires confirmation and can be undone`, async ({ page }) => {
+    const data = createDatabaseData();
+    const field = data.fields[0];
+    const first = data.records[0];
+    first.createdAt = "2026-01-02T03:04:05.000Z";
+    first.createdBy = { id: "creator", label: "记录创建人" };
+    first.values[field.id] = "需要保留";
+    const content = { type: "doc", content: [{ type: "semloEditorDatabase", attrs: { data } }, { type: "paragraph" }] };
+    await page.goto(process.env.SEMLO_TEST_ORIGIN!);
+    await page.addScriptTag({
+      type: "module",
+      content: `
+        import { createEditor } from '/dist/index.js'
+        const host = document.createElement('div')
+        host.id = 'created-time-test'
+        document.body.prepend(host)
+        window.createdTimeEditor = createEditor({ element: host, outline: false, content: ${JSON.stringify(content)} })
+      `,
+    });
+    const root = page.locator("#created-time-test .semlo-editor-database");
+    await expect(root).toBeVisible();
+    const snapshot = () => page.evaluate(() => window.__semloRequireFixture("createdTimeEditor").getSnapshot());
+    const before = await snapshot();
+    const edit = root.getByRole("dialog", { name: "编辑列" });
+    const confirm = edit.getByRole("button", { name: "确定", exact: true });
+    const open = async () => {
+      await root.getByRole("button", { name: "文本列菜单" }).click();
+      await root.getByRole("menuitem", { name: "编辑列", exact: true }).click();
+      await edit.getByLabel("列类型").selectOption(kind);
+    };
+    const acknowledge = async () => {
+      await confirm.click();
+      await expect(edit.getByRole("status")).toContainText("1 条记录的原值将被自动字段替换");
+      expect(await snapshot()).toEqual(before);
+    };
+
+    await open();
+    await acknowledge();
+    await edit.getByRole("button", { name: "取消", exact: true }).click();
+    expect(await snapshot()).toEqual(before);
+    await open();
+    await acknowledge();
+    await confirm.click();
+    await expect(edit).toHaveCount(0);
+    const saved = await snapshot();
+    const stored = saved.json.content?.[0].attrs?.data as DatabaseData;
+    expect(stored.fields[0].type).toBe(kind);
+    expect(stored.records[0].values[field.id]).toEqual(kind === "createdTime" ? first.createdAt : first.createdBy);
+    expect(await page.evaluate(() => window.__semloRequireFixture("createdTimeEditor").editor.commands.undo())).toBe(
+      true,
+    );
+    expect(await snapshot()).toEqual(before);
+    expect(await page.evaluate(() => window.__semloRequireFixture("createdTimeEditor").editor.commands.redo())).toBe(
+      true,
+    );
+    expect(await snapshot()).toEqual(saved);
+    for (const value of [saved.json, saved.html]) {
+      await page.evaluate((value) => {
+        const editor = window.__semloRequireFixture("createdTimeEditor");
+        editor.setContent("<p></p>");
+        editor.setContent(value);
+      }, value);
+      expect(await snapshot()).toEqual(saved);
+    }
+  });
+}
