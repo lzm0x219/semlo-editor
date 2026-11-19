@@ -352,10 +352,11 @@ export function createVideoNodeView({ editor, view, node: initial, getPos }: Nod
   };
   const toggleFullscreen = () => {
     if (position() === undefined || fullscreen.disabled) return;
+    const media = player;
     fullscreenWanted = doc.fullscreenElement !== dom;
     message("");
     const failed = () => {
-      if (!destroyed && position() !== undefined) message("无法切换全屏，请检查浏览器支持。");
+      if (!destroyed && player === media && position() !== undefined) message("无法切换全屏，请检查浏览器支持。");
     };
     try {
       const request = fullscreenWanted ? dom.requestFullscreen() : doc.exitFullscreen();
