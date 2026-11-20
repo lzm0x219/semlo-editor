@@ -2220,6 +2220,7 @@ test("交错转换间隔随完整续接跨编辑器复制并换新身份", async
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(origin);
   await page.waitForFunction(() => window.taskConversionCreate);
+  const prose = page.locator(".semlo-editor-prose");
   await page.evaluate(() => {
     const host = document.createElement("div");
     document.body.replaceChildren(host);
@@ -2254,7 +2255,7 @@ test("交错转换间隔随完整续接跨编辑器复制并换新身份", async
               {
                 type: "taskItem",
                 attrs: { checked: false, semloEditorListSequenceConversion: JSON.stringify([1, "edge", "B"]) },
-                content: [{ type: "paragraph", content: [{ type: "text", text: "间隔" }] }],
+                content: [{ type: "paragraph", content: [{ type: "text", text: "交错复制间隔" }] }],
               },
             ],
           },
@@ -2265,7 +2266,10 @@ test("交错转换间隔随完整续接跨编辑器复制并换新身份", async
     window.taskConversionEditor.editor.commands.focus();
     window.taskConversionEditor.editor.commands.selectAll();
   });
+  await expect(prose).toBeFocused();
+  await expect.poll(() => page.evaluate(() => document.getSelection()?.toString())).toContain("交错复制间隔");
   await page.keyboard.press("ControlOrMeta+c");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("交错复制间隔");
   await page.evaluate(() => {
     window.__semloRequireFixture("taskConversionEditor").destroy();
     const host = document.createElement("div");
@@ -2276,7 +2280,9 @@ test("交错转换间隔随完整续接跨编辑器复制并换新身份", async
     });
     window.taskConversionEditor.editor.commands.focus();
   });
+  await expect(prose).toBeFocused();
   await page.keyboard.press("ControlOrMeta+v");
+  await expect(prose.locator(":scope > ul")).toContainText("交错复制间隔");
   const pasted = await page.evaluate(() => window.__semloRequireFixture("taskConversionEditor").getSnapshot().json);
   const left = pasted.content!.find((node) => node.type === "orderedList")!;
   const right = pasted.content!.filter((node) => node.type === "orderedList")[1];
