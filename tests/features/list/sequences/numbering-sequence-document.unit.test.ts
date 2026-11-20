@@ -8,10 +8,13 @@ import { createCheckedJSONDocument } from "../../../../packages/core/src/editor/
 import { createStarterKitWithCodeFonts } from "../../../../packages/core/src/editor/starter-kit";
 import { restartedDrag } from "../../../../packages/core/src/features/blocks/actions/restarted-drag";
 import { ListFold } from "../../../../packages/core/src/features/list/list-fold";
+import { planSequenceContinuation } from "../../../../packages/core/src/features/list/numbering-sequence-continuation";
 import { numberingSequenceInput } from "../../../../packages/core/src/features/list/numbering-sequence-document";
 import {
   assertNumberingSequenceDocument,
+  formatSequenceLink,
   resolveListNumbering,
+  sequenceLinkAttribute,
   sequenceRegistryAttribute,
   sequenceMemberAttribute,
 } from "../../../../packages/core/src/features/list/numbering-sequence-document";
@@ -94,6 +97,37 @@ test("严格 JSON 拒绝缺失的成员引用并保留输入", () => {
   const before = structuredClone(json);
   expect(() => createCheckedJSONDocument(json, schema)).toThrow("编号序列");
   expect(json).toEqual(before);
+});
+
+test("编号续接只在同一引用内生效", () => {
+  const segment = (id: string, start: number, previous: string | null, next: string | null): JSONContent => ({
+    type: "orderedList",
+    attrs: {
+      [sequenceRegistryAttribute]: { version: 1, sequences: [{ id: "A", start, origin: "initial" }] },
+      [sequenceLinkAttribute]: formatSequenceLink(previous, next, 1),
+    },
+    content: [{ type: "listItem", attrs: { [sequenceMemberAttribute]: "A" }, content: [paragraph(id)] }],
+  });
+  const first = segment("前段", 3, null, "edge");
+  const last = segment("后段", 9, "edge", null);
+  const quote = (...blocks: JSONContent[]): JSONContent => ({ type: "blockquote", content: blocks });
+  const sameQuote = createCheckedJSONDocument(
+    { type: "doc", content: [quote(first, paragraph("间隔"), last)] },
+    schema,
+  );
+  const connected = planSequenceContinuation(sameQuote);
+  expect(connected?.map(({ node }) => resolveListNumbering(node))).toEqual([
+    expect.objectContaining({ ok: true, value: expect.objectContaining({ values: [4] }) }),
+  ]);
+  for (const blocks of [
+    [quote(first), quote(last)],
+    [first, quote(last)],
+  ]) {
+    const separate = createCheckedJSONDocument({ type: "doc", content: blocks }, schema);
+    const detached = planSequenceContinuation(separate);
+    expect(detached?.map(({ node }) => node.attrs[sequenceLinkAttribute])).toEqual([null, null]);
+    expect(detached?.map(({ node }) => node.attrs[sequenceRegistryAttribute].sequences[0].start)).toEqual([3, 9]);
+  }
 });
 
 function state(json = content()) {

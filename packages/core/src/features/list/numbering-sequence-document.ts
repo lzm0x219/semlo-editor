@@ -135,7 +135,9 @@ export function assertNumberingSequenceDocument(root: ProseMirrorNode): void {
     const linkValue = node.attrs[sequenceLinkAttribute];
     if (linkValue != null) {
       const link = parseSequenceLink(linkValue);
-      if (!link || node.type.name !== "orderedList" || parent !== root || !hasNumberingSequences(node))
+      const allowedParent =
+        parent === root || (parent?.type.name === "blockquote" && link?.version === 1 && root.resolve(pos).depth === 1);
+      if (!link || node.type.name !== "orderedList" || !allowedParent || !hasNumberingSequences(node))
         throw new ContentValidationError("编号序列关联无效");
       if ((link.previous && previous.has(link.previous)) || (link.next && next.has(link.next)))
         throw new ContentValidationError("编号序列关联重复");
