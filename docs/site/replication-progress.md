@@ -29,7 +29,7 @@ description: 按当前范围区分功能实现、语雀观察与对照验收，�
 | 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、专注编辑、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方及真机绘图。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
 | 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | CodePen 同样本结果不同，宜搭示例拒绝嵌入，Figma 旧示例失效。其他受限资源仍需有效账号或样本。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
 
-整合验收继续跟踪 [Chromium 偶发失败 #86](https://github.com/lzm0x219/semlo-editor/issues/86)。
+整合验收已补齐背景色快捷键的选区准备和首页触摸滚动的手势验证。 [Chromium 回归 #86](https://github.com/lzm0x219/semlo-editor/issues/86)
 
 ## 2026 年 11 月 8 日盘点
 

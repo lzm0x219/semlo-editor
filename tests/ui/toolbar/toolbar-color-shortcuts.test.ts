@@ -32,8 +32,10 @@ test("background shortcut applies the current color and respects composition and
   const { port, server } = await rsbuild.startDevServer();
   try {
     await page.goto(`http://127.0.0.1:${port}`);
-    await page.evaluate(() => window.__semloRequireFixture("colorShortcutFixture").select());
     await page.locator(".semlo-editor-prose").focus();
+    // 聚焦后再建立选区，避免浏览器用原光标覆盖未聚焦时设置的选区。
+    await page.evaluate(() => window.__semloRequireFixture("colorShortcutFixture").select());
+    await expect.poll(() => page.evaluate(() => document.getSelection()?.toString())).toBe("背景测试");
     await page.keyboard.press("Alt+Meta+h");
     await expect(page.locator(".semlo-editor-prose mark")).toHaveCSS("background-color", "rgb(251, 222, 40)");
     await page.getByRole("button", { name: "高亮颜色", exact: true }).click();
@@ -53,6 +55,8 @@ test("background shortcut applies the current color and respects composition and
     await page.keyboard.press("Alt+Meta+h");
     await expect(page.locator(".semlo-editor-prose mark")).toHaveCount(0);
     await expect(overflow).toBeVisible();
+    await page.evaluate(() => window.__semloRequireFixture("colorShortcutFixture").paint());
+    await expect(page.locator(".semlo-editor-prose mark")).toHaveCount(1);
     const before = await page.evaluate(() => window.__semloRequireFixture("colorShortcutFixture").snapshot());
     await page.locator(".semlo-editor-prose").evaluate((element) => {
       element.dispatchEvent(
