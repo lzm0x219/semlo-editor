@@ -356,9 +356,9 @@ test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ br
     isMobile: true,
     hasTouch: true,
   });
-  const page = await context.newPage();
-  const touch = await page.context().newCDPSession(page);
   try {
+    const page = await context.newPage();
+    const touch = await context.newCDPSession(page);
     await openHome(page);
     const host = page.locator(".semlo-editor-editor-host");
     await host.scrollIntoViewIfNeeded();
@@ -370,14 +370,15 @@ test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ br
       if (!bounds) throw new Error("找不到编辑器滚动区域");
       const x = bounds.x + bounds.width / 2;
       const y = bounds.y + bounds.height / 2;
-      await touch.send("Input.synthesizeScrollGesture", {
-        x,
-        y,
-        yDistance: -distance,
-        speed: 700,
-        preventFling: true,
-        gestureSourceType: "touch",
-      });
+      const steps = Math.ceil(distance / 35);
+      await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      for (let i = 1; i <= steps; i++) {
+        await touch.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x, y: y - (i * distance) / steps }],
+        });
+      }
+      await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     }
     const innerScrollRange = await host.evaluate((element) => element.scrollHeight - element.clientHeight);
     expect(innerScrollRange).toBeGreaterThan(0);
