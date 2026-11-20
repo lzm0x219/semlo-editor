@@ -717,11 +717,15 @@ test("关联字段版本、重复端点和嵌套位置无效时拒绝输入", ()
   duplicate.content![0].attrs!.semloEditorListSequenceLink = "v1:_:same";
   duplicate.content!.push(structuredClone(duplicate.content![0]));
   expect(() => createCheckedJSONDocument(duplicate, schema)).toThrow("编号序列关联重复");
+  const quotedList = structuredClone(duplicate.content![0]);
   const nested = {
     type: "doc",
-    content: [{ type: "blockquote", content: [structuredClone(duplicate.content![0])] }],
+    content: [{ type: "blockquote", content: [{ type: "blockquote", content: [quotedList] }] }],
   };
   expect(() => createCheckedJSONDocument(nested, schema)).toThrow("编号序列关联无效");
+  quotedList.attrs!.semloEditorListSequenceLink = "v2:_:same";
+  const unsupportedQuote = { type: "doc", content: [{ type: "blockquote", content: [quotedList] }] };
+  expect(() => createCheckedJSONDocument(unsupportedQuote, schema)).toThrow("编号序列关联无效");
 });
 
 test("删除前段时后段按剩余成员重算并解除关联，撤销恢复关联", () => {
