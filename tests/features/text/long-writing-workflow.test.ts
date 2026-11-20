@@ -275,7 +275,7 @@ test("an imported long article preserves list, table and code when writing resum
   await expect(prose.locator(":scope > h3")).toHaveText("执行明细");
   await expect(prose.locator("ol li")).toHaveText(["校对引文", "整理附表"]);
   await expect(prose.locator("table td")).toHaveText(["材料", "状态", "编号清单", "待核对"]);
-  await expect(prose.locator("pre code")).toHaveText(code);
+  expect(await prose.locator("pre code").textContent()).toBe(code);
   const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
   const saved = await snapshot();
   expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(saved.html);
