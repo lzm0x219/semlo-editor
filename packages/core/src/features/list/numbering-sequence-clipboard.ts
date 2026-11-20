@@ -334,7 +334,35 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
   return { root, slice: new Slice(Fragment.fromArray(blocks), 0, 0), text: plain.join("\n\n"), headings };
 }
 
-/** 规划根项到后代、同一初始序列的跨父项剪切，并保护未选中的深层子树。 */
+/** 识别末项仍有后代的跨父项选区，避免通用粘贴重组尚未验证的子树。 */
+export function crossParentSelectionEndsBeforeDescendants(state: EditorState): boolean {
+  const selection = state.selection;
+  if (!(selection instanceof TextSelection) || selection.empty) return false;
+  const { $from, $to } = selection;
+  if ($from.depth < 3 || $to.depth < 3 || $from.before(1) !== $to.before(1)) return false;
+  const list = $from.node(1);
+  if (list.type.name !== "orderedList") return false;
+  if ($from.depth === 5 && $to.depth === 5) {
+    return (
+      $from.index(1) !== $to.index(1) &&
+      $from.node(3).type.name === "orderedList" &&
+      $to.node(3).type.name === "orderedList" &&
+      $to.node(4).childCount > 1
+    );
+  }
+  if ($from.depth !== 3 || $to.depth !== 3) return false;
+  const first = $from.index(1),
+    last = $to.index(1);
+  return (
+    list.child(first).attrs.semloEditorListIndent === 1 &&
+    list.child(last).attrs.semloEditorListIndent === 1 &&
+    last + 1 < list.childCount &&
+    list.child(last + 1).attrs.semloEditorListIndent > 1 &&
+    list.content.content.slice(first + 1, last).some((item) => item.attrs.semloEditorListIndent === 0)
+  );
+}
+
+/** 规划根项到后代、同一初始序列的跨父项剪切，并保留归属明确的未选孙项。 */
 export function projectNumberingSequenceMixedCut(state: EditorState): NumberingSequenceClipboard | null {
   const copy = projectNumberingSequenceMixedCopy(state);
   if (!copy) return null;
@@ -381,16 +409,18 @@ export function projectNumberingSequenceMixedCut(state: EditorState): NumberingS
     )
       return null;
     reparentFrom = last + 1;
+    // 末项的直接后代紧跟在合并项之后，保留原孙项节点和编号序列。
+    while (reparentFrom < entries.length && level(reparentFrom) === 2) reparentFrom++;
     reparentTo = reparentFrom;
     while (reparentTo < entries.length && level(reparentTo) === 1) reparentTo++;
-    // 中间深层项完全落在选区时可一并删除；范围外的深层项仍可能需要重新归属。
+    // 首端未选深层项、四级后代及剩余兄弟项的子树仍待核对。
     if (
       (reparentTo < entries.length && level(reparentTo) !== 0) ||
       entries
         .slice(firstParent, reparentTo)
         .some(
           (item, offset) =>
-            (level(firstParent + offset) > 1 && (firstParent + offset <= first || firstParent + offset >= last)) ||
+            (level(firstParent + offset) > 1 && firstParent + offset <= first) ||
             item.childCount !== 1 ||
             item.firstChild?.type.name !== "paragraph",
         )

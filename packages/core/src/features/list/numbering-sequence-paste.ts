@@ -199,7 +199,7 @@ const projectedListAttributes = [
 const projectedItemAttributes = [sequenceMemberAttribute, "semloEditorListRestart", "semloEditorListIndent"] as const;
 
 /** 按跨父项剪切的边界合并直接子项，再将独立片段接入原编号序列。 */
-export function planLegacyCrossParentPaste(state: EditorState, slice: Slice, plain: boolean): Transaction | null {
+export function planCrossParentPaste(state: EditorState, slice: Slice, plain: boolean): Transaction | null {
   try {
     const plan = projectNumberingSequenceMixedCut(state);
     if (!plan || slice.content.childCount !== 1 || !slice.content.firstChild) return null;
@@ -249,14 +249,16 @@ export function planLegacyCrossParentPaste(state: EditorState, slice: Slice, pla
     const right = parent.copy(
       Fragment.from(target.copy(last.content.append($to.parent.content.cut($to.parentOffset)))),
     );
-    // 末父项的剩余直接子项接到新根项下，沿用它们原本的初始序列。
+    // 孙项随末段文字接到新根项下并保持原缩进；直接子项恢复其原初始序列。
     const tailSequence = $to.node(2).attrs[sequenceMemberAttribute];
     const items = [...list.content.content.slice(0, index), left, right];
     let tail = index + 1;
-    while (tail < list.childCount && list.child(tail).attrs.semloEditorListIndent === 1) {
+    while (tail < list.childCount && list.child(tail).attrs.semloEditorListIndent > 0) {
       const child = list.child(tail++);
       items.push(
-        child.type.create({ ...child.attrs, [sequenceMemberAttribute]: tailSequence }, child.content, child.marks),
+        child.attrs.semloEditorListIndent === 1
+          ? child.type.create({ ...child.attrs, [sequenceMemberAttribute]: tailSequence }, child.content, child.marks)
+          : child,
       );
     }
     items.push(...list.content.content.slice(tail));

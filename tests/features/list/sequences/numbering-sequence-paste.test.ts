@@ -163,20 +163,151 @@ for (const { source, html, start } of [
   });
 }
 
-test("普通嵌套列表跨父项剪切保留末项未选中的深层子树", async ({ page }) => {
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.evaluate(
-    (content) => window.sequencePasteFixture.mount("primary", content),
-    legacyCrossParentHTML.replace("<p>ChildBX</p>", "<p>ChildBX</p><ol><li><p>GrandKeep</p></li></ol>"),
-  );
-  await select(page, "ChildAX", 1, "ChildBX", 1);
-  const original = await snapshot(page);
-  await page.evaluate(() => navigator.clipboard.writeText("保留剪贴板"));
-  await page.keyboard.press("ControlOrMeta+x");
-  await expect(page.locator(".semlo-editor-list-clipboard-status")).toHaveText("暂不支持此范围的剪切");
-  expect(await snapshot(page)).toEqual(original);
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("保留剪贴板");
-});
+const crossParentDeepRows = [
+  ["RootA", 0, "R"],
+  ["ChildAX", 1, "A"],
+  ["GrandAX", 2, "AX"],
+  ["ChildAY", 1, "A"],
+  ["RootB", 0, "R"],
+  ["ChildBX", 1, "B"],
+  ["GrandKeep", 2, "BX"],
+  ["GrandStay", 2, "BX"],
+  ["ChildBY", 1, "B"],
+  ["RootC", 0, "R"],
+] as const;
+
+for (const { operation, sources, rows } of [
+  {
+    operation: "剪切",
+    sources: ["旧 HTML"],
+    rows: [
+      ["RootA", 0, 1],
+      ["ChildBX", 1, 1],
+      ["GrandKeep", 2, 1],
+      ["GrandStay", 2, 2],
+      ["ChildBY", 1, 2],
+      ["RootC", 0, 2],
+    ],
+  },
+  {
+    operation: "粘贴纯文本",
+    sources: ["旧 HTML", "键盘输入"],
+    rows: [
+      ["RootA", 0, 1],
+      ["CPasteOnehildBX", 1, 1],
+      ["GrandKeep", 2, 1],
+      ["GrandStay", 2, 2],
+      ["ChildBY", 1, 2],
+      ["RootC", 0, 2],
+    ],
+  },
+  {
+    operation: "粘贴 HTML 列表",
+    sources: ["旧 HTML", "编号 JSON"],
+    rows: [
+      ["RootA", 0, 1],
+      ["CPasteOne", 1, 1],
+      ["PasteTwohildBX", 0, 2],
+      ["GrandKeep", 2, 1],
+      ["GrandStay", 2, 2],
+      ["ChildBY", 1, 1],
+      ["RootC", 0, 3],
+    ],
+  },
+] as const)
+  for (const source of sources) {
+    test(`${source}三级列表跨父项${operation}保留末项未选中的孙项`, async ({ page }) => {
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+      const numbered: JSONContent = {
+        type: "doc",
+        content: [
+          {
+            type: "orderedList",
+            attrs: {
+              semloEditorListSequences: {
+                version: 1,
+                sequences: [...new Set(crossParentDeepRows.map(([, , id]) => id))].map((id) => ({
+                  id,
+                  start: 1,
+                  origin: "initial",
+                })),
+              },
+            },
+            content: crossParentDeepRows.map(([text, level, id]) => ({
+              type: "listItem",
+              attrs: { semloEditorListIndent: level, semloEditorListSequence: id },
+              content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+            })),
+          },
+        ],
+      };
+      await page.evaluate(
+        (content) => window.sequencePasteFixture.mount("primary", content, "html"),
+        source === "编号 JSON"
+          ? numbered
+          : source === "键盘输入"
+            ? "<p></p>"
+            : legacyCrossParentHTML.replace(
+                "<p>ChildBX</p>",
+                "<p>ChildBX</p><ol><li><p>GrandKeep</p></li><li><p>GrandStay</p></li></ol>",
+              ),
+      );
+      if (source === "键盘输入")
+        await typeNumberedItems(
+          page,
+          crossParentDeepRows.map(([text, level]) => [text, level]),
+        );
+      const original = await snapshot(page);
+      const changes = await page.evaluate(() => window.sequencePasteFixture.changes());
+      await select(page, "ChildAX", 1, "ChildBX", 1);
+      const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+      const selected = await selection();
+      if (operation === "剪切") {
+        await page.evaluate(() => navigator.clipboard.writeText("保留剪贴板"));
+        await page.keyboard.press("ControlOrMeta+x");
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+          "  a. hildAX\n    ⅰ. GrandAX\n  b. ChildAY\n2. RootB\n  a. C",
+        );
+      } else {
+        if (operation === "粘贴纯文本") await page.evaluate(() => navigator.clipboard.writeText("PasteOne"));
+        else await writeNativeList(page, "<ol><li><p>PasteOne</p></li><li><p>PasteTwo</p></li></ol>");
+        await page.keyboard.press("ControlOrMeta+v");
+      }
+      const items = page.locator("#primary .semlo-editor-prose > ol > li");
+      const expectRows = async () => {
+        await expect(items).toHaveText(rows.map(([label]) => label));
+        expect(
+          await items.evaluateAll((nodes) =>
+            nodes.map((item) => [
+              Number(item.getAttribute("data-semlo-editor-list-indent")),
+              (item as HTMLLIElement).value,
+              item.getAttribute("data-semlo-editor-ordered-marker"),
+            ]),
+          ),
+        ).toEqual(rows.map(([, level, value]) => [level, value, [null, "lower-alpha", "semlo-mixed-roman"][level]]));
+      };
+      await expectRows();
+      const edited = await snapshot(page);
+      expect(await page.evaluate(() => window.sequencePasteFixture.changes())).toBe(changes + 1);
+      await history(page, "undo");
+      expect(await snapshot(page)).toEqual(original);
+      expect(await selection()).toEqual(selected);
+      await history(page, "redo");
+      expect(await snapshot(page)).toEqual(edited);
+      await page.evaluate((value) => sessionStorage.setItem("legacy-list", JSON.stringify(value)), edited);
+      for (const format of ["json", "html"] as const) {
+        await page.reload();
+        await page.waitForFunction(() => Boolean(window.sequencePasteFixture));
+        await page.evaluate(
+          (format) =>
+            window.sequencePasteFixture.mount("primary", JSON.parse(sessionStorage.getItem("legacy-list")!)[format]),
+          format,
+        );
+        expect(await snapshot(page)).toEqual(edited);
+        await expectRows();
+      }
+    });
+  }
 
 for (const { level, start, content } of [
   { level: "子", start: 7, content: legacyCrossParentHTML.replace("<p>RootB</p><ol>", '<p>RootB</p><ol start="7">') },
