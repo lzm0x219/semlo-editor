@@ -645,3 +645,13 @@ Semlo 的新版编号序列此前拒绝这两种复制；当前支持根级单�
 以根级粗体正文为格式刷来源，分别刷向根级三项有序列表和引用内三项有序列表的第二项。等待格式刷工具栏和编辑区显示激活后才点击目标。两处第二项均转为粗体正文，前项仍为 1，后项续为 2。引用中三个块仍留在原引用内。一次撤销恢复三个连续编号项，重做恢复拆分。未确认激活和中间操作序列读到的局部效果不作为结论。
 
 保存重载后，引用内的粗体、段落类型及编号保持。在前段新增列表项得到 1、2、正文、3，撤销恢复拆分状态。Semlo 对应回归覆盖旧列表及版本化列表，在同一引用内写入 v1 续接。语雀隔离稿清理后刷新，标题保留，正文为唯一空段且显示 0 字。 [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
+
+## 2026-11-20 跨父项剪贴板保留未选孙项
+
+在语雀隔离稿末尾粘贴标准 HTML，构造 `RootA / ChildAX / GrandAX / ChildAY / RootB / ChildBX / GrandKeep / GrandStay / ChildBY / RootC`。从 `ChildAX` 偏移 1 拖到 `ChildBX` 偏移 1，选区覆盖 `GrandAX`，不包含 `GrandKeep` 和 `GrandStay`。
+
+- 剪切的纯文本保留 `a / ⅰ / b / 2 / a` 的源编号。`ChildBX` 接入 `RootA`，随后保留孙项 `ⅰ. GrandKeep / ⅱ. GrandStay` 和兄弟项 `b. ChildBY`，`RootC` 改为 2。
+- 粘贴单行 `PasteOne` 时，合并项为 `CPasteOnehildBX`，孙项、兄弟项和后续编号与剪切一致。
+- 粘贴普通两项 HTML 列表时，`a. CPasteOne` 保留在 `RootA` 下，`PasteTwohildBX` 成为根项 2。两个孙项紧跟在它后面，仍显示第三级的 `ⅰ / ⅱ`，`ChildBY` 显示为第二级的 `a`，`RootC` 为 3。保存、刷新并重新进入编辑后，顺序、缩进和编号保持。
+
+三种操作均在语雀核对了一次撤销恢复结构和原选区、重做恢复结果。临时列表已从隔离稿移除，刷新后复核。Semlo 的系统剪贴板回归覆盖相同结构及 JSON / HTML 重载。 [验证记录](validation.md#2026-11-20-跨父项剪贴板保留未选孙项) · [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
