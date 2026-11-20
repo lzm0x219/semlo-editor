@@ -350,43 +350,58 @@ test("手机编辑器保留内外滚动，并可直接继续浏览", async ({ pa
   await expect(editor).toContainText("手机上的临时内容");
 });
 
-test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const touch = await page.context().newCDPSession(page);
+test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
   try {
-    await touch.send("Emulation.setDeviceMetricsOverride", {
-      width: 390,
-      height: 844,
-      deviceScaleFactor: 1,
-      mobile: true,
-    });
-    await touch.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    const page = await context.newPage();
+    const touch = await context.newCDPSession(page);
     await openHome(page);
     const host = page.locator(".semlo-editor-editor-host");
     await host.scrollIntoViewIfNeeded();
     await host.evaluate((element) => {
       element.scrollTop = 0;
     });
-    async function swipeUp() {
+    async function swipeUp(distance: number) {
       const bounds = await host.boundingBox();
       if (!bounds) throw new Error("找不到编辑器滚动区域");
       const x = bounds.x + bounds.width / 2;
       const y = bounds.y + bounds.height / 2;
+      const steps = Math.ceil(distance / 35);
       await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
-      for (let i = 1; i <= 5; i++) {
-        await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - i * 35 }] });
+      for (let i = 1; i <= steps; i++) {
+        await touch.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x, y: y - (i * distance) / steps }],
+        });
       }
       await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     }
-    await swipeUp();
-    await expect.poll(() => host.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    await host.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
+    const innerScrollRange = await host.evaluate((element) => element.scrollHeight - element.clientHeight);
+    expect(innerScrollRange).toBeGreaterThan(0);
+    // 手势把内层滚到边界，后续手势才能检验浏览器实际的滚动交接。
+    await swipeUp(innerScrollRange + 40);
+    await expect
+      .poll(() => host.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop))
+      .toBeLessThanOrEqual(1);
+    const previousY = await page.evaluate(() => {
+      const start = window.scrollY;
+      const onScrollEnd = () => {
+        if (window.scrollY <= start) return;
+        document.documentElement.dataset.touchScrollEnded = "true";
+        document.removeEventListener("scrollend", onScrollEnd);
+      };
+      document.addEventListener("scrollend", onScrollEnd);
+      return start;
     });
-    const previousY = await page.evaluate(() => window.scrollY);
-    await swipeUp();
+    await swipeUp(175);
     try {
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(previousY);
+      // 惯性滚动结束后再触摸链接，否则 Chromium 可能只用这次轻点停止滚动。
+      await expect(page.locator("html")).toHaveAttribute("data-touch-scroll-ended", "true");
     } catch (error) {
       console.log("touch-scroll-diagnostic", {
         previousY,
@@ -403,14 +418,9 @@ test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ pa
       throw error;
     }
     const next = page.getByRole("link", { name: "继续浏览", exact: true });
-    await next.scrollIntoViewIfNeeded();
-    const nextBounds = await next.boundingBox();
-    if (!nextBounds) throw new Error("找不到继续浏览入口");
-    const point = { x: nextBounds.x + nextBounds.width / 2, y: nextBounds.y + nextBounds.height / 2 };
-    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
-    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await next.tap();
     await expect(page.getByRole("heading", { name: /想法不必一次成形/ })).toBeFocused();
   } finally {
-    await touch.detach();
+    await context.close();
   }
 });
