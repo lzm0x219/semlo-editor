@@ -62,6 +62,23 @@ async function check(name: string, engine: BrowserType) {
     await page.keyboard.press(`${process.platform === "darwin" ? "Meta" : "Control"}+z`);
     await page.waitForFunction(() => !window.semloCrossBrowser!.editors[0].getSnapshot().text.includes("X"));
     assert.equal(await page.evaluate(() => window.semloCrossBrowser!.editors[1].getSnapshot().text.trim()), "乙");
+    await page.evaluate(() => {
+      window.semloCrossBrowser!.editors[0].setContent({
+        type: "doc",
+        content: [{ type: "semloEditorCanvas", attrs: { kind: "board", data: { shapes: [], edges: [] } } }],
+      });
+    });
+    const focusCanvas = first.getByRole("button", { name: "专注编辑" });
+    await focusCanvas.press("Enter");
+    const focusDialog = first.getByRole("dialog", { name: "画布专注编辑" });
+    await focusDialog.waitFor({ state: "visible" });
+    assert.equal(
+      await focusDialog.getByRole("button", { name: "返回文档" }).evaluate((button) => button.matches(":focus")),
+      true,
+    );
+    await page.keyboard.press("Escape");
+    await focusDialog.waitFor({ state: "detached" });
+    assert.equal(await focusCanvas.evaluate((button) => button.matches(":focus")), true);
     await page.evaluate(() => window.semloCrossBrowser!.editors[0].destroy());
     await second.click();
     await page.keyboard.press("End");

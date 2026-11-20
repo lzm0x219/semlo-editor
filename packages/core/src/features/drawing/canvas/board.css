@@ -9,6 +9,84 @@
   padding: 0;
   background: #fff;
 }
+.semlo-editor-canvas-surface {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.semlo-editor-canvas-focus-dialog {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  height: calc(100% - 32px);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 0;
+  background: #fff;
+  color: #222;
+  overscroll-behavior: contain;
+}
+.semlo-editor-canvas-focus-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.semlo-editor-canvas-focus-dialog::backdrop {
+  background: rgb(25 34 45 / 48%);
+}
+.semlo-editor-canvas-focus-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  border-bottom: 1px solid #ebebeb;
+  padding: 6px 12px;
+}
+.semlo-editor-canvas-focus-header button {
+  min-height: 36px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: #fff;
+  color: #333;
+  font: inherit;
+  cursor: pointer;
+}
+.semlo-editor-canvas-focus-header button:hover {
+  background: #f5f5f5;
+}
+.semlo-editor-canvas-toolbar .semlo-editor-canvas-focus-trigger {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+}
+.semlo-editor-canvas-focus-dialog .semlo-editor-canvas-toolbar .semlo-editor-canvas-focus-trigger {
+  display: none;
+}
+@media (max-width: 480px) {
+  .semlo-editor-canvas-focus-dialog {
+    width: 100%;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .semlo-editor-canvas-focus-header {
+    padding-top: max(6px, env(safe-area-inset-top));
+  }
+  .semlo-editor-canvas-focus-header button {
+    min-height: 44px;
+  }
+  .semlo-editor-canvas-focus-dialog .semlo-editor-canvas-view-controls {
+    /* 选中图形时，属性工具和视图按钮在窄屏中分行。 */
+    top: 48px;
+  }
+}
 .semlo-editor-canvas-toolbar {
   position: absolute;
   inset: 0;
