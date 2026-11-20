@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { mkdtempDisposable } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import { createRsbuild } from "@rsbuild/core";
 import { firefox, webkit, type Browser, type BrowserType } from "playwright";
 
+import { checkMobileLongWriting, longWritingStorage } from "./mobile-long-writing-helpers.ts";
+
 const source = process.argv.includes("--source");
+await using storage = await mkdtempDisposable(join(tmpdir(), "semlo-long-writing-"));
+const articleFile = join(storage.path, "article.html");
 const build = await createRsbuild({
   cwd: process.cwd(),
   rsbuildConfig: {
@@ -23,7 +29,14 @@ const build = await createRsbuild({
         config.resolve.modules = [resolve("demo/node_modules"), ...(config.resolve.modules ?? ["node_modules"])];
       },
     },
-    server: { host: "127.0.0.1", port: 0, strictPort: true },
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+      strictPort: true,
+      setup({ server }) {
+        server.middlewares.use(longWritingStorage(articleFile));
+      },
+    },
     dev: { hmr: false, liveReload: false },
   },
 });
@@ -95,6 +108,10 @@ async function check(name: string, engine: BrowserType) {
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
     assert.deepEqual(errors, []);
     console.log(`${name}: 通过；页面/控制台错误 0`);
+    if (engine === webkit) {
+      await checkMobileLongWriting(browser, `http://127.0.0.1:${port}`, articleFile);
+      console.log("WebKit 375px: 表格撤销重做、HTTP 保存、独立会话重开与续写通过");
+    }
   } catch (error) {
     failures.push(
       `${name}: ${error instanceof Error ? error.message : String(error)}；页面/控制台错误: ${JSON.stringify(errors)}`,
