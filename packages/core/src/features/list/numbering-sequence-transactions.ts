@@ -5,7 +5,7 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { markSequenceCopyHook } from "../../shared/clipboard-hooks";
 import { isHeadingNumberingClipboardSerializer } from "../heading/numbering-clipboard";
-import { projectLegacyNumberingSelection } from "./legacy-numbering-selection";
+import { legacyCrossParentCutTouchesCustomStart, projectLegacyNumberingSelection } from "./legacy-numbering-selection";
 import { planNestedLegacyPlainPaste } from "./nested-legacy-plain-paste";
 import {
   projectNumberingSequenceClipboard,
@@ -325,7 +325,13 @@ export function numberingSequencePolicy(): Plugin {
       ({ node, pos }) => selection.from < pos + node.nodeSize && selection.to > pos,
     );
     const legacy = touched.length ? null : projectLegacyNumberingSelection(state);
-    if (!legacy && touched.every(({ node, pos }) => selection.from <= pos && selection.to >= pos + node.nodeSize))
+    // 默认剪切会合并两个父项下的子列表，被合入的列表可能失去起点。
+    const requireLegacyPlan = cut && !legacy && !touched.length && legacyCrossParentCutTouchesCustomStart(state);
+    if (
+      !legacy &&
+      !requireLegacyPlan &&
+      touched.every(({ node, pos }) => selection.from <= pos && selection.to >= pos + node.nodeSize)
+    )
       return false;
     event.preventDefault();
     clearNotice();

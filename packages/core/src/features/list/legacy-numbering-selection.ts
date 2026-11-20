@@ -10,6 +10,29 @@ import {
 } from "./numbering-sequence-document";
 import { materializeNumberingSequences } from "./numbering-sequences";
 
+export function legacyCrossParentCutTouchesCustomStart(state: EditorState): boolean {
+  const { selection } = state;
+  if (!(selection instanceof TextSelection)) return false;
+  const { $from, $to } = selection;
+  if (
+    $from.depth < 5 ||
+    $to.depth < 5 ||
+    $from.before(1) !== $to.before(1) ||
+    $from.node(1).type.name !== "orderedList" ||
+    $from.index(1) === $to.index(1) ||
+    $from.node(-2).type.name !== "orderedList" ||
+    $to.node(-2).type.name !== "orderedList"
+  )
+    return false;
+
+  let customStart = false;
+  state.doc.nodesBetween(selection.from, selection.to, (node) => {
+    if (node.type.name === "orderedList" && node.attrs.start !== 1) customStart = true;
+    return !customStart;
+  });
+  return customStart;
+}
+
 /** 为受支持的操作准备编号视图；读取或复制旧列表时不写入原文。 */
 export function projectLegacyNumberingSelection(state: EditorState) {
   try {

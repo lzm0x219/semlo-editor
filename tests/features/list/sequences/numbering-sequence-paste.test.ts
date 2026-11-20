@@ -167,6 +167,39 @@ test("普通嵌套列表跨父项剪切保留末项未选中的深层子树", as
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("保留剪贴板");
 });
 
+for (const { level, start, content } of [
+  { level: "根", start: 4, content: legacyCrossParentHTML.replace("<ol>", '<ol start="4">') },
+  { level: "子", start: 7, content: legacyCrossParentHTML.replace("<p>RootB</p><ol>", '<p>RootB</p><ol start="7">') },
+]) {
+  test(`旧嵌套列表的${level}序列自定义起点阻止跨父项剪切`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate((content) => window.sequencePasteFixture.mount("primary", content, "html"), content);
+    const original = await snapshot(page);
+    expect(original.html).toContain(`start="${start}"`);
+    await page.evaluate((value) => sessionStorage.setItem("legacy-list", JSON.stringify(value)), original);
+    await select(page, "ChildAX", 1, "ChildBX", 1);
+    const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+    const selected = await selection();
+    await page.evaluate(() => navigator.clipboard.writeText("保留剪贴板"));
+    await page.keyboard.press("ControlOrMeta+x");
+    expect(await snapshot(page)).toEqual(original);
+    expect(await selection()).toEqual(selected);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("保留剪贴板");
+    await expect(page.locator(".semlo-editor-list-clipboard-status")).toHaveText("暂不支持此范围的剪切");
+    expect(await page.evaluate(() => window.sequencePasteFixture.changes())).toBe(0);
+    for (const format of ["json", "html"] as const) {
+      await page.reload();
+      await page.waitForFunction(() => Boolean(window.sequencePasteFixture));
+      await page.evaluate(
+        (format) =>
+          window.sequencePasteFixture.mount("primary", JSON.parse(sessionStorage.getItem("legacy-list")!)[format]),
+        format,
+      );
+      expect(await snapshot(page)).toEqual(original);
+    }
+  });
+}
+
 test("键盘创建的子项跨项粘贴后可续接和移动", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => window.sequencePasteFixture.mount("primary", "<p></p>", "html"));
