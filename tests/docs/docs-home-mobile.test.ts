@@ -387,10 +387,21 @@ test("模拟触摸可在编辑器和页面间滚动并继续浏览", async ({ br
     await expect
       .poll(() => host.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop))
       .toBeLessThanOrEqual(1);
-    const previousY = await page.evaluate(() => window.scrollY);
+    const previousY = await page.evaluate(() => {
+      const start = window.scrollY;
+      const onScrollEnd = () => {
+        if (window.scrollY <= start) return;
+        document.documentElement.dataset.touchScrollEnded = "true";
+        document.removeEventListener("scrollend", onScrollEnd);
+      };
+      document.addEventListener("scrollend", onScrollEnd);
+      return start;
+    });
     await swipeUp(175);
     try {
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(previousY);
+      // 惯性滚动结束后再触摸链接，否则 Chromium 可能只用这次轻点停止滚动。
+      await expect(page.locator("html")).toHaveAttribute("data-touch-scroll-ended", "true");
     } catch (error) {
       console.log("touch-scroll-diagnostic", {
         previousY,
