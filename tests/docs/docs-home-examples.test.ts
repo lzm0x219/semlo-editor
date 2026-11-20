@@ -112,15 +112,21 @@ test("数据表编辑的撤销历史随示例保留", async ({ page }) => {
 
 test("能力入口定位真实示例且保留试写", async ({ page }) => {
   const editor = await openHome(page);
-  await appendText(page, "从能力入口返回后保留");
+  await editor.locator("p").first().click();
+  await page.keyboard.insertText("从能力入口返回后保留");
   await page.getByRole("button", { name: "试试表格" }).click();
   await expect(page.getByRole("button", { name: /当前：列表与表格/ })).toBeFocused();
-  const host = page.locator(".semlo-editor-editor-host");
-  const table = host.locator(".tableWrapper").first();
+  const table = page.locator(".semlo-editor-editor-host .tableWrapper").first();
   await expect(table).toBeVisible();
-  const hostBox = await host.boundingBox();
-  const tableBox = await table.boundingBox();
-  expect(hostBox && tableBox && tableBox.y >= hostBox.y && tableBox.y < hostBox.y + hostBox.height).toBeTruthy();
+  await expect
+    .poll(() =>
+      table.evaluate((element) => {
+        const hostBox = element.closest(".semlo-editor-editor-host")?.getBoundingClientRect();
+        const { top } = element.getBoundingClientRect();
+        return Boolean(hostBox && top >= hostBox.top && top < hostBox.bottom);
+      }),
+    )
+    .toBe(true);
   await page.getByRole("button", { name: "试试分栏" }).click();
   await expect(page.getByRole("button", { name: /当前：内容块与分栏/ })).toBeFocused();
   await page.getByRole("button", { name: "试试公式" }).click();

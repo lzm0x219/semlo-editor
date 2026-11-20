@@ -20,7 +20,7 @@ export function useDocsHome(defaultMotion?: ReducedMotion) {
       });
     });
     origin = `http://127.0.0.1:${port}`;
-    server = spawn(
+    const child = spawn(
       process.execPath,
       [
         "docs/node_modules/@rspress/core/bin/rspress.js",
@@ -34,20 +34,35 @@ export function useDocsHome(defaultMotion?: ReducedMotion) {
       ],
       {
         cwd: process.cwd(),
-        stdio: "ignore",
+        // 各测试文件独立启动 Rspress，多个进程会争用同一个持久构建缓存。
+        env: { ...process.env, RSPRESS_PERSISTENT_CACHE: "false" },
+        stdio: ["ignore", "pipe", "pipe"],
       },
     );
-    const deadline = Date.now() + 30_000;
-    while (Date.now() < deadline) {
-      if (server.exitCode !== null) throw new Error(`文档测试服务器提前退出：${server.exitCode}`);
+    server = child;
+    let output = "";
+    let startError: Error | undefined;
+    const recordOutput = (chunk: Buffer) => {
+      output = (output + chunk.toString()).slice(-4_096);
+    };
+    child.stdout.on("data", recordOutput);
+    child.stderr.on("data", recordOutput);
+    child.once("error", (error) => {
+      startError = error;
+    });
+    const signal = AbortSignal.timeout(30_000);
+    while (!signal.aborted) {
+      if (startError) throw startError;
+      const exit = child.exitCode ?? child.signalCode;
+      if (exit !== null) throw new Error(`文档测试服务器提前退出：${exit}\n${output}`);
       try {
-        if ((await fetch(origin)).ok) return;
+        if ((await fetch(origin, { signal })).ok) return;
       } catch {
         // 开发服务器尚未就绪。
       }
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    throw new Error("文档测试服务器启动超时");
+    throw new Error(`文档测试服务器启动超时\n${output}`);
   });
 
   test.afterAll(() => {
