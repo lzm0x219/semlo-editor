@@ -754,12 +754,76 @@ for (const versioned of [false, true]) {
     });
 }
 
-test("容器内编号列表中间项不安全拆分时保留原文", async ({ page }) => {
+for (const versioned of [false, true]) {
+  test(`正文格式刷拆分引用内${versioned ? "新版" : "旧版"}编号中间项并保持续接`, async ({ page }) => {
+    await setupBlocks(
+      page,
+      [
+        paragraph("SOURCE", true),
+        { type: "blockquote", content: [orderedList(versioned, item("BEFORE"), item("TARGET"), item("AFTER"))] },
+        paragraph("NEXT", false),
+      ],
+      "SOURCE",
+    );
+    const prose = page.locator("#painter-paragraph .tiptap");
+    const quote = prose.locator(":scope > blockquote");
+    const ordinals = () =>
+      quote.locator("ol > li").evaluateAll((items) => items.map((item) => item.getAttribute("value")));
+    const before = await snapshot(page);
+    await quote.getByText("TARGET", { exact: true }).click();
+    await expect(quote.locator(":scope > p > strong")).toHaveText("TARGET");
+    expect(await ordinals()).toEqual(["1", "2"]);
+    const converted = await snapshot(page);
+    expect(converted.json.content?.[2]).toEqual(before.json.content?.[2]);
+    expect(converted.json.content?.[1].content?.map((block) => block.type)).toEqual([
+      "orderedList",
+      "paragraph",
+      "orderedList",
+    ]);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(converted.json);
+
+    await page.evaluate((html) => sessionStorage.setItem("quoted-list", html), converted.html);
+    await page.reload();
+    await page.waitForFunction(() => Boolean(window.taskConversionCreate));
+    await page.evaluate(() => {
+      const host = document.createElement("div");
+      host.id = "painter-paragraph";
+      document.body.append(host);
+      window.taskConversionEditor = window.taskConversionCreate!({
+        element: host,
+        outline: false,
+        content: sessionStorage.getItem("quoted-list")!,
+        onChange: (value) => window.taskConversionEditor!.setContent(value.html),
+      });
+    });
+    expect((await snapshot(page)).json).toEqual(converted.json);
+    await page.evaluate(() => {
+      const editor = window.taskConversionEditor!.editor;
+      let end = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.isText && node.text === "BEFORE") end = pos + node.nodeSize;
+      });
+      if (end < 0) throw new Error("未找到引用前段");
+      editor.view.focus();
+      editor.commands.setTextSelection(end);
+    });
+    await page.keyboard.press("Enter");
+    await expect(quote.locator("li p")).toHaveText(["BEFORE", "", "AFTER"]);
+    expect(await ordinals()).toEqual(["1", "2", "3"]);
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await snapshot(page)).json).toEqual(converted.json);
+  });
+}
+
+test("高亮块内编号列表中间项不安全拆分时保留原文", async ({ page }) => {
   await setupBlocks(
     page,
     [
       paragraph("SOURCE", true),
-      { type: "blockquote", content: [orderedList(true, item("BEFORE"), item("TARGET"), item("AFTER"))] },
+      { type: "callout", content: [orderedList(true, item("BEFORE"), item("TARGET"), item("AFTER"))] },
     ],
     "SOURCE",
   );

@@ -381,8 +381,12 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
       index = position.index(target.depth);
     const hasBefore = index > 0,
       hasAfter = index + 1 < list.childCount;
-    // 现有跨段续接只支持根级列表，容器内的中间编号项暂不能安全拆分。
-    if (target.kind === "orderedList" && target.depth !== 1 && hasBefore && hasAfter) return null;
+    const splitInsideQuote = target.kind === "orderedList" && target.depth !== 1 && hasBefore && hasAfter;
+    if (
+      splitInsideQuote &&
+      (source.kind !== "paragraph" || target.depth !== 2 || position.node(1).type.name !== "blockquote")
+    )
+      return null;
     const numbered = target.kind === "orderedList" && (hasNumberingSequences(list) || (hasBefore && hasAfter));
     if (numbered && !hasNumberingSequences(list)) {
       const resolved = materializeNumberingSequences(numberingSequenceInput(list));
@@ -421,6 +425,8 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
         if (!numbering.ok || numbering.value.kind !== "v1") return null;
         if (numbering.value.sequenceIds.some((id) => id !== resolved.value.sequenceIds[index])) needsIdentity = true;
       }
+      // 引用内仅支持一条编号序列，避免写出暂不支持的容器内转换标识。
+      if (splitInsideQuote && (needsIdentity || link)) return null;
       if (needsIdentity || link) {
         const identityEdge =
           edge ??

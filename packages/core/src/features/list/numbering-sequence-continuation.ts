@@ -18,31 +18,49 @@ import {
   type SequenceLink,
 } from "./numbering-sequence-document";
 
-type Segment = { node: ProseMirrorNode; pos: number; index: number; link: SequenceLink };
+type Segment = {
+  node: ProseMirrorNode;
+  pos: number;
+  index: number;
+  link: SequenceLink;
+  parent: ProseMirrorNode;
+  parentStart: number;
+};
 type Edge = { from?: Segment; to?: Segment };
 
 function collect(root: ProseMirrorNode): Map<string, Edge> {
   const edges = new Map<string, Edge>();
-  root.forEach((node, pos, index) => {
-    const link = node.type.name === "orderedList" ? parseSequenceLink(node.attrs[sequenceLinkAttribute]) : null;
-    if (!link) return;
-    const segment = { node, pos, index, link };
-    if (link.previous) {
-      const edge = edges.get(link.previous) ?? {};
-      edge.to = segment;
-      edges.set(link.previous, edge);
-    }
-    if (link.next) {
-      const edge = edges.get(link.next) ?? {};
-      edge.from = segment;
-      edges.set(link.next, edge);
-    }
+  const collectChildren = (parent: ProseMirrorNode, parentStart: number) =>
+    parent.forEach((node, offset, index) => {
+      const link = node.type.name === "orderedList" ? parseSequenceLink(node.attrs[sequenceLinkAttribute]) : null;
+      if (!link) return;
+      const segment = { node, pos: parentStart + offset, index, link, parent, parentStart };
+      if (link.previous) {
+        const edge = edges.get(link.previous) ?? {};
+        edge.to = segment;
+        edges.set(link.previous, edge);
+      }
+      if (link.next) {
+        const edge = edges.get(link.next) ?? {};
+        edge.from = segment;
+        edges.set(link.next, edge);
+      }
+    });
+  collectChildren(root, 0);
+  root.forEach((node, pos) => {
+    if (node.type.name === "blockquote") collectChildren(node, pos + 1);
   });
   return edges;
 }
 
-function connected(root: ProseMirrorNode, edge: Edge): edge is { from: Segment; to: Segment } {
-  if (!edge.from || !edge.to || edge.from.index >= edge.to.index || edge.from.link.version !== edge.to.link.version)
+function connected(edge: Edge): edge is { from: Segment; to: Segment } {
+  if (
+    !edge.from ||
+    !edge.to ||
+    edge.from.parentStart !== edge.to.parentStart ||
+    edge.from.index >= edge.to.index ||
+    edge.from.link.version !== edge.to.link.version
+  )
     return false;
   const allowed =
     edge.from.link.version === 3
@@ -51,7 +69,7 @@ function connected(root: ProseMirrorNode, edge: Edge): edge is { from: Segment; 
         ? ["paragraph", "taskList", "bulletList"]
         : ["paragraph"];
   for (let index = edge.from.index + 1; index < edge.to.index; index++)
-    if (!allowed.includes(root.child(index).type.name)) return false;
+    if (!allowed.includes(edge.from.parent.child(index).type.name)) return false;
   return true;
 }
 
@@ -71,8 +89,7 @@ function sequenceChain(root: ProseMirrorNode, sourcePos: number): Segment[] | nu
     for (const id of [segment.link.previous, segment.link.next]) {
       if (!id) continue;
       const edge = edges.get(id);
-      if (!edge || !connected(root, edge) || (edge.from.pos !== segment.pos && edge.to.pos !== segment.pos))
-        return null;
+      if (!edge || !connected(edge) || (edge.from.pos !== segment.pos && edge.to.pos !== segment.pos)) return null;
       pending.push(edge.from, edge.to);
     }
   }
@@ -104,7 +121,7 @@ export function upgradeSequenceChain(
   version: 2 | 3 = 2,
 ): Array<{ pos: number; node: ProseMirrorNode }> | null {
   const chain = sequenceChain(root, sourcePos);
-  if (!chain || chain.some((segment) => segment.link.version >= version)) return null;
+  if (!chain || chain.some((segment) => segment.parentStart !== 0 || segment.link.version >= version)) return null;
   return chain.map(({ node, pos, link }) => ({
     pos,
     node: node.type.create(
@@ -219,7 +236,7 @@ export function planSequenceContinuation(
   if (previousRoot)
     for (const [id, edge] of edges) {
       const old = previousEdges.get(id);
-      if (!edge.from || edge.to || !old || !connected(previousRoot, old)) continue;
+      if (!edge.from || edge.to || !old || !connected(old)) continue;
       const middle = old.to;
       const followingId = middle.link.next;
       const oldFollowing = followingId ? previousEdges.get(followingId) : undefined;
@@ -229,11 +246,11 @@ export function planSequenceContinuation(
         middle.node.firstChild?.childCount !== 1 ||
         !followingId ||
         !oldFollowing ||
-        !connected(previousRoot, oldFollowing) ||
+        !connected(oldFollowing) ||
         oldFollowing.from.pos !== middle.pos ||
         !following?.to ||
         following.from ||
-        !connected(root, { from: edge.from, to: following.to })
+        !connected({ from: edge.from, to: following.to })
       )
         continue;
       const head = resolveListNumbering(current(edge.from));
@@ -250,18 +267,16 @@ export function planSequenceContinuation(
       edges.delete(followingId);
     }
   for (const [id, edge] of edges) {
-    if (connected(root, edge)) continue;
+    if (connected(edge)) continue;
     const old = previousEdges.get(id);
-    if (!edge.from && edge.to && previousRoot && old && connected(previousRoot, old)) {
+    if (!edge.from && edge.to && previousRoot && old && connected(old)) {
       if (!rebase(old.from.node, edge.to, false)) return null;
     }
     if (edge.from) detach(edge.from, "next");
     if (edge.to) detach(edge.to, "previous");
   }
-  const linked = [...edges.values()]
-    .filter((edge) => connected(root, edge))
-    .sort((a, b) => a.from!.index - b.from!.index);
-  for (const edge of linked) if (!rebase(current(edge.from!), edge.to!, true)) return null;
+  const linked = [...edges.values()].filter(connected).sort((a, b) => a.from.pos - b.from.pos);
+  for (const edge of linked) if (!rebase(current(edge.from), edge.to, true)) return null;
   return [...updates].map(([pos, node]) => ({ pos, node }));
 }
 
@@ -338,8 +353,8 @@ export function planEmptySequenceBackspace(state: EditorState): Transaction | nu
     if (
       !previous ||
       !following ||
-      !connected(state.doc, previous) ||
-      !connected(state.doc, following) ||
+      !connected(previous) ||
+      !connected(following) ||
       previous.to.pos !== listPos ||
       following.from.pos !== listPos
     )
