@@ -26,10 +26,10 @@ description: 按当前范围区分功能实现、语雀观察与对照验收，�
 | 列表与结构块 | 编号续接、嵌套跨项复制剪切、引用、折叠及分栏的直接段落移动。 | 更复杂的多级编号、自定义起点、跨结构格式刷及触屏拖动。 [#25](https://github.com/lzm0x219/semlo-editor/issues/25) · [#26](https://github.com/lzm0x219/semlo-editor/issues/26) · [#27](https://github.com/lzm0x219/semlo-editor/issues/27) |
 | 表格与数据表 | 普通表格编辑、合并拆分、序号列及粘贴。数据表字段、记录、多视图同步、日历、图表和查找。 | 复杂跨行跨列、看板触屏拖动、复杂筛选与聚合。 [#28](https://github.com/lzm0x219/semlo-editor/issues/28) · [#31](https://github.com/lzm0x219/semlo-editor/issues/31) · [#32](https://github.com/lzm0x219/semlo-editor/issues/32) · [#33](https://github.com/lzm0x219/semlo-editor/issues/33) |
 | 图片、图册与媒体 | 图文混排、图册布局、主流格式的实际播放及常用控制。 | 实体触屏、系统画中画窗口、生产上传、转换及读者权限。 [#29](https://github.com/lzm0x219/semlo-editor/issues/29) · [#30](https://github.com/lzm0x219/semlo-editor/issues/30) |
-| 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方以及 UML 专注模式差异。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
+| 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、专注编辑、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方及真机绘图。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
 | 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | CodePen 同样本结果不同，宜搭示例拒绝嵌入，Figma 旧示例失效。其他受限资源仍需有效账号或样本。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
 
-整合验收继续跟踪 [画布专注编辑 #87](https://github.com/lzm0x219/semlo-editor/issues/87) 和 [Chromium 偶发失败 #86](https://github.com/lzm0x219/semlo-editor/issues/86)。
+整合验收继续跟踪 [Chromium 偶发失败 #86](https://github.com/lzm0x219/semlo-editor/issues/86)。
 
 ## 2026 年 11 月 8 日盘点
 
@@ -122,10 +122,10 @@ description: 按当前范围区分功能实现、语雀观察与对照验收，�
 | 代码块 | 已有主要实现 | 已操作 | #35 已验收 | 已对照 JavaScript 缩进与保存。部分语言使用近似高亮及缩进，执行服务由宿主提供。 |
 | 公式 | 已有主要实现 | 已操作 | #35 已验收 | 已对照 TeX 实时预览、快捷键提交及重载。系统输入法待核对，块级公式为 Semlo 扩展。 |
 | 文本绘图 | 已有主要实现 | 已操作 | #35 已验收 | 已对照 Mermaid 源码和预览重载。Semlo 覆盖四种格式、键盘和保存，外部资源暂不加载。 |
-| 画板 | 部分实现 | 已操作 | #38 已验收 | 已对照矩形创建、改字、连线跟随、移动撤销和重载。Semlo 核对对齐、编组、缩放、平移和适应画布。专注模式、实体触屏和系统输入法仍有差距或待核验。 |
+| 画板 | 部分实现 | 已操作 | #38、#87 已验收 | 已对照矩形创建、改字、连线跟随、移动撤销、重载及专注模式切换。Semlo 核对对齐、编组、缩放、平移和适应画布。实体触屏和系统输入法待核验。 |
 | 思维导图 | 部分实现 | 已操作 | #39 已验收 | 已对照创建多级节点、向左布局、矩形样式和重载。Semlo 覆盖布局、分支、概要、链接、画布工具、撤销和未知数据往返，并在新增超过现有容量或层级上限前提示。复杂混合布局、跨侧概要、折叠端点和实际触屏仍待核验。 |
-| 流程图 | 部分实现 | 已操作 | #38 已验收 | 已对照默认分支流程、改字和重载。Semlo 覆盖连接及基础横纵泳道，复杂泳道待进一步对照。 |
-| UML 图 | 部分实现 | 已操作 | #38 已验收 | 已对照默认用例图、改字和重载。Semlo 覆盖角色、用例、连接和保存，完整建模语义及复杂交互留待后续。 |
+| 流程图 | 部分实现 | 已操作 | #38、#87 已验收 | 已对照默认分支流程、改字、重载及专注模式切换。Semlo 覆盖连接及基础横纵泳道，复杂泳道待进一步对照。 |
+| UML 图 | 部分实现 | 已操作 | #38、#87 已验收 | 已对照默认用例图、改字、重载及专注模式切换。Semlo 覆盖专注编辑中的文字和连线、返回后的撤销重做及保存，复杂建模语义待核验。 |
 | 语雀内容 | 已有主要实现 | 已操作 | #37 已验收 | 已对照真实搜索、三种展示和保存。Semlo 的阅读地址由宿主解析，远端登录态和表格引用需按部署核对。 |
 | 投票 | 已有主要实现 | 已操作 | #37 已验收 | 已对照配置和重载。Semlo 用宿主回调样本验证参与和失败，实际多人记录与权限由宿主服务验收。 |
 | 打卡 | 已有主要实现 | 已操作 | #37 已验收 | 已对照标题、按钮和截止日期重载。Semlo 用宿主回调样本验证参与，实际身份和记录由宿主服务验收。 |

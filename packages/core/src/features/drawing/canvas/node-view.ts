@@ -4,6 +4,7 @@ import type { Transaction } from "@tiptap/pm/state";
 
 import { createCanvasControls } from "./controls";
 import { createCanvasEdgeHandles } from "./edge-handles";
+import { createCanvasFocusMode } from "./focus-mode";
 import { withLaneMembers, updateLaneMembership, endpointBox, shapeTransform, edgeGeometry } from "./geometry";
 import { createGroupOutlineRenderer } from "./group-outline";
 import { canvasHeight, mountCanvasHeight } from "./height";
@@ -52,7 +53,10 @@ export function createCanvasNodeView(): NodeViewRenderer {
       imageStatus.textContent = message;
       imageStatus.hidden = !message;
     };
-    dom.append(toolbar, viewport, imageStatus);
+    const surface = doc.createElement("div");
+    surface.className = "semlo-editor-canvas-surface";
+    surface.append(toolbar, viewport, imageStatus);
+    dom.append(surface);
     const readViewport = (value: unknown) => {
       if (!value || typeof value !== "object") return { zoom: 100, x: 0, y: 0 };
       const state = value as Record<string, unknown>;
@@ -99,6 +103,11 @@ export function createCanvasNodeView(): NodeViewRenderer {
       });
       return supported;
     };
+    const focusMode = createCanvasFocusMode(
+      dom,
+      surface,
+      () => !canvasState.destroyed && !editor.isDestroyed && editor.isEditable && dataSupported(),
+    );
     const commit = (data: CanvasData) => {
       if (canvasState.destroyed || editor.isDestroyed || !editor.isEditable || !dataSupported()) return false;
       const pos = getPos();
@@ -469,6 +478,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
       dom.querySelector(".semlo-editor-canvas-height-handle")?.remove();
       toolbar.replaceChildren();
       if (!dataSupported()) {
+        focusMode.close();
         stage.replaceChildren();
         const message = doc.createElement("p");
         message.textContent = "画布数据格式不受支持，暂无法编辑。";
@@ -488,6 +498,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
         setZoom,
         applyStageWidth,
         commitViewport,
+        openFocusMode: editor.isEditable && focusMode.supported ? focusMode.open : undefined,
         paint,
         state: canvasState,
       });
@@ -582,6 +593,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
     const refreshEditable = () => {
       if (editable === editor.isEditable || canvasState.destroyed) return;
       editable = editor.isEditable;
+      if (!editable) focusMode.close();
       paint();
     };
     const resetAfterDocumentReplacement = ({
@@ -612,7 +624,9 @@ export function createCanvasNodeView(): NodeViewRenderer {
       for (const entry of transactions)
         for (const [index, map] of entry.mapping.maps.entries()) {
           const before = entry.docs[index];
-          const candidate = typeof position === "number" ? before.nodeAt(position) : null;
+          // 初始装载期间，当前画布可能已出现在新文档，旧文档还没有对应位置。
+          const candidate =
+            typeof position === "number" && position < before.content.size ? before.nodeAt(position) : null;
           map.forEach((oldStart, oldEnd, newStart) => {
             if (oldStart === 0 && oldEnd === before.content.size && newStart === 0) replaced = true;
             if (
@@ -634,6 +648,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
       )
         return;
       canvasState.documentEpoch++;
+      focusMode.close();
       setImageStatus("");
       selectOnly(null);
       selectedEdgeIds.clear();
@@ -669,6 +684,7 @@ export function createCanvasNodeView(): NodeViewRenderer {
       ignoreMutation: () => true,
       destroy() {
         canvasState.destroyed = true;
+        focusMode.close();
         disposeToolbar();
         editor.off("update", refreshEditable);
         editor.off("transaction", resetAfterDocumentReplacement);

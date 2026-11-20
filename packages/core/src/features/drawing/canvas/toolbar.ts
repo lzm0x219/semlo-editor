@@ -29,6 +29,7 @@ interface CanvasToolbarContext {
   setZoom(value: number): void;
   applyStageWidth(): void;
   commitViewport(): void;
+  openFocusMode?: () => void;
   paint(): void;
 }
 
@@ -45,6 +46,7 @@ export function renderCanvasToolbar({
   setZoom,
   applyStageWidth,
   commitViewport,
+  openFocusMode,
   paint,
 }: CanvasToolbarContext) {
   const tools: Array<[typeof state.tool, string]> = [
@@ -238,6 +240,17 @@ export function renderCanvasToolbar({
     paint();
   });
   viewControls.append(fit, zoomOut, zoomValue, zoomIn);
+  if (openFocusMode) {
+    const focus = doc.createElement("button");
+    focus.type = "button";
+    focus.className = "semlo-editor-canvas-focus-trigger";
+    focus.title = "专注编辑";
+    focus.setAttribute("aria-label", "专注编辑");
+    focus.setAttribute("aria-haspopup", "dialog");
+    focus.append(icon("M14 4h6v6m0-6-6 6M10 20H4v-6m0 6 6-6"));
+    focus.addEventListener("click", openFocusMode);
+    viewControls.append(focus);
+  }
   toolbar.append(viewControls);
   return disposePicker;
 }
