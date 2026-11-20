@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@rstest/playwright";
+import type { JSONContent } from "@tiptap/core";
 
+import { createDemoDatabase } from "../../../demo/database-example";
 import type { EditorController } from "../../../packages/core/src/types";
 
 declare global {
@@ -177,6 +179,57 @@ async function mountFromStorage(page: Page, format: "json" | "html") {
   });
   await page.waitForFunction(() => Boolean(window.longWritingEditor));
 }
+
+test("a report with database records and video can be edited after changing its storage format", async ({ page }) => {
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
+  const videoUrl = new URL("/tests/sample-video.mp4", page.url()).href;
+  const initial: JSONContent = {
+    type: "doc",
+    content: [
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "项目进展" }] },
+      createDemoDatabase(new Date(2026, 10, 20)),
+      {
+        type: "semloEditorVideo",
+        attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" },
+      },
+      { type: "paragraph", content: [{ type: "text", text: "收尾说明" }] },
+    ],
+  };
+  const save = (value: string) => page.evaluate((value) => sessionStorage.setItem("article", value), value);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  await save(JSON.stringify(initial));
+  await mountFromStorage(page, "json");
+  const original = await snapshot();
+  await save(original.html);
+  await page.reload();
+  await mountFromStorage(page, "html");
+  expect(await snapshot()).toEqual(original);
+
+  const prose = page.locator("#long-writing .semlo-editor-prose");
+  const field = prose.getByLabel("第 1 行 事项");
+  await expect(field).toHaveValue("收集灵感");
+  await field.fill("确认交接");
+  await field.press("Tab");
+  const closing = prose.getByText("收尾说明", { exact: true });
+  await closing.click();
+  await expect(field).toHaveValue("确认交接");
+  const edited = await snapshot();
+  expect(edited.json).not.toEqual(original.json);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(field).toHaveValue("收集灵感");
+  expect(await snapshot()).toEqual(original);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(field).toHaveValue("确认交接");
+  expect(await snapshot()).toEqual(edited);
+  expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(edited.html);
+
+  await page.reload();
+  await mountFromStorage(page, "html");
+  await expect(field).toHaveValue("确认交接");
+  await expect(prose.locator("video")).toHaveAttribute("src", videoUrl);
+  await expect(closing).toBeVisible();
+  expect(await snapshot()).toEqual(edited);
+});
 
 for (const { width, format } of [
   { width: 1280, format: "json" },

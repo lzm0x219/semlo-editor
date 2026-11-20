@@ -200,6 +200,29 @@ for (const { level, start, content } of [
   });
 }
 
+for (const format of ["纯文本", "HTML 列表"]) {
+  test(`旧嵌套列表的自定义起点受到跨父项${format}粘贴保护`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    const content = legacyCrossParentHTML.replace("<p>RootB</p><ol>", '<p>RootB</p><ol start="7">');
+    await page.evaluate((value) => window.sequencePasteFixture.mount("primary", value, "html"), content);
+    await select(page, "ChildAX", 1, "ChildBX", 1);
+    const original = await snapshot(page);
+    const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+    const selected = await selection();
+    if (format === "HTML 列表") {
+      await writeNativeList(page, "<ol><li><p>PasteOne</p></li><li><p>PasteTwo</p></li></ol>");
+    } else {
+      await page.evaluate(() => navigator.clipboard.writeText("PasteOne"));
+    }
+    await page.keyboard.press("ControlOrMeta+v");
+    expect(await snapshot(page)).toEqual(original);
+    expect(await selection()).toEqual(selected);
+    expect(await page.evaluate(() => window.sequencePasteFixture.changes())).toBe(0);
+    expect(await page.evaluate(() => window.sequencePasteFixture.history())).toEqual({ undo: 0, redo: 0 });
+    await expect(page.locator(".semlo-editor-list-clipboard-status")).toHaveText("无法安全粘贴列表，当前内容已保留");
+  });
+}
+
 test("键盘创建的子项跨项粘贴后可续接和移动", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.evaluate(() => window.sequencePasteFixture.mount("primary", "<p></p>", "html"));

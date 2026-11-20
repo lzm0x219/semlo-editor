@@ -10,7 +10,7 @@ import {
 } from "./numbering-sequence-document";
 import { materializeNumberingSequences } from "./numbering-sequences";
 
-export function legacyCrossParentCutTouchesCustomStart(state: EditorState): boolean {
+export function legacyCrossParentSelectionTouchesCustomStart(state: EditorState): boolean {
   const { selection } = state;
   if (!(selection instanceof TextSelection)) return false;
   const { $from, $to } = selection;

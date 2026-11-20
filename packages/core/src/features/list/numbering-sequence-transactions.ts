@@ -5,7 +5,10 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { markSequenceCopyHook } from "../../shared/clipboard-hooks";
 import { isHeadingNumberingClipboardSerializer } from "../heading/numbering-clipboard";
-import { legacyCrossParentCutTouchesCustomStart, projectLegacyNumberingSelection } from "./legacy-numbering-selection";
+import {
+  legacyCrossParentSelectionTouchesCustomStart,
+  projectLegacyNumberingSelection,
+} from "./legacy-numbering-selection";
 import { planNestedLegacyPlainPaste } from "./nested-legacy-plain-paste";
 import {
   projectNumberingSequenceClipboard,
@@ -326,7 +329,7 @@ export function numberingSequencePolicy(): Plugin {
     );
     const legacy = touched.length ? null : projectLegacyNumberingSelection(state);
     // 默认剪切会合并两个父项下的子列表，被合入的列表可能失去起点。
-    const requireLegacyPlan = cut && !legacy && !touched.length && legacyCrossParentCutTouchesCustomStart(state);
+    const requireLegacyPlan = cut && !legacy && !touched.length && legacyCrossParentSelectionTouchesCustomStart(state);
     if (
       !legacy &&
       !requireLegacyPlan &&
@@ -423,8 +426,10 @@ export function numberingSequencePolicy(): Plugin {
       !$from.sameParent($to)
         ? projectLegacyNumberingSelection(state)
         : null;
-    // 旧列表只接管从首个根项到直接子项的列表片段替换。
-    if (!versioned && legacy?.state.selection.$to.node(2).attrs.semloEditorListIndent !== 1) return;
+    const protectLegacyRange = !versioned && !legacy && legacyCrossParentSelectionTouchesCustomStart(state);
+    // 旧列表只规划从首个根项到直接子项的替换。跨父项且带自定义起点时拦截通用粘贴。
+    if (!versioned && !protectLegacyRange && legacy?.state.selection.$to.node(2).attrs.semloEditorListIndent !== 1)
+      return;
     const current = () =>
       !view.isDestroyed && view.dom.isConnected && view.state === state && view.editable && !view.composing;
     try {
@@ -437,6 +442,12 @@ export function numberingSequencePolicy(): Plugin {
       const html = data.getData("text/html"),
         text = data.getData("text/plain");
       if (!html && !text && types.some((type) => !["text/html", "text/plain", "text"].includes(type))) return;
+      if (protectLegacyRange) {
+        if (!html && !text) return;
+        event.preventDefault();
+        announce(view, "无法安全粘贴列表，当前内容已保留");
+        return;
+      }
       if (!current()) throw new Error("stale-paste");
       const raw = rawSequencePaste(html, view.dom.ownerDocument, legacy != null);
       if (!current() || (!html && !text) || raw === "reject") throw new Error("unsupported-paste");
