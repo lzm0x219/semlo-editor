@@ -334,7 +334,7 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
   return { root, slice: new Slice(Fragment.fromArray(blocks), 0, 0), text: plain.join("\n\n"), headings };
 }
 
-/** 处理根项到后代范围及两个默认父项之间的直接子项范围；不迁移未定义的深层子树。 */
+/** 规划根项到后代、同一初始序列的跨父项剪切，并保护未选中的深层子树。 */
 export function projectNumberingSequenceMixedCut(state: EditorState): NumberingSequenceClipboard | null {
   const copy = projectNumberingSequenceMixedCopy(state);
   if (!copy) return null;
@@ -404,7 +404,7 @@ export function projectNumberingSequenceMixedCut(state: EditorState): NumberingS
     const isInitial = (id: string) => definitions.get(id)?.origin === "initial" && definitions.get(id)?.start === 1;
     if (
       ids[lastParent] !== rootId ||
-      !isInitial(rootId) ||
+      definitions.get(rootId)?.origin !== "initial" ||
       !isInitial(firstId) ||
       !isInitial(lastId) ||
       entries

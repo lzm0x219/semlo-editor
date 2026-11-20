@@ -1,7 +1,8 @@
-import { Fragment, type Node as ProseMirrorNode, type Slice } from "@tiptap/pm/model";
+import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { TextSelection, type EditorState, type Transaction } from "@tiptap/pm/state";
 
 import { mixedRomanMarker } from "./mixed-roman";
+import { projectNumberingSequenceMixedCut } from "./numbering-sequence-clipboard";
 import { canConvertSequenceChain, newSequenceLinkId } from "./numbering-sequence-continuation";
 import {
   assertNumberingSequenceDocument,
@@ -196,6 +197,80 @@ const projectedListAttributes = [
   sequenceLinkAttribute,
 ] as const;
 const projectedItemAttributes = [sequenceMemberAttribute, "semloEditorListRestart", "semloEditorListIndent"] as const;
+
+/** 按跨父项剪切的边界合并直接子项，再将独立片段接入原编号序列。 */
+export function planLegacyCrossParentPaste(state: EditorState, slice: Slice, plain: boolean): Transaction | null {
+  try {
+    const plan = projectNumberingSequenceMixedCut(state);
+    if (!plan || slice.content.childCount !== 1 || !slice.content.firstChild) return null;
+    const source = slice.content.firstChild;
+    const transaction = plan.cut;
+    if (plain) {
+      if (!source.childCount || !plainParagraph(source)) return null;
+      return transaction.replaceSelection(new Slice(source.content, 0, 0));
+    }
+    if (slice.openStart || slice.openEnd || source.childCount !== 2 || !independentSource(source)) return null;
+    const { $from, $to } = state.selection;
+    const cursor = transaction.selection.$from;
+    const list = cursor.node(1);
+    const index = cursor.index(1);
+    const item = list.child(index);
+    const target = cursor.parent;
+    let parentIndex = index - 1;
+    while (parentIndex >= 0 && list.child(parentIndex).attrs.semloEditorListIndent > 0) parentIndex--;
+    if (parentIndex < 0 || item.attrs.semloEditorListIndent !== 1) return null;
+    const parent = list.child(parentIndex);
+    if (
+      !effectiveStyle(list, 0) ||
+      effectiveStyle(source, 0) !== effectiveStyle(list, 0) ||
+      !compatibleMarkup(source, list, projectedListAttributes)
+    )
+      return null;
+    const paragraphs: ProseMirrorNode[] = [];
+    for (let offset = 0; offset < source.childCount; offset++) {
+      const child = source.child(offset);
+      const paragraph = child.firstChild;
+      if (
+        child.childCount !== 1 ||
+        child.attrs.semloEditorListIndent > 0 ||
+        child.attrs.semloEditorListRestart === true ||
+        !compatibleMarkup(child, parent, projectedItemAttributes) ||
+        !paragraph ||
+        !plainParagraph(paragraph) ||
+        !paragraph.sameMarkup(target)
+      )
+        return null;
+      paragraphs.push(paragraph);
+    }
+    const [first, last] = paragraphs;
+    const left = item.copy(
+      Fragment.from(target.copy($from.parent.content.cut(0, $from.parentOffset).append(first.content))),
+    );
+    const right = parent.copy(
+      Fragment.from(target.copy(last.content.append($to.parent.content.cut($to.parentOffset)))),
+    );
+    // 末父项的剩余直接子项接到新根项下，沿用它们原本的初始序列。
+    const tailSequence = $to.node(2).attrs[sequenceMemberAttribute];
+    const items = [...list.content.content.slice(0, index), left, right];
+    let tail = index + 1;
+    while (tail < list.childCount && list.child(tail).attrs.semloEditorListIndent === 1) {
+      const child = list.child(tail++);
+      items.push(
+        child.type.create({ ...child.attrs, [sequenceMemberAttribute]: tailSequence }, child.content, child.marks),
+      );
+    }
+    items.push(...list.content.content.slice(tail));
+    const position = cursor.before(1);
+    const rightPos = cursor.before(2) + left.nodeSize;
+    transaction.replaceWith(position, position + list.nodeSize, list.copy(Fragment.fromArray(items)));
+    transaction.setSelection(TextSelection.create(transaction.doc, rightPos + 2 + last.content.size));
+    transaction.doc.check();
+    assertNumberingSequenceDocument(transaction.doc);
+    return transaction;
+  } catch {
+    return null;
+  }
+}
 
 /** 把闭合普通列表合入已支持的目标范围；不派发事务或恢复来源身份。 */
 export function planNumberingSequencePaste(state: EditorState, slice: Slice): NumberingSequencePastePlan {

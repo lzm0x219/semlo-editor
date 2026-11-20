@@ -34,15 +34,15 @@ export function legacyCrossParentSelectionTouchesCustomStart(state: EditorState)
 }
 
 /** 为受支持的操作准备编号视图；读取或复制旧列表时不写入原文。 */
-export function projectLegacyNumberingSelection(state: EditorState) {
+export function projectLegacyNumberingSelection(state: EditorState, preserveRootStart = false) {
   try {
-    return projectLegacySelection(state);
+    return projectLegacySelection(state, preserveRootStart);
   } catch {
     return null;
   }
 }
 
-function projectLegacySelection(state: EditorState) {
+function projectLegacySelection(state: EditorState, preserveRootStart: boolean) {
   const { selection } = state;
   if (!(selection instanceof TextSelection)) return null;
   const { $from, $to } = selection;
@@ -50,10 +50,14 @@ function projectLegacySelection(state: EditorState) {
   const root = $from.node(1);
   const rootPos = $from.before(1);
   const style = root.attrs.semloEditorOrderedStyle;
+  const start =
+    preserveRootStart && root.attrs.start !== 1 && legacyCrossParentSelectionTouchesCustomStart(state)
+      ? root.attrs.start
+      : 1;
   if (
     root.type.name !== "orderedList" ||
     (style != null && style !== "mixed") ||
-    !root.sameMarkup(root.type.create({ semloEditorOrderedStyle: style })) ||
+    !root.sameMarkup(root.type.create({ semloEditorOrderedStyle: style, start })) ||
     !Object.hasOwn(root.type.spec.attrs ?? {}, sequenceRegistryAttribute)
   )
     return null;

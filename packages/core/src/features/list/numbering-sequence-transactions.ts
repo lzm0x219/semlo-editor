@@ -30,7 +30,11 @@ import {
   sequenceMemberAttribute,
   sequenceRegistryAttribute,
 } from "./numbering-sequence-document";
-import { planNumberingSequencePaste, planNumberingSequencePlainPaste } from "./numbering-sequence-paste";
+import {
+  planLegacyCrossParentPaste,
+  planNumberingSequencePaste,
+  planNumberingSequencePlainPaste,
+} from "./numbering-sequence-paste";
 import type { MaterializedNumberingSequences } from "./numbering-sequences";
 import { serializeOrderedListStyles } from "./ordered-style";
 import { serializeOrderedListOrdinals } from "./ordinals";
@@ -297,6 +301,7 @@ export function numberingSequencePolicy(): Plugin {
       view: EditorView;
       state: EditorState;
       structure: boolean;
+      crossParentSource?: "plain" | "list";
       nativeStart?: number;
       legacy: ReturnType<typeof projectLegacyNumberingSelection>;
     }
@@ -327,7 +332,7 @@ export function numberingSequencePolicy(): Plugin {
     const touched = sequenceLists(state.doc).filter(
       ({ node, pos }) => selection.from < pos + node.nodeSize && selection.to > pos,
     );
-    const legacy = touched.length ? null : projectLegacyNumberingSelection(state);
+    const legacy = touched.length ? null : projectLegacyNumberingSelection(state, true);
     // 默认剪切会合并两个父项下的子列表，被合入的列表可能失去起点。
     const requireLegacyPlan = cut && !legacy && !touched.length && legacyCrossParentSelectionTouchesCustomStart(state);
     if (
@@ -417,19 +422,19 @@ export function numberingSequencePolicy(): Plugin {
     const state = view.state;
     pasteOrigins.set(event, state);
     const versioned = partialSequenceTarget(state);
+    const crossParent = !versioned && legacyCrossParentSelectionTouchesCustomStart(state);
     const { $from, $to } = state.selection;
-    const legacy =
-      !versioned &&
-      $from.depth === 3 &&
-      $from.node(1).type.name === "orderedList" &&
-      $from.index(1) === 0 &&
-      !$from.sameParent($to)
+    const legacy = crossParent
+      ? projectLegacyNumberingSelection(state, true)
+      : !versioned &&
+          $from.depth === 3 &&
+          $from.node(1).type.name === "orderedList" &&
+          $from.index(1) === 0 &&
+          !$from.sameParent($to)
         ? projectLegacyNumberingSelection(state)
         : null;
-    const protectLegacyRange = !versioned && !legacy && legacyCrossParentSelectionTouchesCustomStart(state);
     // 旧列表只规划从首个根项到直接子项的替换。跨父项且带自定义起点时拦截通用粘贴。
-    if (!versioned && !protectLegacyRange && legacy?.state.selection.$to.node(2).attrs.semloEditorListIndent !== 1)
-      return;
+    if (!versioned && !crossParent && legacy?.state.selection.$to.node(2).attrs.semloEditorListIndent !== 1) return;
     const current = () =>
       !view.isDestroyed && view.dom.isConnected && view.state === state && view.editable && !view.composing;
     try {
@@ -442,19 +447,24 @@ export function numberingSequencePolicy(): Plugin {
       const html = data.getData("text/html"),
         text = data.getData("text/plain");
       if (!html && !text && types.some((type) => !["text/html", "text/plain", "text"].includes(type))) return;
-      if (protectLegacyRange) {
-        if (!html && !text) return;
-        event.preventDefault();
-        announce(view, "无法安全粘贴列表，当前内容已保留");
-        return;
-      }
+      if (crossParent && !html && !text) return;
       if (!current()) throw new Error("stale-paste");
       const raw = rawSequencePaste(html, view.dom.ownerDocument, legacy != null);
       if (!current() || (!html && !text) || raw === "reject") throw new Error("unsupported-paste");
+      const crossParentSource =
+        crossParent && legacy
+          ? !html && text && !/[\r\n]/.test(text)
+            ? "plain"
+            : raw === "list"
+              ? "list"
+              : undefined
+          : undefined;
+      if (crossParent && !crossParentSource) throw new Error("unsupported-legacy-paste");
       pastes.set(event, {
         view,
         state,
         legacy,
+        crossParentSource,
         structure: raw === "list" || typeof raw === "object",
         ...(typeof raw === "object" ? raw : {}),
       });
@@ -488,6 +498,31 @@ export function numberingSequencePolicy(): Plugin {
     parsedPastes.delete(view);
     const original = pasteOrigins.get(event);
     pasteOrigins.delete(event);
+    if (captured?.crossParentSource) {
+      clearNotice();
+      if (
+        captured.view !== view ||
+        view.isDestroyed ||
+        !view.dom.isConnected ||
+        view.state !== captured.state ||
+        !view.editable ||
+        view.composing ||
+        parsed?.state !== captured.state ||
+        parsed.plain !== (captured.crossParentSource === "plain")
+      ) {
+        announce(view, "列表粘贴已中断，当前内容已保留");
+        return true;
+      }
+      const legacy = captured.legacy;
+      const source = parsed.plain ? slice : (normalizeOpenListSlice(slice, 1) ?? slice);
+      const plan = legacy && planLegacyCrossParentPaste(legacy.state, source, parsed.plain);
+      if (!plan) {
+        announce(view, "暂不支持此列表粘贴范围或格式，当前内容已保留");
+        return true;
+      }
+      commitPaste(view, plan, legacy);
+      return true;
+    }
     let hasList = false;
     slice.content.descendants((node) => {
       if (node.type.name === "orderedList") hasList = true;
