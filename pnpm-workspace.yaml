@@ -31,7 +31,7 @@ catalog:
   "@lezer/php-legacy": "npm:@lezer/php@1.0.3"
   "@plantuml/core": "1.2026.10"
   "@rsbuild/core": 2.3.3
-  "@rslib/core": 1.0.6
+  "@rslib/core": 1.0.7
   "@rspress/core": 2.1.3
   "@rstest/core": "0.12.6"
   "@rstest/playwright": 0.12.6
