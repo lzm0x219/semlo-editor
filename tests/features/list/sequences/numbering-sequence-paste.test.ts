@@ -104,14 +104,15 @@ const legacyCrossParentHTML =
   "<ol><li><p>RootA</p><ol><li><p>ChildAX</p><ol><li><p>GrandAX</p></li></ol></li><li><p>ChildAY</p></li></ol></li>" +
   "<li><p>RootB</p><ol><li><p>ChildBX</p></li><li><p>ChildBY</p></li></ol></li><li><p>RootC</p></li></ol>";
 
-for (const source of ["输入", "HTML"] as const) {
-  test(`普通${source}列表跨父项复制与剪切保留编号和原选区`, async ({ page }) => {
+for (const { source, html, start } of [
+  { source: "键盘输入", html: "<p></p>", start: 1 },
+  { source: "默认起点 HTML", html: legacyCrossParentHTML, start: 1 },
+  { source: "根起点为 4 的 HTML", html: legacyCrossParentHTML.replace("<ol>", '<ol start="4">'), start: 4 },
+]) {
+  test(`${source}列表跨父项复制与剪切保留编号和原选区`, async ({ page }) => {
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.evaluate(
-      (content) => window.sequencePasteFixture.mount("primary", content, "html"),
-      source === "HTML" ? legacyCrossParentHTML : "<p></p>",
-    );
-    if (source === "输入")
+    await page.evaluate((content) => window.sequencePasteFixture.mount("primary", content, "html"), html);
+    if (source === "键盘输入")
       await typeNumberedItems(page, [
         ["RootA", 0],
         ["ChildAX", 1],
@@ -128,7 +129,7 @@ for (const source of ["输入", "HTML"] as const) {
     const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
     const originalSelection = await selection();
     const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-    const expectedCopy = "  a. hildAX\n    ⅰ. GrandAX\n  b. ChildAY\n2. RootB\n  a. C";
+    const expectedCopy = `  a. hildAX\n    ⅰ. GrandAX\n  b. ChildAY\n${start + 1}. RootB\n  a. C`;
     await page.keyboard.press("ControlOrMeta+c");
     expect(await clipboard()).toBe(expectedCopy);
     expect(await snapshot(page)).toEqual(original);
@@ -138,7 +139,10 @@ for (const source of ["输入", "HTML"] as const) {
     const items = page.locator("#primary .semlo-editor-prose > ol > li");
     await expect(items).toHaveText(["RootA", "ChildBX", "ChildBY", "RootC"]);
     expect(await items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value))).toEqual([
-      1, 1, 2, 2,
+      start,
+      1,
+      2,
+      start + 1,
     ]);
     const after = await snapshot(page);
     const retained = after.json.content?.[0].content;
@@ -149,6 +153,13 @@ for (const source of ["输入", "HTML"] as const) {
     expect(await selection()).toEqual(originalSelection);
     await history(page, "redo");
     expect(await snapshot(page)).toEqual(after);
+    if (start !== 1) {
+      await page.evaluate((value) => sessionStorage.setItem("legacy-list", value), after.html);
+      await page.reload();
+      await page.waitForFunction(() => Boolean(window.sequencePasteFixture));
+      await page.evaluate(() => window.sequencePasteFixture.mount("primary", sessionStorage.getItem("legacy-list")!));
+      expect(await snapshot(page)).toEqual(after);
+    }
   });
 }
 
@@ -168,7 +179,6 @@ test("普通嵌套列表跨父项剪切保留末项未选中的深层子树", as
 });
 
 for (const { level, start, content } of [
-  { level: "根", start: 4, content: legacyCrossParentHTML.replace("<ol>", '<ol start="4">') },
   { level: "子", start: 7, content: legacyCrossParentHTML.replace("<p>RootB</p><ol>", '<p>RootB</p><ol start="7">') },
 ]) {
   test(`旧嵌套列表的${level}序列自定义起点阻止跨父项剪切`, async ({ page }) => {
@@ -197,6 +207,48 @@ for (const { level, start, content } of [
       );
       expect(await snapshot(page)).toEqual(original);
     }
+  });
+}
+
+for (const { mode, texts, ordinals } of [
+  { mode: "纯文本", texts: ["RootA", "CPasteOnehildBX", "ChildBY", "RootC"], ordinals: [4, 1, 2, 5] },
+  {
+    mode: "HTML 列表",
+    texts: ["RootA", "CPasteOne", "PasteTwohildBX", "ChildBY", "RootC"],
+    ordinals: [4, 1, 5, 1, 6],
+  },
+]) {
+  test(`根起点为 4 的旧嵌套列表跨父项粘贴${mode}接回子项`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate(
+      (content) => window.sequencePasteFixture.mount("primary", content, "html"),
+      legacyCrossParentHTML.replace("<ol>", '<ol start="4">'),
+    );
+    const original = await snapshot(page);
+    await select(page, "ChildAX", 1, "ChildBX", 1);
+    const selection = () => page.evaluate(() => window.sequencePasteFixture.get().editor.state.selection.toJSON());
+    const selected = await selection();
+    if (mode === "HTML 列表") {
+      await writeNativeList(page, "<ol><li><p>PasteOne</p></li><li><p>PasteTwo</p></li></ol>");
+    } else {
+      await page.evaluate(() => navigator.clipboard.writeText("PasteOne"));
+    }
+    await page.keyboard.press("ControlOrMeta+v");
+    const items = page.locator("#primary .semlo-editor-prose > ol > li");
+    await expect(items).toHaveText(texts);
+    expect(await items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value))).toEqual(ordinals);
+    const edited = await snapshot(page);
+    expect(await page.evaluate(() => window.sequencePasteFixture.changes())).toBe(1);
+    await history(page, "undo");
+    expect(await snapshot(page)).toEqual(original);
+    expect(await selection()).toEqual(selected);
+    await history(page, "redo");
+    expect(await snapshot(page)).toEqual(edited);
+    await page.evaluate((value) => sessionStorage.setItem("legacy-list", value), edited.html);
+    await page.reload();
+    await page.waitForFunction(() => Boolean(window.sequencePasteFixture));
+    await page.evaluate(() => window.sequencePasteFixture.mount("primary", sessionStorage.getItem("legacy-list")!));
+    expect(await snapshot(page)).toEqual(edited);
   });
 }
 
