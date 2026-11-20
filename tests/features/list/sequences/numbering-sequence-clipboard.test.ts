@@ -19,6 +19,7 @@ declare global {
     sequenceClipboardTarget?: EditorController;
     sequenceClipboardEcho?: "json" | "html";
     sequenceClipboardChanges?: number;
+    sequenceClipboardHostSerializerReady?: boolean;
   }
 }
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
@@ -366,13 +367,24 @@ test("跨编号标题复制尊重宿主剪贴板序列化器", async ({ page }) 
     content: `
       import { Plugin, DOMSerializer } from '/dist/index.js';
       const editor = window.sequenceClipboardSource.editor;
-      const serializer = DOMSerializer.fromSchema(editor.schema);
-      editor.registerPlugin(new Plugin({ props: { clipboardSerializer: serializer } }));
+      const base = DOMSerializer.fromSchema(editor.schema);
+      const serializer = new DOMSerializer(base.nodes, base.marks);
+      const serializeFragment = serializer.serializeFragment.bind(serializer);
+      serializer.serializeFragment = (...args) => {
+        const output = serializeFragment(...args);
+        output.querySelector('h3')?.setAttribute('data-host-clipboard-serializer', '');
+        return output;
+      };
+      const host = new Plugin({ props: { clipboardSerializer: serializer } });
+      editor.registerPlugin(host);
+      window.sequenceClipboardHostSerializerReady = editor.state.plugins.includes(host);
     `,
   });
+  await page.waitForFunction(() => window.sequenceClipboardHostSerializerReady === true);
   await select(page, "甲开头", "丁后续", 1, 1);
   const before = await snapshot(page);
   const copied = await payload(page);
+  expect(copied.html).toContain("data-host-clipboard-serializer");
   expect(copied.html).toContain('data-semlo-editor-heading-numbering="mixed"');
   expect(copied.html).not.toContain("data-semlo-editor-heading-marker");
   expect(copied.text).toBe("1. 开头\n2. 乙中段\n\n中间\n\n3. 丙结尾\n4. 丁");
