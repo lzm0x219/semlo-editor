@@ -111,6 +111,10 @@
   border-radius: 4px;
   outline-color: #37b778;
 }
+.semlo-editor-database-search-status {
+  color: #4d5b53;
+  font-variant-numeric: tabular-nums;
+}
 .semlo-editor-database-delete-selected {
   color: #cd5b5e !important;
 }
@@ -793,6 +797,10 @@
 .semlo-editor-database-card:hover {
   border-color: #b7d9c5;
   box-shadow: 0 2px 7px rgb(0 0 0 / 6%);
+}
+.semlo-editor-database-cell.semlo-editor-database-search-match {
+  background: #e4f3e9;
+  box-shadow: inset 0 0 0 1px #61a980;
 }
 .semlo-editor-database-cell.semlo-editor-find-match,
 .semlo-editor-database-card.semlo-editor-find-match {

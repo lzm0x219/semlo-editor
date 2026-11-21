@@ -15,6 +15,7 @@ import {
   createDatabaseRecord,
   DatabaseContentError,
   databaseLimits,
+  databaseValueMatchesSearch,
   databaseValueText,
   visibleDatabaseRecords,
   type DatabaseData,
@@ -564,7 +565,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       closeChartView();
       const data = getData();
       const active = getView(data);
-      const records = visibleDatabaseRecords(data, active, query);
+      const records = visibleDatabaseRecords(data, active, active.kind === "table" ? "" : query);
       const body = surface.querySelector<HTMLDivElement>(".semlo-editor-database-body");
       if (!body) return;
       body.replaceChildren();
@@ -842,8 +843,8 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       statisticPanel,
       change,
     });
-    const syncSelection = (renderedIds: ReadonlySet<string>) => {
-      for (const id of selected) if (!renderedIds.has(id)) selected.delete(id);
+    const syncSelection = (selectableIds: ReadonlySet<string>) => {
+      for (const id of selected) if (!selectableIds.has(id)) selected.delete(id);
       const toolbar = surface.querySelector(".semlo-editor-database-toolbar");
       if (!toolbar) return;
       const currentAction = toolbar.querySelector(".semlo-editor-database-delete-selected");
@@ -868,8 +869,18 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
           change(
             (next, active) => {
               if (active.kind !== "table") return;
-              // 编辑收尾可能还没刷新行，提交时再核对当前筛选和搜索。
-              const matching = new Set(visibleDatabaseRecords(next, active, query).map((record) => record.id));
+              // 编辑收尾可能还没刷新，删除前仍需核对视图和可见字段的搜索词。
+              const search = query.trim().toLocaleLowerCase();
+              const fields = next.fields.filter((field) => !active.hiddenFields.includes(field.id));
+              const matching = new Set(
+                visibleDatabaseRecords(next, active)
+                  .filter(
+                    (record) =>
+                      !search ||
+                      fields.some((field) => databaseValueMatchesSearch(field, record.values[field.id], search)),
+                  )
+                  .map((record) => record.id),
+              );
               next.records = next.records.filter((record) => !selected.has(record.id) || !matching.has(record.id));
             },
             false,
@@ -887,7 +898,11 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       const previous = paintingRowSnapshot;
       paintingRowSnapshot = { node: current, data, view: active, editable: !destroyed && editor.isEditable };
       try {
-        syncSelection(renderGrid(container, data, active, records));
+        const search = query.trim().toLocaleLowerCase();
+        const selectableIds = renderGrid(container, data, active, records, search);
+        const status = surface.querySelector(".semlo-editor-database-search-status");
+        if (status) status.textContent = search ? `${selectableIds.size} 条匹配` : "";
+        syncSelection(selectableIds);
       } finally {
         paintingRowSnapshot = previous;
       }
@@ -937,7 +952,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       dom.dataset.semloEditorDatabaseViewId = active.id;
       dom.dataset.semloEditorDatabaseViewKind = active.kind;
       if (active.kind !== "calendar") delete dom.dataset.semloEditorDatabaseCalendarMonth;
-      const records = visibleDatabaseRecords(data, active, query);
+      const records = visibleDatabaseRecords(data, active, active.kind === "table" ? "" : query);
       dom.classList.toggle("is-readonly", !editor.isEditable);
       dom.classList.toggle("is-maximized", maximized);
       surface.replaceChildren();
@@ -1044,6 +1059,12 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
           repaintBody();
         });
         toolbar.append(input);
+        if (active.kind === "table") {
+          const status = doc.createElement("span");
+          status.className = "semlo-editor-database-search-status";
+          status.setAttribute("role", "status");
+          toolbar.append(status);
+        }
       }
       const addRecord = button(
         active.kind === "calendar" ? "添加日程" : "添加记录",

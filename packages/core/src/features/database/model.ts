@@ -846,6 +846,11 @@ export function databaseValueText(field: DatabaseField, value: DatabaseValue | u
   return typeof value === "string" ? value : "";
 }
 
+/** 按单元格展示值匹配已归一化的搜索词。 */
+export function databaseValueMatchesSearch(field: DatabaseField, value: DatabaseValue | undefined, search: string) {
+  return databaseValueText(field, value).toLocaleLowerCase().includes(search);
+}
+
 /** Group by stable identity when multiple values can share the same displayed label. */
 export function databaseGroupKey(field: DatabaseField, value: DatabaseValue | undefined): string {
   const text = databaseValueText(field, value);
@@ -1035,10 +1040,7 @@ export function visibleDatabaseRecords(data: DatabaseData, view: DatabaseView, q
       !field || matchesFilter(field, record.values[field.id], filter, optionExists);
     return (
       (!filters.length || (view.filterMode === "or" ? filters.some(matches) : filters.every(matches))) &&
-      (!search ||
-        data.fields.some((field) =>
-          databaseValueText(field, record.values[field.id]).toLocaleLowerCase().includes(search),
-        ))
+      (!search || data.fields.some((field) => databaseValueMatchesSearch(field, record.values[field.id], search)))
     );
   });
   const manualRank =

@@ -69,7 +69,7 @@ function findMatches(doc: ProseMirrorNode, query: string, editor: Editor): Match
   const viewAt = editor.isEditable
     ? undefined
     : (position: number) => databaseElementAt(position)?.dataset.semloEditorDatabaseViewId;
-  // 表内搜索由当前节点视图持有，各数据表可使用不同的查询。
+  // 本地查询由节点视图持有，仍会限制卡片、日历和图表的记录范围。
   const recordQueryAt = (position: number) =>
     databaseElementAt(position)?.querySelector<HTMLInputElement>(".semlo-editor-database-search")?.value;
   const projectionAt = (position: number, node: ProseMirrorNode, view: DatabaseView) => {
@@ -106,11 +106,7 @@ function findMatches(doc: ProseMirrorNode, query: string, editor: Editor): Match
       if (view?.kind !== "table" || !view.groupFieldId || projectionAt(match.from, node, view)) return true;
       const field = data.fields.find((item) => item.id === view.groupFieldId);
       if (!field) return true;
-      const ordered = orderedFindTableGroups(
-        visibleDatabaseRecords(data, view, recordQueryAt(match.from)),
-        field,
-        view,
-      );
+      const ordered = orderedFindTableGroups(visibleDatabaseRecords(data, view), field, view);
       const headings = element.querySelectorAll<HTMLElement>(".semlo-editor-database-group-heading");
       ordered.forEach((group, index) => {
         if (headings[index]?.getAttribute("aria-expanded") === "false")

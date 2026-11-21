@@ -129,7 +129,10 @@ export function findDatabaseMatches(
     if (!node.attrs.data) return false;
     const data = normalizeDatabaseData(node.attrs.data);
     const view = data.views.find((item) => item.id === (viewAt?.(position) ?? data.activeViewId)) ?? data.views[0];
-    let records = view ? visibleDatabaseRecords(data, view, recordQueryAt?.(position)) : data.records;
+    // 表格中的搜索只标记匹配项，全文查找仍覆盖当前视图显示的记录。
+    let records = view
+      ? visibleDatabaseRecords(data, view, view.kind === "table" ? "" : recordQueryAt?.(position))
+      : data.records;
     if (view?.kind === "kanban") {
       const field =
         data.fields.find((item) => item.id === view.groupFieldId && item.type === "singleSelect") ??
