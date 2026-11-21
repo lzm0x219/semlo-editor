@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@rstest/playwright";
-import type { Locator } from "playwright";
+import type { CDPSession, Locator } from "playwright";
 
 import {
   createDatabaseData,
@@ -128,6 +128,25 @@ async function drag(page: Page, source: Locator, target: Locator, position: "bef
   await page.mouse.up();
 }
 
+async function mobileTouch(page: Page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const session = await page.context().newCDPSession(page);
+  await session.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+  return session;
+}
+
+function touchPoint(session: CDPSession, type: "touchStart" | "touchMove", x: number, y: number) {
+  return session.send("Input.dispatchTouchEvent", { type, touchPoints: [{ x: Math.round(x), y: Math.round(y) }] });
+}
+
+async function pressCard(session: CDPSession, source: Locator) {
+  const box = (await source.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await touchPoint(session, "touchStart", x, y);
+  return { x, y };
+}
+
 test.beforeEach(async ({ page }) => {
   await installFixtureGuards(page);
 });
@@ -204,6 +223,75 @@ test("board moves and gallery edits share the record without reordering the tabl
   await switchTo("表格视图");
   await expect(root.getByLabel("第 3 行 状态")).toContainText("进行中");
   expect((await data(page)).records.map((record) => record.id)).toEqual([first, second, third]);
+});
+
+test("窄屏触摸拖动将看板记录移动到相邻分组", async ({ page }) => {
+  const { root, data: initial } = await mount(page);
+  const session = await mobileTouch(page);
+  const record = initial.records[2];
+  const field = initial.fields[1];
+  const groupId = field.options[0].id;
+  const source = card(root, record.id);
+  const target = group(root, groupId);
+  const end = (await target.boundingBox())!;
+  const { y } = await pressCard(session, source);
+  await expect(source).toHaveClass(/is-board-dragging/);
+  await touchPoint(session, "touchMove", end.x + 24, y);
+  await expect(target).toHaveClass(/is-board-drop-empty/);
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => cards(target), { timeout: 2_000 }).toEqual([record.id]);
+  expect((await data(page)).records[2].values[field.id]).toBe(groupId);
+  await expect(root.getByRole("dialog", { name: "记录详情" })).toHaveCount(0);
+  expect(await page.evaluate(() => window.__semloRequireFixture("boardTestEditor").editor.commands.undo())).toBe(true);
+  expect(await data(page)).toEqual(initial);
+  expect(await page.evaluate(() => window.__semloRequireFixture("boardTestEditor").editor.commands.redo())).toBe(true);
+  await expect.poll(() => cards(target)).toEqual([record.id]);
+  await session.detach();
+});
+
+test("看板触点靠近边缘时滚到远列，取消手势不改记录", async ({ page }) => {
+  const { root, data: initial } = await mount(page);
+  const session = await mobileTouch(page);
+  const source = card(root, initial.records[2].id);
+  const farGroup = group(root, initial.fields[1].options[2].id);
+  const body = root.locator(".semlo-editor-database-body");
+  const bounds = (await body.boundingBox())!;
+  const left = () => body.evaluate((element) => element.scrollLeft);
+  const { y } = await pressCard(session, source);
+  await expect(source).toHaveClass(/is-board-dragging/);
+  await touchPoint(session, "touchMove", Math.min(389, bounds.x + bounds.width - 5), y);
+  await expect.poll(left).toBeGreaterThan(240);
+  await expect(farGroup).toHaveClass(/is-board-drop-empty/);
+  await session.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+  await expect(root.locator(".is-board-dragging, .is-board-drop-empty")).toHaveCount(0);
+  expect(await data(page)).toEqual(initial);
+  await session.detach();
+});
+
+test("看板轻点打开详情，未长按的横滑交给浏览器", async ({ page }) => {
+  const { root, data: initial } = await mount(page);
+  const session = await mobileTouch(page);
+  const source = card(root, initial.records[2].id);
+  const detail = root.getByRole("dialog", { name: "记录详情" });
+  await pressCard(session, source);
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(detail).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(detail).toHaveCount(0);
+  await pressCard(session, source);
+  await expect(source).toHaveClass(/is-board-dragging/);
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(source).not.toHaveClass(/is-board-dragging/);
+  await expect(detail).toHaveCount(0);
+  const { x, y } = await pressCard(session, source);
+  for (const offset of [25, 55, 85]) await touchPoint(session, "touchMove", x - offset, y);
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect
+    .poll(() => root.locator(".semlo-editor-database-body").evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  expect(await data(page)).toEqual(initial);
+  await expect(detail).toHaveCount(0);
+  await session.detach();
 });
 
 test("dropping outside or becoming read-only during a drag leaves the document unchanged", async ({ page }) => {
