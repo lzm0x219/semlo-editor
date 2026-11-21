@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@rstest/playwright";
 import type { JSONContent } from "@tiptap/core";
+import type { Locator } from "playwright";
 
 import { createDemoDatabase } from "../../../demo/database-example";
 import type { EditorController } from "../../../packages/core/src/types";
@@ -9,6 +10,8 @@ declare global {
   interface Window {
     longWritingEditor?: EditorController;
     mountLongWriting?: (content: string) => void;
+    rejectLongWritingPaste?: boolean;
+    longWritingRejectedPastes?: number;
   }
 }
 
@@ -33,6 +36,42 @@ async function selectText(page: Page, text: string) {
     }
     throw new Error(`Missing text: ${target}`);
   }, text);
+}
+
+async function dragTextRange(page: Page, prose: Locator, anchor: string, head: string) {
+  const [start, end] = await prose.evaluate(
+    (root, labels) => {
+      return labels.map((label) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          if (walker.currentNode.textContent !== label) continue;
+          const range = document.createRange();
+          range.setStart(walker.currentNode, 4);
+          range.collapse(true);
+          const caret = range.getBoundingClientRect();
+          return { x: caret.x, y: caret.y + caret.height / 2 };
+        }
+        throw new Error(`未找到选区端点：${label}`);
+      });
+    },
+    [anchor, head],
+  );
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForFunction(
+    ([anchorText, headText]) => {
+      const { $anchor, $head } = window.longWritingEditor!.editor.state.selection;
+      return (
+        $anchor.parent.textContent === anchorText &&
+        $anchor.parentOffset === 4 &&
+        $head.parent.textContent === headText &&
+        $head.parentOffset === 4
+      );
+    },
+    [anchor, head],
+  );
 }
 
 test("long article supports writing, find and replace, formatting, links and remount", async ({ page }) => {
@@ -352,33 +391,7 @@ test("桌面跨标题、正文和编号项替换保留未选内容，一次撤�
   const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
   const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
   const before = await snapshot();
-  const [start, end] = await prose.evaluate((root) => {
-    return ["标题前半标题右半", "首项左边首项尾部"].map((label) => {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      while (walker.nextNode()) {
-        if (walker.currentNode.textContent !== label) continue;
-        const range = document.createRange();
-        range.setStart(walker.currentNode, 4);
-        range.collapse(true);
-        const caret = range.getBoundingClientRect();
-        return { x: caret.x, y: caret.y + caret.height / 2 };
-      }
-      throw new Error(`未找到选区端点：${label}`);
-    });
-  });
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(end.x, end.y, { steps: 10 });
-  await page.mouse.up();
-  await page.waitForFunction(() => {
-    const { $anchor, $head } = window.longWritingEditor!.editor.state.selection;
-    return (
-      $anchor.parent.textContent === "标题前半标题右半" &&
-      $anchor.parentOffset === 4 &&
-      $head.parent.textContent === "首项左边首项尾部" &&
-      $head.parentOffset === 4
-    );
-  });
+  await dragTextRange(page, prose, "标题前半标题右半", "首项左边首项尾部");
   const beforeSelection = await selection();
   await page.evaluate(() => navigator.clipboard.writeText("替换"));
   await page.keyboard.press("ControlOrMeta+v");
@@ -395,5 +408,84 @@ test("桌面跨标题、正文和编号项替换保留未选内容，一次撤�
   expect(await snapshot()).toEqual(after);
   await page.reload();
   await mountFromStorage(page, "html");
+  expect(await snapshot()).toEqual(after);
+});
+
+test("反向拖选跨数据表和视频后，粘贴替换可一次撤销并恢复原选区", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
+  const videoUrl = new URL("/tests/sample-video.mp4", page.url()).href;
+  const initial: JSONContent = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "上节保留" }] },
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "章节前半章节后半" }] },
+      createDemoDatabase(new Date(2026, 10, 20)),
+      { type: "semloEditorVideo", attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" } },
+      { type: "paragraph", content: [{ type: "text", text: "结尾前半结尾后半" }] },
+      { type: "paragraph", content: [{ type: "text", text: "下节保留" }] },
+    ],
+  };
+  await page.evaluate((doc) => sessionStorage.setItem("article", JSON.stringify(doc)), initial);
+  await mountFromStorage(page, "json");
+  const prose = page.locator("#long-writing .semlo-editor-prose");
+  const value = prose.getByLabel("第 1 行 事项");
+  const video = prose.locator("video");
+  await expect(value).toHaveValue("收集灵感");
+  await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { Plugin } from '/dist/index.js';
+      window.longWritingRejectedPastes = 0;
+      window.longWritingEditor.editor.registerPlugin(new Plugin({
+        filterTransaction(transaction) {
+          if (!window.rejectLongWritingPaste || transaction.getMeta('uiEvent') !== 'paste') return true;
+          window.longWritingRejectedPastes++;
+          return false;
+        }
+      }));
+      window.rejectLongWritingPaste = true;
+    `,
+  });
+  await page.waitForFunction(() => window.rejectLongWritingPaste);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const saved = () => page.evaluate(() => JSON.parse(sessionStorage.getItem("article")!));
+  const before = await snapshot();
+  const beforeSave = await saved();
+
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const beforeSelection = await selection();
+  expect(beforeSelection.anchor).toBeGreaterThan(beforeSelection.head);
+  await page.evaluate(() => navigator.clipboard.writeText("替换"));
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect.poll(() => page.evaluate(() => window.longWritingRejectedPastes)).toBeGreaterThan(0);
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  expect(await saved()).toEqual(beforeSave);
+  expect(await page.evaluate(() => window.longWritingEditor!.editor.can().undo())).toBe(false);
+
+  await page.evaluate(() => (window.rejectLongWritingPaste = false));
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半替换结尾后半");
+  await expect(prose.locator(":scope > p")).toHaveText(["上节保留", "下节保留"]);
+  await expect(value).toHaveCount(0);
+  await expect(video).toHaveCount(0);
+  const after = await snapshot();
+  expect(await saved()).toEqual(after.json);
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(value).toHaveValue("收集灵感");
+  await expect(video).toHaveAttribute("src", videoUrl);
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  expect(await saved()).toEqual(before.json);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await snapshot()).toEqual(after);
+  expect(await saved()).toEqual(after.json);
+  await page.reload();
+  await mountFromStorage(page, "json");
   expect(await snapshot()).toEqual(after);
 });
