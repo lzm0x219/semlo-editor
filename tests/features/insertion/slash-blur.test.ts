@@ -149,12 +149,12 @@ for (const mode of ["open", "closed"] as const) {
     await page.keyboard.type("/");
     const menu = page.locator(".semlo-editor-slash-menu");
     await expect(menu).toHaveCount(1);
-    await page.keyboard.press("Tab");
+    await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("button", { name: "正文", exact: true })).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(menu).toHaveCount(1);
     expect(await page.evaluate(() => window.slashBlurEditor?.getSnapshot().text)).toBe("");
-    await page.keyboard.press("Tab");
+    await page.keyboard.press("ArrowLeft");
     const savedOnFocus = await page.evaluate(() => {
       window.slashBlurShadowSave?.focus();
       return window.slashBlurSaved;
@@ -227,7 +227,7 @@ test("提交查询的变更回调同步销毁时不恢复已销毁的焦点", as
   });
   await page.locator("#slash-blur-test .semlo-editor-prose").click();
   await page.keyboard.type("/");
-  await page.keyboard.press("Tab");
+  await page.keyboard.press("ArrowLeft");
   await page.keyboard.press("Escape");
   await expect(page.locator("#slash-blur-test .semlo-editor-prose")).toHaveCount(0);
   expect(await page.evaluate(() => window.slashBlurChanges?.at(-1)?.text)).toBe("/");
@@ -303,12 +303,12 @@ test("快捷格式可键盘进入，离开后保留斜杠并允许宿主操作",
   await prose.click();
   await page.keyboard.type("/");
   const menu = page.getByRole("listbox", { name: "插入内容" });
-  await page.keyboard.press("Tab");
+  await page.keyboard.press("ArrowLeft");
   await expect(menu.getByRole("button", { name: "正文", exact: true })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   await expect(prose).toBeFocused();
   await expect(menu).toBeVisible();
-  await page.keyboard.press("Tab");
+  await page.keyboard.press("ArrowLeft");
   await expect(menu.getByRole("button", { name: "正文", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
@@ -316,7 +316,7 @@ test("快捷格式可键盘进入，离开后保留斜杠并允许宿主操作",
   expect(await page.evaluate(() => window.slashBlurEditor?.getSnapshot().text)).toBe("/");
   await page.keyboard.press("Backspace");
   await page.keyboard.type("/");
-  await page.keyboard.press("Tab");
+  await page.keyboard.press("ArrowLeft");
   await expect(menu.getByRole("button", { name: "正文", exact: true })).toBeFocused();
   await save.click();
   await expect(save).toBeFocused();

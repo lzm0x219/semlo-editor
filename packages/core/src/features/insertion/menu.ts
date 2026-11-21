@@ -58,6 +58,7 @@ interface PanelOptions {
   range?: Range;
   quick: boolean;
   search: boolean;
+  preserveSearchOrder?: boolean;
   onChoose: (item: CommandItem) => void;
   onHighlight?: (button: HTMLButtonElement) => void;
   onQuick?: (run: (editor: Editor, range?: Range) => void) => void;
@@ -90,6 +91,7 @@ export function paintPanel({
   items,
   quick,
   search,
+  preserveSearchOrder,
   onChoose,
   onHighlight,
   onQuick,
@@ -104,11 +106,12 @@ export function paintPanel({
     const row = doc.createElement("div");
     row.className = "semlo-editor-quick-grid";
     row.setAttribute("aria-label", "快捷格式");
-    quickCommands(openLink ?? (() => {})).forEach((item) => {
+    quickCommands(openLink ?? (() => {})).forEach((item, index) => {
       const el = doc.createElement("button");
       el.type = "button";
       el.title = item.title;
       el.setAttribute("aria-label", item.title);
+      if (index === 0) el.setAttribute("aria-keyshortcuts", "ArrowLeft");
       if (item.title === "链接")
         el.innerHTML =
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1 0l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></svg>';
@@ -137,7 +140,9 @@ export function paintPanel({
       tag.dataset.command = item.id;
       enabled.push({ item, button: tag, recent: true });
       tag.addEventListener("mousedown", (event) => event.preventDefault());
-      tag.addEventListener("mouseenter", () => onHighlight?.(tag));
+      tag.addEventListener("mousemove", () => {
+        if (tag.getAttribute("aria-current") !== "true") onHighlight?.(tag);
+      });
       tag.addEventListener("click", () => onRecent?.(item));
       list.append(tag);
     }
@@ -228,7 +233,13 @@ export function paintPanel({
       }),
   }));
   const visibleSections = search
-    ? [{ group: null, label: "搜索结果", items: sections.flatMap((section) => section.items) }]
+    ? [
+        {
+          group: null,
+          label: "搜索结果",
+          items: preserveSearchOrder ? items : sections.flatMap((section) => section.items),
+        },
+      ]
     : sections.filter((section) => section.items.length);
   for (const { group, label, items: matching } of visibleSections) {
     const labelEl = doc.createElement("div");
@@ -287,8 +298,9 @@ export function paintPanel({
         el.append(arrow);
       }
       el.addEventListener("mousedown", (e) => e.preventDefault());
-      el.addEventListener("mouseenter", () => {
-        if (!item.disabled) onHighlight?.(el);
+      // 菜单重绘可能使静止的指针落在另一结果上，只有主动移动才改变高亮。
+      el.addEventListener("mousemove", () => {
+        if (!item.disabled && el.getAttribute("aria-selected") !== "true") onHighlight?.(el);
       });
       el.addEventListener("click", () => onChoose(item));
       wrap.append(el);

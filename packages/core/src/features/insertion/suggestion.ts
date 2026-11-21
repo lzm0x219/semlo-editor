@@ -38,6 +38,11 @@ import {
   isRootParagraphSlashSuppressed,
 } from "./toolbar-slash-paragraph-context";
 
+// 仅记录已核对的历史助记词，其他查询沿用标题、关键词及命令自身的快捷词。
+const observedSearchOrder = new Map<string, readonly string[]>([
+  ["yy", ["quote", "yuque", "youku", "yida", "audio", "netease", "orderedList"]],
+]);
+
 const slashViews = new WeakMap<
   Editor,
   {
@@ -118,22 +123,26 @@ export function slashCommands(
               if (position.node(depth).type.name === "detailsSummary") return false;
             return true;
           },
-          items: ({ query, editor }) =>
-            filterInsertCommands(editor.state, [
-              ...searchableQuickCommands(openLink, query),
+          items: ({ query, editor }) => {
+            const normalized = query.trim().toLowerCase();
+            const order = observedSearchOrder.get(normalized);
+            const search = order ? "" : query;
+            const items = [
+              ...searchableQuickCommands(openLink, search, Boolean(order)),
               ...matchingCommands(
                 openImage,
                 openAttachment,
                 openEmoji,
                 openMedia,
-                query,
+                search,
                 openInteractive,
                 interactiveAvailable,
               ),
-              ...unavailableBlockCommands(editor).filter((item) =>
-                item.key.toLowerCase().includes(query.trim().toLowerCase()),
-              ),
-            ]),
+              ...unavailableBlockCommands(editor).filter((item) => item.key.toLowerCase().includes(normalized)),
+            ];
+            const available = filterInsertCommands(editor.state, items);
+            return order ? order.flatMap((id) => available.filter((item) => item.id === id)) : available;
+          },
           command: ({ editor, range, props }) => {
             if (!isInsertCommandAllowed(editor.state, props.id, range.from)) return;
             if (
@@ -344,6 +353,7 @@ export function slashCommands(
                   !isDetailsBodyInsert(this.editor.state, range?.from) &&
                   !isTableCellQuickSuppressed(this.editor.state, range?.from),
                 search: Boolean(query.trim()),
+                preserveSearchOrder: observedSearchOrder.has(query.trim().toLowerCase()),
                 openLink,
                 recents: query.trim()
                   ? []
@@ -455,16 +465,21 @@ export function slashCommands(
                   }
                   return false;
                 }
-                if (
-                  event.key === "Tab" &&
-                  !event.shiftKey &&
+                const unmodified =
                   !event.altKey &&
                   !event.ctrlKey &&
                   !event.metaKey &&
                   !event.isComposing &&
                   event.keyCode !== 229 &&
-                  !this.editor.view.composing
-                ) {
+                  !this.editor.view.composing;
+                if (event.key === "Tab" && unmodified) {
+                  const change = event.shiftKey ? -1 : 1;
+                  selected = (selected + change + enabled.length) % enabled.length;
+                  selectedByNavigation = true;
+                  highlightCommand(enabled, selected, true);
+                  return true;
+                }
+                if (event.key === "ArrowLeft" && selected === 0 && unmodified && !event.shiftKey) {
                   const first = menu?.querySelector<HTMLButtonElement>(".semlo-editor-quick-grid button");
                   if (first) {
                     first.focus();
