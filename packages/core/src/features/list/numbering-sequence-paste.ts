@@ -249,7 +249,7 @@ export function planCrossParentPaste(state: EditorState, slice: Slice, plain: bo
     const right = parent.copy(
       Fragment.from(target.copy(last.content.append($to.parent.content.cut($to.parentOffset)))),
     );
-    // 孙项随末段文字接到新根项下并保持原缩进；直接子项恢复其原初始序列。
+    // 未选后代随末段文字接到新根项下并保持原缩进；直接子项恢复其原初始序列。
     const tailSequence = $to.node(2).attrs[sequenceMemberAttribute];
     const items = [...list.content.content.slice(0, index), left, right];
     let tail = index + 1;

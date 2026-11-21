@@ -1,5 +1,8 @@
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+
 import { expect, test } from "@rstest/core";
-import { Extension, getSchema } from "@tiptap/core";
+import { Extension, getSchema, type AnyExtension } from "@tiptap/core";
 import { closeHistory, history, undo, redo } from "@tiptap/pm/history";
 import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { splitListItem, wrapInList } from "@tiptap/pm/schema-list";
@@ -8,6 +11,7 @@ import { AllSelection, EditorState, NodeSelection, TextSelection } from "@tiptap
 import { createCheckedJSONDocument } from "../../../../packages/core/src/editor/content/parse";
 import { createStarterKitWithCodeFonts } from "../../../../packages/core/src/editor/starter-kit";
 import { restartedDrag } from "../../../../packages/core/src/features/blocks/actions/restarted-drag";
+import { Column, Columns } from "../../../../packages/core/src/features/blocks/columns";
 import { planNestedLegacyPlainPaste } from "../../../../packages/core/src/features/list/nested-legacy-plain-paste";
 import { projectNumberingSequenceClipboard } from "../../../../packages/core/src/features/list/numbering-sequence-clipboard";
 import {
@@ -37,6 +41,8 @@ import {
 } from "../../../../packages/core/src/features/list/numbering-sequence-transactions";
 import { OrderedListNumbering } from "../../../../packages/core/src/features/list/ordered-numbering";
 import { OrderedListStyles } from "../../../../packages/core/src/features/list/ordered-style";
+import { SemloEditorTable } from "../../../../packages/core/src/features/table/extension";
+import { SemloEditorTableCell, SemloEditorTableHeader } from "../../../../packages/core/src/features/table/schema";
 import { ParagraphLayout } from "../../../../packages/core/src/features/text/paragraph-layout";
 import { paintBlock } from "../../../../packages/core/src/ui/format-painter/block-format";
 import { crossLevelPasteContent } from "../../../fixtures/list/sequences/cross-level-paste-content";
@@ -727,6 +733,52 @@ test("关联字段版本、重复端点和嵌套位置无效时拒绝输入", ()
   const unsupportedQuote = { type: "doc", content: [{ type: "blockquote", content: [quotedList] }] };
   expect(() => createCheckedJSONDocument(unsupportedQuote, schema)).toThrow("编号序列关联无效");
 });
+
+for (const [container, leftType, rightType] of [
+  ["semloEditorColumns", "semloEditorColumn", "semloEditorColumn"],
+  ["table", "tableCell", "tableCell"],
+  ["table", "tableHeader", "tableHeader"],
+  ["table", "tableHeader", "tableCell"],
+] as const) {
+  test(`${leftType} 与相邻 ${rightType} 不能互相续号`, () => {
+    // 复用核心包的表格行，避免测试工作区另行声明依赖。
+    const { TableRow } = createRequire(resolve("packages/core/package.json"))("@tiptap/extension-table") as {
+      TableRow: AnyExtension;
+    };
+    const containerSchema = getSchema([
+      createStarterKitWithCodeFonts([]),
+      ParagraphLayout,
+      OrderedListStyles,
+      OrderedListNumbering,
+      Columns,
+      Column,
+      SemloEditorTable,
+      TableRow,
+      SemloEditorTableCell,
+      SemloEditorTableHeader,
+    ]);
+    const lists = ["v1:_:shared", "v1:shared:_"].map((link) => {
+      const list = sequencePasteContent().content![0];
+      list.attrs!.semloEditorListSequenceLink = link;
+      return list;
+    });
+    const items = lists.map((list, index) => ({ type: index === 0 ? leftType : rightType, content: [list] }));
+    const content = {
+      type: "doc",
+      content: [{ type: container, content: container === "table" ? [{ type: "tableRow", content: items }] : items }],
+    };
+    const document = createCheckedJSONDocument(content, containerSchema);
+    const updates = planSequenceContinuation(document);
+    expect(updates).toHaveLength(2);
+    for (const { pos, node } of updates!) {
+      expect(node.attrs.semloEditorListSequenceLink).toBeNull();
+      expect(resolveListNumbering(node)).toEqual(resolveListNumbering(document.nodeAt(pos)!));
+    }
+
+    lists[0].attrs!.semloEditorListSequenceLink = "v2:_:shared";
+    expect(() => createCheckedJSONDocument(content, containerSchema)).toThrow("编号序列关联无效");
+  });
+}
 
 test("删除前段时后段按剩余成员重算并解除关联，撤销恢复关联", () => {
   let current = select(state(), "甲开头", 1, "乙中段", 1);

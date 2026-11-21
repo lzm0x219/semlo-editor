@@ -1,7 +1,13 @@
 import { Fragment, type Node as ProseMirrorNode, type NodeType, type ResolvedPos } from "@tiptap/pm/model";
 import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 
-import { rejoinSequenceBridge, rejoinSequenceParagraphTarget } from "../../features/list/numbering-sequence-bridge";
+import { projectLegacyNumberingSelection } from "../../features/list/legacy-numbering-selection";
+import {
+  rejoinSequenceBridge,
+  rejoinSequencePainterParagraph,
+  rejoinSequenceParagraphTarget,
+  type SequencePainterSource,
+} from "../../features/list/numbering-sequence-bridge";
 import {
   bridgeRemovedSequenceSegment,
   canConvertSequenceChain,
@@ -19,6 +25,7 @@ import {
   assertNumberingSequenceDocument,
   formatSequenceLink,
   hasNumberingSequences,
+  isLocalContinuationParent,
   numberingSequenceInput,
   parseSequenceLink,
   resolveListNumbering,
@@ -52,6 +59,7 @@ export type BlockFormat = {
   orderedType?: string | null;
   sourceList?: ProseMirrorNode;
   sourceSequenceId?: string;
+  sequenceSource?: SequencePainterSource;
 };
 
 function defaultAttributes(node: ProseMirrorNode, exceptions: readonly string[] = []): boolean {
@@ -65,6 +73,7 @@ function defaultAttributes(node: ProseMirrorNode, exceptions: readonly string[] 
 
 function simpleList(
   position: ResolvedPos,
+  asSource = false,
 ): { kind: ListKind; list: ProseMirrorNode; item: ProseMirrorNode; depth: number } | null {
   const depth = position.depth - 2;
   if (depth < 1 || (depth !== 1 && !textContainers.has(position.node(depth - 1).type.name))) return null;
@@ -90,7 +99,7 @@ function simpleList(
     !defaultAttributes(list, listExceptions) ||
     (linked != null &&
       (kind !== "orderedList" ||
-        depth !== 1 ||
+        (depth !== 1 && (!asSource || !isLocalContinuationParent(position.doc.resolve(position.before(depth))))) ||
         !parseSequenceLink(linked) ||
         !canConvertSequenceChain(position.doc, position.before(depth))))
   )
@@ -142,7 +151,9 @@ export function captureBlockFormat(position: ResolvedPos): BlockFormat | null {
   const height = typeof semloEditorLineHeight === "number" ? String(semloEditorLineHeight) : semloEditorLineHeight;
   if (height === null || (typeof height === "string" && (LINE_HEIGHT_VALUES as readonly string[]).includes(height)))
     layout.semloEditorLineHeight = height;
-  const list = simpleList(position);
+  const list = simpleList(position, true);
+  if (list && list.depth !== 1 && list.list.attrs[sequenceLinkAttribute] != null)
+    return { kind: null, layout, sequenceSource: { list: list.list } };
   if (list)
     return {
       kind: list.kind,
@@ -159,6 +170,17 @@ export function captureBlockFormat(position: ResolvedPos): BlockFormat | null {
           }
         : {}),
     };
+  if (position.depth === 3 && position.node(1).type.name === "orderedList") {
+    const list = position.node(1),
+      attrs = position.node(2).attrs;
+    const sequenceId = attrs[sequenceMemberAttribute];
+    if (
+      attrs.semloEditorListIndent === 1 &&
+      typeof sequenceId === "string" &&
+      parseSequenceLink(list.attrs[sequenceLinkAttribute])
+    )
+      return { kind: null, layout, sequenceSource: { list, sequenceId } };
+  }
   if (position.depth !== 1 && !containedTextblock(position)) return { kind: null, layout };
   if (node.type.name === "heading") {
     const level = node.attrs.level;
@@ -221,6 +243,75 @@ function updateContinuation(tr: Transaction, previous: ProseMirrorNode): boolean
   assertNumberingSequenceDocument(tr.doc);
   markSequenceOperation(tr);
   return true;
+}
+
+/** 二级有序中间叶项转根级正文时，用显式续接保留两侧的原编号。 */
+function paintOrderedChildParagraph(
+  tr: Transaction,
+  selection: TextSelection,
+  source: BlockFormat,
+): TextSelection | null {
+  const position = selection.$from;
+  if ((position.depth !== 3 && position.depth !== 5) || position.node(1).type.name !== "orderedList") return null;
+  const original = position.node(1);
+  const state = EditorState.create({ doc: tr.doc, selection });
+  const projected = hasNumberingSequences(original)
+    ? position
+    : projectLegacyNumberingSelection(state)?.state.selection.$from;
+  if (projected?.depth !== 3) return null;
+  const list = projected.node(1);
+  if (
+    !defaultAttributes(list, [sequenceRegistryAttribute, "semloEditorOrderedStyle"]) ||
+    (list.attrs.semloEditorOrderedStyle != null && list.attrs.semloEditorOrderedStyle !== "mixed")
+  )
+    return null;
+  const items = list.content.content;
+  const index = projected.index(1);
+  const target = items[index];
+  if (
+    items[0]?.attrs.semloEditorListIndent !== 0 ||
+    target?.attrs.semloEditorListIndent !== 1 ||
+    items[index - 1]?.attrs.semloEditorListIndent !== 1 ||
+    items[index + 1]?.attrs.semloEditorListIndent !== 1 ||
+    items.some(
+      (item) =>
+        item.type.name !== "listItem" ||
+        item.childCount !== 1 ||
+        item.firstChild?.type.name !== "paragraph" ||
+        !defaultAttributes(item, ["semloEditorListIndent", sequenceMemberAttribute]) ||
+        ![0, 1].includes(item.attrs.semloEditorListIndent),
+    )
+  )
+    return null;
+  const id = target.attrs[sequenceMemberAttribute];
+  if (
+    typeof id !== "string" ||
+    items[index - 1].attrs[sequenceMemberAttribute] !== id ||
+    items[index + 1].attrs[sequenceMemberAttribute] !== id
+  )
+    return null;
+  const updated = textblock(position.parent, state.schema.nodes.paragraph, source);
+  if (!updated || !Object.hasOwn(updated.attrs, sequenceConversionHintAttribute)) return null;
+  const edge = newSequenceLinkId(tr.doc);
+  const gap = updated.type.createChecked(
+    { ...updated.attrs, [sequenceConversionHintAttribute]: formatSequenceConversionHint(edge, id) },
+    updated.content,
+    updated.marks,
+  );
+  const left = list.type.createChecked(
+    { ...list.attrs, [sequenceLinkAttribute]: formatSequenceLink(null, edge) },
+    items.slice(0, index),
+  );
+  const right = list.type.createChecked(
+    { ...list.attrs, [sequenceLinkAttribute]: formatSequenceLink(edge, null) },
+    items.slice(index + 1),
+  );
+  const listPos = position.before(1);
+  const operation = state.tr.replaceWith(listPos, listPos + original.nodeSize, Fragment.fromArray([left, gap, right]));
+  if (!updateContinuation(operation, tr.doc)) return null;
+  for (const step of operation.steps) tr.step(step);
+  markSequenceOperation(tr);
+  return selectionIn(tr, listPos + left.nodeSize, gap);
 }
 
 /** 二级无序叶项及其展平后的成员转正文时，保留两侧成员的视觉缩进。 */
@@ -318,6 +409,10 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
   if (!target && unresolvedList?.type.name === "orderedList" && unresolvedList.attrs[sequenceLinkAttribute] != null)
     return null;
   if (position.depth !== 1 && !target && !containedTextblock(position)) {
+    if (source.kind === "paragraph") {
+      const ordered = paintOrderedChildParagraph(tr, selection, source);
+      if (ordered) return ordered;
+    }
     const nested = paintBulletLeafParagraph(tr, selection, source);
     if (nested) return nested;
     if (source.kind && source.kind !== "paragraph") return null;
@@ -338,6 +433,27 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
   if (!source.kind) {
     const updated = textblock(node, node.type, source);
     if (!updated) return null;
+    if (source.sequenceSource && node.type.name === "paragraph") {
+      const current = EditorState.create({ doc: tr.doc, selection });
+      const restored = rejoinSequencePainterParagraph(current, source.sequenceSource);
+      if (restored) {
+        for (const step of restored.steps) tr.step(step);
+        const block = tr.doc.resolve(restored.selection.from);
+        if (!updated.sameMarkup(block.parent)) {
+          tr.setNodeMarkup(
+            block.before(),
+            node.type,
+            {
+              ...updated.attrs,
+              [sequenceConversionHintAttribute]: null,
+            },
+            updated.marks,
+          );
+        }
+        markSequenceOperation(tr);
+        return selectionIn(tr, block.before(), updated);
+      }
+    }
     if (!updated.eq(node)) tr.setNodeMarkup(position.before(), node.type, updated.attrs, node.marks);
     return selectionIn(tr, position.before(), updated);
   }
@@ -381,11 +497,8 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
       index = position.index(target.depth);
     const hasBefore = index > 0,
       hasAfter = index + 1 < list.childCount;
-    const splitInsideQuote = target.kind === "orderedList" && target.depth !== 1 && hasBefore && hasAfter;
-    if (
-      splitInsideQuote &&
-      (source.kind !== "paragraph" || target.depth !== 2 || position.node(1).type.name !== "blockquote")
-    )
+    const splitInsideContainer = target.kind === "orderedList" && target.depth !== 1 && hasBefore && hasAfter;
+    if (splitInsideContainer && (source.kind !== "paragraph" || !isLocalContinuationParent(previous.resolve(listPos))))
       return null;
     const numbered = target.kind === "orderedList" && (hasNumberingSequences(list) || (hasBefore && hasAfter));
     if (numbered && !hasNumberingSequences(list)) {
@@ -425,8 +538,8 @@ export function paintBlock(tr: Transaction, selection: TextSelection, source: Bl
         if (!numbering.ok || numbering.value.kind !== "v1") return null;
         if (numbering.value.sequenceIds.some((id) => id !== resolved.value.sequenceIds[index])) needsIdentity = true;
       }
-      // 引用内仅支持一条编号序列，避免写出暂不支持的容器内转换标识。
-      if (splitInsideQuote && (needsIdentity || link)) return null;
+      // 容器内仅支持一条未续接的序列，避免写出暂不支持的转换标识。
+      if (splitInsideContainer && (needsIdentity || link)) return null;
       if (needsIdentity || link) {
         const identityEdge =
           edge ??

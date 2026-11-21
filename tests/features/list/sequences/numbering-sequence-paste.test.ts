@@ -179,7 +179,7 @@ const crossParentDeepRows = [
 for (const { operation, sources, rows } of [
   {
     operation: "剪切",
-    sources: ["旧 HTML"],
+    sources: ["旧 HTML", "四级 HTML"],
     rows: [
       ["RootA", 0, 1],
       ["ChildBX", 1, 1],
@@ -191,7 +191,7 @@ for (const { operation, sources, rows } of [
   },
   {
     operation: "粘贴纯文本",
-    sources: ["旧 HTML", "键盘输入"],
+    sources: ["旧 HTML", "键盘输入", "四级 HTML"],
     rows: [
       ["RootA", 0, 1],
       ["CPasteOnehildBX", 1, 1],
@@ -203,7 +203,7 @@ for (const { operation, sources, rows } of [
   },
   {
     operation: "粘贴 HTML 列表",
-    sources: ["旧 HTML", "编号 JSON"],
+    sources: ["旧 HTML", "编号 JSON", "四级 HTML"],
     rows: [
       ["RootA", 0, 1],
       ["CPasteOne", 1, 1],
@@ -216,7 +216,8 @@ for (const { operation, sources, rows } of [
   },
 ] as const)
   for (const source of sources) {
-    test(`${source}三级列表跨父项${operation}保留末项未选中的孙项`, async ({ page }) => {
+    const fourthLevel = source === "四级 HTML";
+    test(`${source}${fourthLevel ? "" : "三级"}列表跨父项${operation}保留末项未选后代`, async ({ page }) => {
       await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
       const numbered: JSONContent = {
         type: "doc",
@@ -241,16 +242,17 @@ for (const { operation, sources, rows } of [
           },
         ],
       };
+      const grandchild =
+        "<li><p>GrandKeep</p>" +
+        (fourthLevel ? "<ol><li><p>GreatKeep</p></li><li><p>GreatStay</p></li></ol>" : "") +
+        "</li>";
+      const html = legacyCrossParentHTML.replace(
+        "<p>ChildBX</p>",
+        `<p>ChildBX</p><ol>${grandchild}<li><p>GrandStay</p></li></ol>`,
+      );
       await page.evaluate(
         (content) => window.sequencePasteFixture.mount("primary", content, "html"),
-        source === "编号 JSON"
-          ? numbered
-          : source === "键盘输入"
-            ? "<p></p>"
-            : legacyCrossParentHTML.replace(
-                "<p>ChildBX</p>",
-                "<p>ChildBX</p><ol><li><p>GrandKeep</p></li><li><p>GrandStay</p></li></ol>",
-              ),
+        source === "编号 JSON" ? numbered : source === "键盘输入" ? "<p></p>" : html,
       );
       if (source === "键盘输入")
         await typeNumberedItems(
@@ -274,8 +276,11 @@ for (const { operation, sources, rows } of [
         await page.keyboard.press("ControlOrMeta+v");
       }
       const items = page.locator("#primary .semlo-editor-prose > ol > li");
+      const expected = rows.flatMap((row): ReadonlyArray<readonly [string, number, number]> =>
+        fourthLevel && row[0] === "GrandKeep" ? [row, ["GreatKeep", 3, 1], ["GreatStay", 3, 2]] : [row],
+      );
       const expectRows = async () => {
-        await expect(items).toHaveText(rows.map(([label]) => label));
+        await expect(items).toHaveText(expected.map(([label]) => label));
         expect(
           await items.evaluateAll((nodes) =>
             nodes.map((item) => [
@@ -284,7 +289,13 @@ for (const { operation, sources, rows } of [
               item.getAttribute("data-semlo-editor-ordered-marker"),
             ]),
           ),
-        ).toEqual(rows.map(([, level, value]) => [level, value, [null, "lower-alpha", "semlo-mixed-roman"][level]]));
+        ).toEqual(
+          expected.map(([, level, value]) => [
+            level,
+            value,
+            [null, "lower-alpha", "semlo-mixed-roman", "decimal"][level],
+          ]),
+        );
       };
       await expectRows();
       const edited = await snapshot(page);

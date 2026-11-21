@@ -186,6 +186,116 @@ test("系统复制完整交错续接时正文来源随新关联隔离，单独�
   expect(partial.html).not.toContain("data-semlo-editor-list-sequence-conversion");
 });
 
+test("系统剪贴板按文字边界完整复制二级编号拆分并在另一编辑器刷回", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await setup(page, false, "html");
+  const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+  const number = (text: string, id: string, indent: number) => ({
+    type: "listItem",
+    attrs: { semloEditorListSequence: id, semloEditorListIndent: indent },
+    content: [paragraph(text)],
+  });
+  const list = (link: string, start: number, content: ReturnType<typeof number>[]) => ({
+    type: "orderedList",
+    attrs: {
+      semloEditorListSequenceLink: link,
+      semloEditorListSequences: {
+        version: 1,
+        sequences: ["root", "first", "second"].map((id) => ({
+          id,
+          origin: "initial",
+          start: id === "second" ? 1 : start,
+        })),
+      },
+    },
+    content,
+  });
+  await page.evaluate((content) => window.__semloRequireFixture("sequenceClipboardSource").setContent(content), {
+    type: "doc",
+    content: [
+      paragraph("前置正文"),
+      list("v1:_:edge", 1, [number("父项甲", "root", 0), number("子项甲", "first", 1)]),
+      {
+        type: "paragraph",
+        attrs: { semloEditorListSequenceConversion: JSON.stringify([1, "edge", "first"]) },
+        content: [{ type: "text", text: "子项乙", marks: [{ type: "bold" }] }],
+      },
+      list("v1:edge:_", 2, [number("子项丙", "first", 1), number("父项乙", "root", 0), number("邻子项", "second", 1)]),
+      paragraph("后置正文"),
+    ],
+  });
+  const original = await snapshot(page);
+  const source = page.locator("#clipboard-sequence-source");
+  for (const [first, last] of [
+    [1, "邻子项".length],
+    [0, "邻子项".length - 1],
+  ]) {
+    await select(page, "父项甲", "邻子项", first, last);
+    await expect(source.locator(".semlo-editor-prose")).toBeFocused();
+    await page.evaluate(() => navigator.clipboard.writeText("保留原剪贴板"));
+    await page.keyboard.press("ControlOrMeta+c");
+    await expect(source.getByRole("status")).toHaveText("暂不支持此范围的复制");
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("保留原剪贴板");
+  }
+  await select(page, "父项甲", "邻子项", 0, "邻子项".length);
+  await expect(source.locator(".semlo-editor-prose")).toBeFocused();
+  await page.evaluate(() => navigator.clipboard.writeText("原剪贴板"));
+  await page.keyboard.press("ControlOrMeta+c");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "1. 父项甲\n  a. 子项甲\n\n子项乙\n\n  b. 子项丙\n2. 父项乙\n  a. 邻子项",
+  );
+  expect((await snapshot(page)).json).toEqual(original.json);
+
+  const target = page.locator("#clipboard-sequence-target");
+  await target.locator(".tiptap > p").last().click();
+  await page.keyboard.press("ControlOrMeta+v");
+  const pasted = await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").getSnapshot());
+  const copiedBlocks = pasted.json.content!.filter(
+    (node) => node.type !== "paragraph" || node.content?.[0].text !== "footer",
+  );
+  expect(copiedBlocks.map((node) => node.type)).toEqual(["orderedList", "paragraph", "orderedList"]);
+  const edge = String(copiedBlocks[0].attrs!.semloEditorListSequenceLink).split(":")[2];
+  expect(edge).toBeTruthy();
+  expect(edge).not.toBe("edge");
+  expect(copiedBlocks[1].attrs!.semloEditorListSequenceConversion).toBe(JSON.stringify([1, edge, "first"]));
+  expect(copiedBlocks[2].attrs!.semloEditorListSequenceLink).toBe(`v1:${edge}:_`);
+  expect(copiedBlocks[0].content).toEqual(original.json.content![1].content);
+  expect(copiedBlocks[2].content).toEqual(original.json.content![3].content);
+
+  await target.getByText("子项甲", { exact: true }).click();
+  await target.locator(".semlo-editor-format-painter").click();
+  await target.getByText("子项乙", { exact: true }).click();
+  await expect(target.locator(".tiptap ol")).toHaveCount(1);
+  expect(
+    await target.locator(".tiptap ol > li").evaluateAll((items) => items.map((item) => item.getAttribute("value"))),
+  ).toEqual(["1", "1", "2", "3", "2", "1"]);
+  const restored = await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").getSnapshot());
+  expect(
+    await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").editor.commands.undo()),
+  ).toBe(true);
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").getSnapshot().json)).toEqual(
+    pasted.json,
+  );
+  expect(
+    await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").editor.commands.redo()),
+  ).toBe(true);
+  expect(await page.evaluate(() => window.__semloRequireFixture("sequenceClipboardTarget").getSnapshot().json)).toEqual(
+    restored.json,
+  );
+
+  await page.evaluate(() => {
+    const editor = window.__semloRequireFixture("sequenceClipboardTarget").editor;
+    if (!editor.commands.undo()) throw new Error("未恢复副本的拆分状态");
+    editor.view.focus();
+    editor.state.doc.descendants((node, pos) => {
+      if (node.isText && node.text === "子项甲") editor.commands.setTextSelection(pos + node.nodeSize);
+    });
+  });
+  await page.keyboard.press("Enter");
+  await expect(target.locator("ol > li").filter({ hasText: "子项丙" })).toHaveAttribute("value", "3");
+  expect((await snapshot(page)).json).toEqual(original.json);
+});
+
 test("系统剪贴板复制跨编号列表与正文的选区", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await setup(page);

@@ -8,6 +8,7 @@ import {
   assertNumberingSequenceDocument,
   formatSequenceLink,
   hasNumberingSequences,
+  isLocalContinuationParent,
   parseSequenceLink,
   resolveListNumbering,
   sequenceLinkAttribute,
@@ -36,42 +37,60 @@ export function rejoinSequenceParagraphs(
   state: EditorState,
   requestedAttrs: Record<string, unknown> | null,
 ): Transaction | false | null {
+  return rejoinParagraphs(state, requestedAttrs);
+}
+
+export type SequencePainterSource = { list: ProseMirrorNode; sequenceId?: string };
+
+function rejoinParagraphs(
+  state: EditorState,
+  requestedAttrs: Record<string, unknown> | null,
+  source?: SequencePainterSource,
+): Transaction | false | null {
   const selection = state.selection;
   if (
     !(selection instanceof TextSelection) ||
-    selection.$from.depth !== 1 ||
-    selection.$to.depth !== 1 ||
     selection.$from.parent.type.name !== "paragraph" ||
     selection.$to.parent.type.name !== "paragraph"
   )
     return null;
   const doc = state.doc;
-  const first = selection.$from.index(0),
-    last = selection.$to.index(0);
-  const selectedHint = parseSequenceConversionHint(doc.child(first).attrs[sequenceConversionHintAttribute]);
+  const depth = selection.$from.depth - 1;
+  const parent = selection.$from.node(depth);
+  const nestedSequence = source?.sequenceId;
+  const insideContainer = source && !nestedSequence;
+  if (insideContainer ? !isLocalContinuationParent(doc.resolve(selection.$from.before())) : depth !== 0) return null;
+  if (selection.$to.depth !== selection.$from.depth || selection.$to.start(depth) !== selection.$from.start(depth))
+    return null;
+  const first = selection.$from.index(depth),
+    last = selection.$to.index(depth);
+  const hintValue = parent.child(first).attrs[sequenceConversionHintAttribute];
+  const selectedHint = parseSequenceConversionHint(hintValue);
+  if (insideContainer && hintValue != null) return false;
+  if (nestedSequence && (first !== last || selectedHint?.sequenceId !== nestedSequence)) return false;
   let start = first,
     end = last;
   const belongsToGap = (node: ProseMirrorNode) =>
     node.type.name === "paragraph" &&
     (!selectedHint ||
       parseSequenceConversionHint(node.attrs[sequenceConversionHintAttribute])?.edge === selectedHint.edge);
-  while (start > 0 && belongsToGap(doc.child(start - 1))) start--;
-  while (end + 1 < doc.childCount && belongsToGap(doc.child(end + 1))) end++;
+  while (start > 0 && belongsToGap(parent.child(start - 1))) start--;
+  while (end + 1 < parent.childCount && belongsToGap(parent.child(end + 1))) end++;
   let leftIndex = start - 1,
     rightIndex = end + 1;
   if (selectedHint) {
-    while (leftIndex >= 0 && ["paragraph", "heading"].includes(doc.child(leftIndex).type.name)) {
-      if (doc.child(leftIndex).attrs[sequenceConversionHintAttribute] != null) return false;
+    while (leftIndex >= 0 && ["paragraph", "heading"].includes(parent.child(leftIndex).type.name)) {
+      if (parent.child(leftIndex).attrs[sequenceConversionHintAttribute] != null) return false;
       leftIndex--;
     }
-    while (rightIndex < doc.childCount && ["paragraph", "heading"].includes(doc.child(rightIndex).type.name)) {
-      if (doc.child(rightIndex).attrs[sequenceConversionHintAttribute] != null) return false;
+    while (rightIndex < parent.childCount && ["paragraph", "heading"].includes(parent.child(rightIndex).type.name)) {
+      if (parent.child(rightIndex).attrs[sequenceConversionHintAttribute] != null) return false;
       rightIndex++;
     }
   }
-  if (leftIndex < 0 || rightIndex >= doc.childCount) return null;
-  const left = doc.child(leftIndex),
-    right = doc.child(rightIndex);
+  if (leftIndex < 0 || rightIndex >= parent.childCount) return null;
+  const left = parent.child(leftIndex),
+    right = parent.child(rightIndex);
   const leftLink = parseSequenceLink(left.attrs[sequenceLinkAttribute]),
     rightLink = parseSequenceLink(right.attrs[sequenceLinkAttribute]);
   if (!leftLink?.next && !rightLink?.previous) return null;
@@ -89,6 +108,13 @@ export function rejoinSequenceParagraphs(
     right.marks.length
   )
     return false;
+  // 只有来自同一对 v1 片段的格式才能接回容器内正文或二级叶项。
+  if (
+    source &&
+    ((source.list !== left && source.list !== right) || leftLink.version !== 1 || leftLink.previous || rightLink.next)
+  )
+    return false;
+  if (nestedSequence && (leftIndex !== start - 1 || rightIndex !== end + 1)) return false;
   const strip = (node: ProseMirrorNode) => {
     const { [sequenceLinkAttribute]: _link, [sequenceRegistryAttribute]: _registry, ...attrs } = node.attrs;
     return attrs;
@@ -99,14 +125,25 @@ export function rejoinSequenceParagraphs(
   const before = resolveListNumbering(left),
     after = resolveListNumbering(right);
   if (!before.ok || before.value.kind !== "v1" || !after.ok || after.value.kind !== "v1") return false;
+  const indent = nestedSequence ? 1 : 0;
+  if (
+    nestedSequence &&
+    (left.firstChild?.attrs.semloEditorListIndent !== 0 ||
+      left.lastChild?.attrs.semloEditorListIndent !== indent ||
+      right.firstChild?.attrs.semloEditorListIndent !== indent ||
+      before.value.sequenceIds.at(-1) !== nestedSequence ||
+      after.value.sequenceIds[0] !== nestedSequence)
+  )
+    return false;
   const flat = (list: ProseMirrorNode) => {
     let valid = true;
     list.forEach((item) => {
+      const level = item.attrs.semloEditorListIndent ?? 0;
       if (
         item.type.name !== "listItem" ||
         item.childCount !== 1 ||
         item.firstChild?.type.name !== "paragraph" ||
-        Number(item.attrs.semloEditorListIndent ?? 0) !== 0 ||
+        (Number(level) !== 0 && Number(level) !== indent) ||
         item.attrs.semloEditorListRestart === true
       )
         valid = false;
@@ -115,7 +152,7 @@ export function rejoinSequenceParagraphs(
   };
   if (!flat(left) || !flat(right)) return false;
   const id = before.value.sequenceIds[0];
-  const paragraphs = Array.from({ length: end - start + 1 }, (_, offset) => doc.child(start + offset));
+  const paragraphs = Array.from({ length: end - start + 1 }, (_, offset) => parent.child(start + offset));
   const hints = paragraphs.map((paragraph) =>
     parseSequenceConversionHint(paragraph.attrs[sequenceConversionHintAttribute]),
   );
@@ -150,13 +187,13 @@ export function rejoinSequenceParagraphs(
   }
   if (leftLink.version !== 3) {
     for (let index = leftIndex + 1; index < rightIndex; index++)
-      if ((index < start || index > end) && doc.child(index).type.name !== "paragraph") return false;
+      if ((index < start || index > end) && parent.child(index).type.name !== "paragraph") return false;
   }
   const itemType = state.schema.nodes.listItem;
   if (!itemType) return false;
   const items: ProseMirrorNode[] = [];
   for (let index = start; index <= end; index++) {
-    const original = doc.child(index);
+    const original = parent.child(index);
     const paragraph =
       original.attrs[sequenceConversionHintAttribute] == null
         ? original
@@ -167,8 +204,12 @@ export function rejoinSequenceParagraphs(
           );
     if (paragraph.type.name !== "paragraph" || !itemType.validContent(Fragment.from(paragraph))) return false;
     try {
-      const item = itemType.create({ [sequenceMemberAttribute]: ids[index - start] }, paragraph);
-      if (Number(item.attrs.semloEditorListIndent ?? 0) !== 0 || item.attrs.semloEditorListRestart === true)
+      const attrs = {
+        [sequenceMemberAttribute]: ids[index - start],
+        ...(indent ? { semloEditorListIndent: indent } : {}),
+      };
+      const item = itemType.create(attrs, paragraph);
+      if (Number(item.attrs.semloEditorListIndent ?? 0) !== indent || item.attrs.semloEditorListRestart === true)
         return false;
       items.push(item);
     } catch {
@@ -228,17 +269,17 @@ export function rejoinSequenceParagraphs(
     Fragment.fromArray(children),
     left.marks,
   );
-  if (!doc.canReplace(start - 1, end + 2, Fragment.from(merged))) return false;
-  const leftPos = selection.$from.before(1) - left.nodeSize;
+  if (!parent.canReplace(start - 1, end + 2, Fragment.from(merged))) return false;
+  const leftPos = selection.$from.before() - left.nodeSize;
   const positions: number[] = [];
   let itemPos = leftPos + 1 + left.content.size;
   for (const item of items) {
     positions.push(itemPos + 2);
     itemPos += item.nodeSize;
   }
-  const anchor = positions[selection.$anchor.index(0) - start] + selection.$anchor.parentOffset;
-  const head = positions[selection.$head.index(0) - start] + selection.$head.parentOffset;
-  const tr = closeHistory(state.tr).replaceWith(leftPos, selection.$to.after(1) + right.nodeSize, merged);
+  const anchor = positions[selection.$anchor.index(depth) - start] + selection.$anchor.parentOffset;
+  const head = positions[selection.$head.index(depth) - start] + selection.$head.parentOffset;
+  const tr = closeHistory(state.tr).replaceWith(leftPos, selection.$to.after() + right.nodeSize, merged);
   try {
     tr.doc.check();
     assertNumberingSequenceDocument(tr.doc);
@@ -258,6 +299,14 @@ export function rejoinSequenceParagraphTarget(
   if (state.doc.nodeAt(pos)?.type.name !== "paragraph" || state.doc.resolve(pos).depth !== 0) return null;
   const selection = TextSelection.create(state.doc, pos + 1);
   return rejoinSequenceParagraphs(EditorState.create({ doc: state.doc, selection }), requestedAttrs);
+}
+
+/** 格式刷的来源绑定实际的编号片段及必要的子序列。 */
+export function rejoinSequencePainterParagraph(
+  state: EditorState,
+  source: SequencePainterSource,
+): Transaction | false | null {
+  return rejoinParagraphs(state, null, source);
 }
 
 /** 将末尾直接子项接回相邻有序列表的同一序列。 */

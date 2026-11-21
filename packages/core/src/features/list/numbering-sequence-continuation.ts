@@ -8,6 +8,7 @@ import {
 } from "./numbering-sequence-conversion-hint";
 import {
   formatSequenceLink,
+  forEachContinuationParent,
   parseSequenceLink,
   assertNumberingSequenceDocument,
   hasNumberingSequences,
@@ -46,10 +47,7 @@ function collect(root: ProseMirrorNode): Map<string, Edge> {
         edges.set(link.next, edge);
       }
     });
-  collectChildren(root, 0);
-  root.forEach((node, pos) => {
-    if (node.type.name === "blockquote") collectChildren(node, pos + 1);
-  });
+  forEachContinuationParent(root, collectChildren);
   return edges;
 }
 
