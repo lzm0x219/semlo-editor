@@ -163,6 +163,98 @@ test("标准 HTML 跨行跨列单元格拆分时保留各列宽度", async ({ pa
   expect(await widths()).toEqual([110, 190, 260]);
 });
 
+test("拆分跨行跨列的合并格时保留相邻合并格、格式及列宽", async ({ page }) => {
+  const html =
+    '<table><colgroup><col style="width:120px"><col style="width:180px">' +
+    '<col style="width:140px"><col style="width:100px"></colgroup><tbody>' +
+    '<tr><td rowspan="2" colspan="2"><p><strong>合并主体</strong></p><p>第二段</p></td>' +
+    '<td rowspan="3"><p>纵向保留</p></td><td><p>右一</p></td></tr>' +
+    '<tr><td><p>右二</p></td></tr><tr><td colspan="2"><p>横向保留</p></td><td><p>右三</p></td></tr>' +
+    "<tr><td><p>尾一</p></td><td><p>尾二</p></td><td><p>尾三</p></td><td><p>尾四</p></td></tr></tbody></table>";
+  const prose = await mount(page, "<p></p>");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(async (value) => {
+    await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([value], { type: "text/html" }) })]);
+  }, html);
+  await prose.locator("p").click();
+  await page.keyboard.press("ControlOrMeta+v");
+  const table = prose.locator("table");
+  const target = table.locator('td[rowspan="2"][colspan="2"]');
+  await expect(target.locator("strong")).toHaveText("合并主体");
+  const widths = () =>
+    table.locator("col").evaluateAll((cols) => cols.map((col) => Math.round(col.getBoundingClientRect().width)));
+  const grid = () =>
+    table
+      .locator("tbody > tr")
+      .evaluateAll((rows) =>
+        rows.map((row) =>
+          Array.from((row as HTMLTableRowElement).cells, (cell) => [cell.textContent, cell.rowSpan, cell.colSpan]),
+        ),
+      );
+  const getSnapshot = () => page.evaluate(() => window.__semloRequireFixture("tableEdgeEditor").getSnapshot());
+  const original = await getSnapshot();
+  const originalWidths = await widths();
+  expect(originalWidths).toEqual([120, 180, 140, 100]);
+  await target.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "拆分单元格" }).click();
+  await expect(target).toHaveCount(0);
+  expect(await grid()).toEqual([
+    [
+      ["合并主体第二段", 1, 1],
+      ["", 1, 1],
+      ["纵向保留", 3, 1],
+      ["右一", 1, 1],
+    ],
+    [
+      ["", 1, 1],
+      ["", 1, 1],
+      ["右二", 1, 1],
+    ],
+    [
+      ["横向保留", 1, 2],
+      ["右三", 1, 1],
+    ],
+    [
+      ["尾一", 1, 1],
+      ["尾二", 1, 1],
+      ["尾三", 1, 1],
+      ["尾四", 1, 1],
+    ],
+  ]);
+  await expect(table.locator("td").first().locator("p")).toHaveText(["合并主体", "第二段"]);
+  await expect(table.locator("td").first().locator("strong")).toHaveText("合并主体");
+  expect(await widths()).toEqual(originalWidths);
+  const edited = await getSnapshot();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await getSnapshot()).toEqual(original);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await getSnapshot()).toEqual(edited);
+  await mount(page, edited.html);
+  expect(await getSnapshot()).toEqual(edited);
+  expect(await widths()).toEqual(originalWidths);
+  await mount(page, html);
+  const imported = await getSnapshot();
+  expect(imported.json.content?.[0]).toEqual(original.json.content?.[0]);
+  expect(await widths()).toEqual(originalWidths);
+});
+
+test("导入 HTML 表格时优先保留单元格列宽，比例样式不转换为像素", async ({ page }) => {
+  await mount(
+    page,
+    '<table><colgroup><col span="2" style="width:120px"><col style="width:50%"><col width="160"></colgroup>' +
+      '<tbody><tr><th colwidth="180"><p>显式列宽</p></th><td><p>像素列宽</p></td>' +
+      "<td><p>比例列宽</p></td><td><p>旧式列宽</p></td></tr>" +
+      "</tbody></table>",
+  );
+  const json = await snapshot(page);
+  expect(json.content?.[0].content?.[0].content?.map((cell) => cell.attrs?.colwidth)).toEqual([
+    [180],
+    [120],
+    null,
+    [160],
+  ]);
+});
+
 test("edge bands select a row or column and add or delete it with one undo", async ({ page }) => {
   const prose = await mount(page);
   const before = await snapshot(page);

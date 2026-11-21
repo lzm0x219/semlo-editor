@@ -4,7 +4,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
-import { TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
@@ -52,6 +52,7 @@ import { EmbedBookmarkInline, EmbedBookmarkBlock } from "../features/references/
 import { getLinkState } from "../features/references/link-command";
 import { Mention, mentionSuggestion } from "../features/references/mention";
 import { SemloEditorTable } from "../features/table/extension";
+import { SemloEditorTableCell, SemloEditorTableHeader } from "../features/table/schema";
 import { clearTextFormatting } from "../features/text/clear-format";
 import {
   SemloEditorColor,
@@ -154,8 +155,8 @@ export function createEditorExtensions({
     Placeholder.configure({ placeholder: options.placeholder ?? "输入内容，或输入 / 插入更多内容" }),
     SemloEditorTable.configure({ resizable: true, registerViewDisposer }),
     TableRow,
-    TableHeader,
-    TableCell,
+    SemloEditorTableHeader,
+    SemloEditorTableCell,
     TaskList,
     TaskItem.configure({ nested: true }),
     TextAlign.configure({ types: ["heading", "paragraph"] }),
