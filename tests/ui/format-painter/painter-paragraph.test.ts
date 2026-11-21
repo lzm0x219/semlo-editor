@@ -609,6 +609,110 @@ function startedList(versioned: boolean, ...items: JSONContent[]): JSONContent {
   return list;
 }
 
+for (const versioned of [false, true]) {
+  test(`二级有序列表格式刷保留同父编号并接回正文（${versioned ? "新版" : "旧版"}）`, async ({ page }) => {
+    if (versioned) await page.setViewportSize({ width: 375, height: 812 });
+    const children = [item("CHILD A"), item("TARGET"), item("CHILD C")];
+    const roots = [item("PARENT A"), item("PARENT B")];
+    const neighbor = item("NEIGHBOR");
+    const nested = orderedList(false, ...roots);
+    if (versioned) {
+      const numbered = (node: JSONContent, id: string, indent: number) => ({
+        ...node,
+        attrs: { semloEditorListSequence: id, semloEditorListIndent: indent },
+      });
+      nested.attrs = {
+        semloEditorListSequences: {
+          version: 1,
+          sequences: ["root", "first", "second"].map((id) => ({ id, start: 1, origin: "initial" })),
+        },
+      };
+      nested.content = [
+        numbered(roots[0], "root", 0),
+        ...children.map((child) => numbered(child, "first", 1)),
+        numbered(roots[1], "root", 0),
+        numbered(neighbor, "second", 1),
+      ];
+    } else {
+      roots[0].content!.push(orderedList(false, ...children));
+      roots[1].content!.push(orderedList(false, neighbor));
+    }
+    await setupBlocks(page, [{ ...paragraph("SOURCE", true), attrs: {} }, nested, paragraph("NEXT", false)], "SOURCE");
+    const prose = page.locator("#painter-paragraph .tiptap");
+    const painter = page.locator("#painter-paragraph .semlo-editor-format-painter");
+    const target = prose.getByText("TARGET", { exact: true });
+    const numbering = () =>
+      prose
+        .locator(":scope > ol > li")
+        .evaluateAll((items) =>
+          items.map((node) => [node.textContent, node.getAttribute("value"), getComputedStyle(node).listStyleType]),
+        );
+    const before = await snapshot(page);
+    await target.click();
+    await expect(prose.locator(":scope > p > strong")).toHaveText(["SOURCE", "TARGET"]);
+    expect(await numbering()).toEqual([
+      ["PARENT A", "1", "decimal"],
+      ["CHILD A", "1", "lower-alpha"],
+      ["CHILD C", "2", "lower-alpha"],
+      ["PARENT B", "2", "decimal"],
+      ["NEIGHBOR", "1", "lower-alpha"],
+    ]);
+    const split = await snapshot(page);
+    for (const label of ["PARENT A", "PARENT B", "CHILD A", "CHILD C", "NEIGHBOR", "NEXT"])
+      expect(findTextblock(split.json, label)).toEqual(findTextblock(before.json, label));
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(split.json);
+    await reloadContainerList(page, split.html);
+    expect((await snapshot(page)).json).toEqual(split.json);
+
+    await page.evaluate(() => {
+      const editor = window.taskConversionEditor!.editor;
+      editor.view.focus();
+      editor.state.doc.descendants((node, pos) => {
+        if (node.isText && node.text === "CHILD A") editor.commands.setTextSelection(pos + node.nodeSize);
+      });
+    });
+    await page.keyboard.press("Enter");
+    expect((await numbering()).find(([label]) => label === "CHILD C")?.[1]).toBe("3");
+    await page.keyboard.press("ControlOrMeta+z");
+    expect((await snapshot(page)).json).toEqual(split.json);
+
+    await prose.getByText("NEIGHBOR", { exact: true }).click();
+    await painter.click();
+    await target.click();
+    await expect(prose.locator(":scope > p").filter({ hasText: "TARGET" })).toHaveText("TARGET");
+    expect((await snapshot(page)).json.content?.filter((node) => node.type === "orderedList")).toEqual(
+      split.json.content?.filter((node) => node.type === "orderedList"),
+    );
+    await reloadContainerList(page, split.html);
+
+    await prose.getByText(versioned ? "CHILD C" : "CHILD A", { exact: true }).click();
+    await painter.click();
+    await target.click();
+    await expect(prose.locator(":scope > ol")).toHaveCount(1);
+    expect((await numbering()).slice(1, 4)).toEqual([
+      ["CHILD A", "1", "lower-alpha"],
+      ["TARGET", "2", "lower-alpha"],
+      ["CHILD C", "3", "lower-alpha"],
+    ]);
+    const restored = await snapshot(page);
+    expect(restored.html).not.toContain("data-semlo-editor-list-sequence-link");
+    expect(restored.html).not.toContain("data-semlo-editor-list-sequence-conversion");
+    expect(findTextblock(restored.json, "TARGET")).toEqual({
+      ...findTextblock(restored.json, "CHILD A"),
+      content: [{ type: "text", text: "TARGET" }],
+    });
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(split.json);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(restored.json);
+    await reloadContainerList(page, restored.html);
+    expect((await snapshot(page)).json).toEqual(restored.json);
+  });
+}
+
 function textblockParent(node: JSONContent, text: string): string | undefined {
   for (const child of node.content ?? []) {
     if (["paragraph", "heading"].includes(child.type ?? "") && child.content?.some((part) => part.text === text))
@@ -754,87 +858,213 @@ for (const versioned of [false, true]) {
     });
 }
 
-for (const versioned of [false, true]) {
-  test(`正文格式刷拆分引用内${versioned ? "新版" : "旧版"}编号中间项并保持续接`, async ({ page }) => {
+const continuationTargets = new Map([
+  ["引用", ":scope > blockquote"],
+  ["高亮块", ":scope > aside[data-semlo-editor-callout]"],
+  ["折叠正文", '[data-type="detailsContent"]'],
+  ["分栏", "[data-semlo-editor-column]"],
+  ["表格单元格", "table td"],
+  ["表格标题行", 'table td[data-semlo-editor-header-cell="true"]'],
+  ["表头单元格", "table th"],
+]);
+
+const continuationContainers = [...containedTargets];
+for (const [name, type] of [
+  ["表格标题行", "tableCell"],
+  ["表头单元格", "tableHeader"],
+]) {
+  continuationContainers.push([
+    name,
+    (node) => ({
+      type: "table",
+      attrs: { semloEditorHeaderRow: true, semloEditorHeaderBackground: "#D9EAFC" },
+      content: [
+        {
+          type: "tableRow",
+          content: [
+            { type, attrs: { colwidth: [120] }, content: [node, paragraph("RETAIN", false)] },
+            { type, attrs: { colwidth: [180] }, content: [paragraph("OTHER", false)] },
+          ],
+        },
+        {
+          type: "tableRow",
+          content: [
+            { type: "tableCell", attrs: { colspan: 2, colwidth: [120, 180] }, content: [paragraph("BODY", false)] },
+          ],
+        },
+      ],
+    }),
+  ]);
+}
+
+async function reloadContainerList(page: Page, html: string) {
+  await page.evaluate((value) => sessionStorage.setItem("container-list", value), html);
+  await page.reload();
+  await page.waitForFunction(() => Boolean(window.taskConversionCreate));
+  await page.evaluate(() => {
+    const host = document.createElement("div");
+    host.id = "painter-paragraph";
+    document.body.append(host);
+    window.taskConversionEditor = window.taskConversionCreate!({
+      element: host,
+      outline: false,
+      content: sessionStorage.getItem("container-list")!,
+      onChange: (value) => window.taskConversionEditor!.setContent(value.html),
+    });
+  });
+}
+
+for (const [name, wrap] of continuationContainers) {
+  const selector = continuationTargets.get(name);
+  if (!selector) continue;
+  for (const versioned of [false, true]) {
+    test(`正文格式刷拆分${name}内${versioned ? "新版" : "旧版"}编号中间项并保持续接`, async ({ page }) => {
+      await setupBlocks(
+        page,
+        [
+          paragraph("SOURCE", true),
+          wrap(orderedList(versioned, item("BEFORE"), item("TARGET"), item("AFTER"))),
+          paragraph("NEXT", false),
+        ],
+        "SOURCE",
+      );
+      const prose = page.locator("#painter-paragraph .tiptap");
+      const scope = prose.locator(selector).filter({ hasText: "TARGET" });
+      const ordinals = () =>
+        scope.locator("ol > li").evaluateAll((items) => items.map((item) => item.getAttribute("value")));
+      const before = await snapshot(page);
+      await scope.getByText("TARGET", { exact: true }).click();
+      await expect(scope.locator(":scope > p > strong")).toHaveText("TARGET");
+      expect(await ordinals()).toEqual(["1", "2"]);
+      const converted = await snapshot(page);
+      await expect(scope.locator(":scope > ol, :scope > p")).toHaveText(["BEFORE", "TARGET", "AFTER", "RETAIN"]);
+      for (const unaffected of ["RETAIN", "OTHER", "BODY", "NEXT"])
+        expect(findTextblock(converted.json, unaffected)).toEqual(findTextblock(before.json, unaffected));
+      expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+      expect((await snapshot(page)).json).toEqual(before.json);
+      expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+      expect((await snapshot(page)).json).toEqual(converted.json);
+
+      await reloadContainerList(page, converted.html);
+      expect((await snapshot(page)).json).toEqual(converted.json);
+      await page.evaluate(() => {
+        const editor = window.taskConversionEditor!.editor;
+        let end = -1;
+        editor.state.doc.descendants((node, pos) => {
+          if (node.isText && node.text === "BEFORE") end = pos + node.nodeSize;
+        });
+        if (end < 0) throw new Error("未找到编号列表前段");
+        editor.view.focus();
+        editor.commands.setTextSelection(end);
+      });
+      await page.keyboard.press("Enter");
+      await expect(scope.locator("li p")).toHaveText(["BEFORE", "", "AFTER"]);
+      expect(await ordinals()).toEqual(["1", "2", "3"]);
+      await page.keyboard.press("ControlOrMeta+z");
+      expect((await snapshot(page)).json).toEqual(converted.json);
+    });
+  }
+}
+
+for (const [name, wrap] of continuationContainers) {
+  const selector = continuationTargets.get(name);
+  if (!selector) continue;
+  test(`编号项格式刷将${name}内的正文接回原编号列表`, async ({ page }) => {
+    if (name === "高亮块" || name === "表头单元格") await page.setViewportSize({ width: 375, height: 812 });
+    const customStart = name === "表格单元格" || name === "表头单元格";
+    const sourceFromEnd = customStart || name === "高亮块";
+    const list = customStart ? startedList : orderedList;
     await setupBlocks(
       page,
       [
         paragraph("SOURCE", true),
-        { type: "blockquote", content: [orderedList(versioned, item("BEFORE"), item("TARGET"), item("AFTER"))] },
+        wrap(list(customStart, item("BEFORE"), item("TARGET"), item("AFTER"))),
         paragraph("NEXT", false),
       ],
       "SOURCE",
     );
     const prose = page.locator("#painter-paragraph .tiptap");
-    const quote = prose.locator(":scope > blockquote");
-    const ordinals = () =>
-      quote.locator("ol > li").evaluateAll((items) => items.map((item) => item.getAttribute("value")));
-    const before = await snapshot(page);
-    await quote.getByText("TARGET", { exact: true }).click();
-    await expect(quote.locator(":scope > p > strong")).toHaveText("TARGET");
-    expect(await ordinals()).toEqual(["1", "2"]);
-    const converted = await snapshot(page);
-    expect(converted.json.content?.[2]).toEqual(before.json.content?.[2]);
-    expect(converted.json.content?.[1].content?.map((block) => block.type)).toEqual([
-      "orderedList",
-      "paragraph",
-      "orderedList",
-    ]);
-    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
-    expect((await snapshot(page)).json).toEqual(before.json);
-    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
-    expect((await snapshot(page)).json).toEqual(converted.json);
+    const painter = page.locator("#painter-paragraph .semlo-editor-format-painter");
+    const scope = prose.locator(selector).filter({ hasText: "TARGET" });
+    const target = scope.getByText("TARGET", { exact: true });
+    await target.click();
+    await expect(scope.locator(":scope > p > strong")).toHaveText("TARGET");
+    const split = await snapshot(page);
+    await reloadContainerList(page, split.html);
+    expect((await snapshot(page)).json).toEqual(split.json);
+    if (name === "表格标题行" || name === "表头单元格") {
+      await expect(scope).toHaveCSS("background-color", "rgb(217, 234, 252)");
+      await expect(prose.getByText("BODY", { exact: true }).locator("..")).not.toHaveAttribute(
+        "data-semlo-editor-header-cell",
+        "true",
+      );
+    }
 
-    await page.evaluate((html) => sessionStorage.setItem("quoted-list", html), converted.html);
-    await page.reload();
-    await page.waitForFunction(() => Boolean(window.taskConversionCreate));
-    await page.evaluate(() => {
-      const host = document.createElement("div");
-      host.id = "painter-paragraph";
-      document.body.append(host);
-      window.taskConversionEditor = window.taskConversionCreate!({
-        element: host,
-        outline: false,
-        content: sessionStorage.getItem("quoted-list")!,
-        onChange: (value) => window.taskConversionEditor!.setContent(value.html),
-      });
+    if (customStart) {
+      await prose.getByText("BEFORE", { exact: true }).click();
+      await painter.click();
+      await prose.getByText("OTHER", { exact: true }).click();
+      expect((await snapshot(page)).json).toEqual(split.json);
+    }
+    await scope.getByText(sourceFromEnd ? "AFTER" : "BEFORE", { exact: true }).click();
+    if (name === "折叠正文") await page.keyboard.press("ControlOrMeta+Shift+s");
+    else await painter.click();
+    await expect(painter).toHaveAttribute("aria-pressed", "true");
+    await target.click();
+    await expect(scope.locator(":scope > ol")).toHaveCount(1);
+    await expect(scope.locator("ol > li > p")).toHaveText(["BEFORE", "TARGET", "AFTER"]);
+    expect(
+      await page.evaluate(() => {
+        const selection = window.taskConversionEditor!.editor.state.selection;
+        return [selection.empty, selection.$from.parent.textContent];
+      }),
+    ).toEqual([true, "TARGET"]);
+    expect(
+      await scope.locator("ol > li").evaluateAll((items) => items.map((item) => item.getAttribute("value"))),
+    ).toEqual(customStart ? ["7", "8", "9"] : ["1", "2", "3"]);
+    const restored = await snapshot(page);
+    expect(restored.html).not.toContain("data-semlo-editor-list-sequence-link");
+    expect(findTextblock(restored.json, "TARGET")).toEqual({
+      ...findTextblock(restored.json, sourceFromEnd ? "AFTER" : "BEFORE"),
+      content: [{ type: "text", text: "TARGET" }],
     });
-    expect((await snapshot(page)).json).toEqual(converted.json);
-    await page.evaluate(() => {
-      const editor = window.taskConversionEditor!.editor;
-      let end = -1;
-      editor.state.doc.descendants((node, pos) => {
-        if (node.isText && node.text === "BEFORE") end = pos + node.nodeSize;
-      });
-      if (end < 0) throw new Error("未找到引用前段");
-      editor.view.focus();
-      editor.commands.setTextSelection(end);
-    });
-    await page.keyboard.press("Enter");
-    await expect(quote.locator("li p")).toHaveText(["BEFORE", "", "AFTER"]);
-    expect(await ordinals()).toEqual(["1", "2", "3"]);
-    await page.keyboard.press("ControlOrMeta+z");
-    expect((await snapshot(page)).json).toEqual(converted.json);
+    for (const unaffected of ["RETAIN", "OTHER", "BODY", "NEXT"])
+      expect(findTextblock(restored.json, unaffected)).toEqual(findTextblock(split.json, unaffected));
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(split.json);
+    expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.redo())).toBe(true);
+    expect((await snapshot(page)).json).toEqual(restored.json);
+    await reloadContainerList(page, restored.html);
+    expect((await snapshot(page)).json).toEqual(restored.json);
+    if (name === "表格标题行" || name === "表头单元格") {
+      await expect(scope).toHaveCSS("background-color", "rgb(217, 234, 252)");
+      expect(restored.json.content?.[1].attrs).toEqual(split.json.content?.[1].attrs);
+      expect(restored.json.content?.[1].content?.[0].content?.[0].attrs).toEqual(
+        split.json.content?.[1].content?.[0].content?.[0].attrs,
+      );
+    }
   });
 }
 
-test("高亮块内编号列表中间项不安全拆分时保留原文", async ({ page }) => {
+test("高亮块内多段编号中间项保留原结构", async ({ page }) => {
+  const target = { type: "listItem", content: [paragraph("TARGET", false), paragraph("TARGET-DETAIL", false)] };
   await setupBlocks(
     page,
     [
       paragraph("SOURCE", true),
-      { type: "callout", content: [orderedList(true, item("BEFORE"), item("TARGET"), item("AFTER"))] },
+      { type: "callout", content: [orderedList(true, item("BEFORE"), target, item("AFTER"))] },
     ],
     "SOURCE",
   );
   const before = await snapshot(page);
   await page.locator("#painter-paragraph .tiptap").getByText("TARGET", { exact: true }).click();
-  await page.evaluate(
-    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
-  );
+  const alert = page.locator("#painter-paragraph .tiptap > aside[data-semlo-editor-callout]");
+  await expect(alert.locator("strong")).toHaveText("TARGET");
+  await expect(alert.locator("ol > li")).toHaveText(["BEFORE", "TARGETTARGET-DETAIL", "AFTER"]);
+  const after = await snapshot(page);
+  expect(findTextblock(after.json, "TARGET-DETAIL")).toEqual(findTextblock(before.json, "TARGET-DETAIL"));
+  expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
   expect((await snapshot(page)).json).toEqual(before.json);
-  await expect(page.locator("#painter-paragraph .semlo-editor-format-painter")).toHaveAttribute("aria-pressed", "true");
-  await page.keyboard.press("Escape");
 });
 
 test("有序列表来源将相邻正文接入编号列表", async ({ page }) => {

@@ -1,4 +1,4 @@
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { Node as ProseMirrorNode, ResolvedPos } from "@tiptap/pm/model";
 import type { EditorState } from "@tiptap/pm/state";
 
 import { ContentValidationError } from "../../shared/content-error";
@@ -17,6 +17,51 @@ export const sequenceLinkAttribute = "semloEditorListSequenceLink";
 export const sequenceLinkHTMLAttribute = "data-semlo-editor-list-sequence-link";
 
 export type SequenceLink = { version: 1 | 2 | 3; previous: string | null; next: string | null };
+
+type ContinuationStep = string | readonly string[];
+
+// 只沿已验证的根级容器路径查找列表的直接父块。
+const localContinuationPaths = new Map<string, readonly ContinuationStep[]>([
+  ["blockquote", []],
+  ["callout", []],
+  ["details", ["detailsContent"]],
+  ["semloEditorColumns", ["semloEditorColumn"]],
+  ["table", ["tableRow", ["tableCell", "tableHeader"]]],
+]);
+
+function matchesContinuationStep(name: string, step: ContinuationStep): boolean {
+  return typeof step === "string" ? step === name : step.includes(name);
+}
+
+export function isLocalContinuationParent(position: ResolvedPos): boolean {
+  if (position.depth === 0) return false;
+  const path = localContinuationPaths.get(position.node(1).type.name);
+  return (
+    !!path &&
+    position.depth === path.length + 1 &&
+    path.every((step, index) => matchesContinuationStep(position.node(index + 2).type.name, step))
+  );
+}
+
+export function forEachContinuationParent(
+  root: ProseMirrorNode,
+  visit: (parent: ProseMirrorNode, start: number) => void,
+) {
+  const visitPath = (block: ProseMirrorNode, start: number, path: readonly ContinuationStep[], depth: number) => {
+    if (depth === path.length) {
+      visit(block, start);
+      return;
+    }
+    block.forEach((child, offset) => {
+      if (matchesContinuationStep(child.type.name, path[depth])) visitPath(child, start + offset + 1, path, depth + 1);
+    });
+  };
+  visit(root, 0);
+  root.forEach((block, offset) => {
+    const path = localContinuationPaths.get(block.type.name);
+    if (path) visitPath(block, offset + 1, path, 0);
+  });
+}
 
 /** 每条关联只连接相邻两段；缺省字段不改变旧内容的输出。 */
 export function parseSequenceLink(value: unknown): SequenceLink | null {
@@ -135,8 +180,7 @@ export function assertNumberingSequenceDocument(root: ProseMirrorNode): void {
     const linkValue = node.attrs[sequenceLinkAttribute];
     if (linkValue != null) {
       const link = parseSequenceLink(linkValue);
-      const allowedParent =
-        parent === root || (parent?.type.name === "blockquote" && link?.version === 1 && root.resolve(pos).depth === 1);
+      const allowedParent = parent === root || (link?.version === 1 && isLocalContinuationParent(root.resolve(pos)));
       if (!link || node.type.name !== "orderedList" || !allowedParent || !hasNumberingSequences(node))
         throw new ContentValidationError("编号序列关联无效");
       if ((link.previous && previous.has(link.previous)) || (link.next && next.has(link.next)))

@@ -4,6 +4,7 @@ import { TextSelection, type EditorState, type Transaction } from "@tiptap/pm/st
 
 import { headingNumberingStyle, headingNumberMarkers } from "../heading/numbering";
 import { newSequenceLinkId, planSequenceContinuation } from "./numbering-sequence-continuation";
+import { parseSequenceConversionHint, sequenceConversionHintAttribute } from "./numbering-sequence-conversion-hint";
 import {
   assertNumberingSequenceDocument,
   hasNumberingSequences,
@@ -170,7 +171,7 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
   const plain: string[] = [];
   const headings: ProjectedHeading[] = [];
   const markers = headingNumberMarkers(state);
-  const lists: Array<{ source: ProseMirrorNode; output: number; first: number; last: number }> = [];
+  const lists: Array<{ source: ProseMirrorNode; output: number; first: number; last: number; complete: boolean }> = [];
   const serializers = getTextSerializersFromSchema(state.schema);
   let supported = true;
   let hasSequence = false;
@@ -227,27 +228,24 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
         return;
       }
     }
-    const projected = copyProjection(
-      state,
-      block,
-      pos,
-      first,
-      last,
-      partialFrom ? $from.parentOffset : 0,
-      partialTo ? $to.parentOffset : block.child(last).firstChild!.content.size,
-    );
+    const firstOffset = partialFrom ? $from.parentOffset : 0;
+    const lastSize = block.child(last).firstChild!.content.size;
+    const lastOffset = partialTo ? $to.parentOffset : lastSize;
+    const projected = copyProjection(state, block, pos, first, last, firstOffset, lastOffset);
     if (!projected) {
       supported = false;
       return;
     }
     hasSequence = true;
-    lists.push({ source: block, output: blocks.length, first, last });
+    const complete = first === 0 && last === block.childCount - 1 && firstOffset === 0 && lastOffset === lastSize;
+    lists.push({ source: block, output: blocks.length, first, last, complete });
     blocks.push(projected.slice.content.firstChild!);
     plain.push(projected.text);
   });
   if (!supported || !hasSequence || !blocks.length) return null;
   const edges = new Map<number, { id: string; version: 1 | 2 | 3 }>();
   const reserved = new Set<string>();
+  let preservedChildPair = false;
   for (let index = 0; index + 1 < lists.length; index++) {
     const left = lists[index],
       right = lists[index + 1];
@@ -264,6 +262,28 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
         .some((block) => block.type.name !== "paragraph" && !(leftLink.version === 3 && block.type.name === "heading"))
     )
       continue;
+    const gap = blocks[left.output + 1];
+    const hint = parseSequenceConversionHint(gap?.attrs[sequenceConversionHintAttribute]);
+    if (
+      left.complete &&
+      right.complete &&
+      leftLink.version === 1 &&
+      !leftLink.previous &&
+      !rightLink.next &&
+      right.output === left.output + 2 &&
+      gap?.type.name === "paragraph" &&
+      hint?.edge === next &&
+      left.source.lastChild?.attrs.semloEditorListIndent === 1 &&
+      right.source.firstChild?.attrs.semloEditorListIndent === 1 &&
+      left.source.lastChild.attrs[sequenceMemberAttribute] === hint.sequenceId &&
+      right.source.firstChild.attrs[sequenceMemberAttribute] === hint.sequenceId
+    ) {
+      // 首字到末字已经包含完整的二级拆分。保留局部编号，序列化时统一换新关联。
+      blocks[left.output] = left.source;
+      blocks[right.output] = right.source;
+      preservedChildPair = true;
+      continue;
+    }
     const validate = (list: ProseMirrorNode) => {
       const result = resolveListNumbering(list);
       if (!result.ok || result.value.kind !== "v1") return null;
@@ -326,7 +346,7 @@ export function projectNumberingSequenceRootCopy(state: EditorState): NumberingS
   }
   const root = state.schema.topNodeType.create(null, blocks);
   root.check();
-  if (edges.size) {
+  if (edges.size || preservedChildPair) {
     assertNumberingSequenceDocument(root);
     const continuation = planSequenceContinuation(root);
     if (!continuation || continuation.length) return null;
@@ -362,7 +382,7 @@ export function crossParentSelectionEndsBeforeDescendants(state: EditorState): b
   );
 }
 
-/** 规划根项到后代、同一初始序列的跨父项剪切，并保留归属明确的未选孙项。 */
+/** 规划根项到后代、同一初始序列的跨父项剪切，并保留归属明确的未选后代。 */
 export function projectNumberingSequenceMixedCut(state: EditorState): NumberingSequenceClipboard | null {
   const copy = projectNumberingSequenceMixedCopy(state);
   if (!copy) return null;
@@ -409,11 +429,11 @@ export function projectNumberingSequenceMixedCut(state: EditorState): NumberingS
     )
       return null;
     reparentFrom = last + 1;
-    // 末项的直接后代紧跟在合并项之后，保留原孙项节点和编号序列。
-    while (reparentFrom < entries.length && level(reparentFrom) === 2) reparentFrom++;
+    // 末项的子树紧跟在合并项之后，保留原节点、层级和编号序列。
+    while (reparentFrom < entries.length && level(reparentFrom) > level(last)) reparentFrom++;
     reparentTo = reparentFrom;
     while (reparentTo < entries.length && level(reparentTo) === 1) reparentTo++;
-    // 首端未选深层项、四级后代及剩余兄弟项的子树仍待核对。
+    // 首端未选深层项及剩余兄弟项的子树仍受保护。
     if (
       (reparentTo < entries.length && level(reparentTo) !== 0) ||
       entries
