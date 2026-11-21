@@ -339,3 +339,61 @@ test("an imported long article preserves list, table and code when writing resum
   await mountFromStorage(page, "html");
   expect(await snapshot()).toEqual(edited);
 });
+
+test("桌面跨标题、正文和编号项替换保留未选内容，一次撤销恢复原选区", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
+  const source =
+    "<p>序言保留</p><h2>标题前半标题右半</h2><p>中间正文</p>" +
+    '<ol start="4"><li><p>首项左边首项尾部</p></li><li><p>第二项保留</p></li></ol><p>尾注保留</p>';
+  await page.evaluate((html) => sessionStorage.setItem("article", html), source);
+  await mountFromStorage(page, "html");
+  const prose = page.locator("#long-writing .semlo-editor-prose");
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const before = await snapshot();
+  const [start, end] = await prose.evaluate((root) => {
+    return ["标题前半标题右半", "首项左边首项尾部"].map((label) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        if (walker.currentNode.textContent !== label) continue;
+        const range = document.createRange();
+        range.setStart(walker.currentNode, 4);
+        range.collapse(true);
+        const caret = range.getBoundingClientRect();
+        return { x: caret.x, y: caret.y + caret.height / 2 };
+      }
+      throw new Error(`未找到选区端点：${label}`);
+    });
+  });
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForFunction(() => {
+    const { $anchor, $head } = window.longWritingEditor!.editor.state.selection;
+    return (
+      $anchor.parent.textContent === "标题前半标题右半" &&
+      $anchor.parentOffset === 4 &&
+      $head.parent.textContent === "首项左边首项尾部" &&
+      $head.parentOffset === 4
+    );
+  });
+  const beforeSelection = await selection();
+  await page.evaluate(() => navigator.clipboard.writeText("替换"));
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(prose.locator(":scope > h2")).toHaveText("标题前半替换首项尾部");
+  await expect(prose.locator(":scope > p")).toHaveText(["序言保留", "尾注保留"]);
+  await expect(prose.locator("ol > li")).toHaveText(["第二项保留"]);
+  await expect(prose.locator("ol")).toHaveAttribute("start", "4");
+  const after = await snapshot();
+
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await snapshot()).toEqual(after);
+  await page.reload();
+  await mountFromStorage(page, "html");
+  expect(await snapshot()).toEqual(after);
+});
