@@ -243,6 +243,8 @@ export function paintDatabaseCalendar(options: DatabaseCalendarOptions) {
       label.textContent = text;
       event.replaceChildren(label);
       if (editable && startField?.type === "date" && (!endField || endField.type === "date")) {
+        // 与独立日历一致，只让可拖日程接管触摸，从日期格上仍可滚动。
+        event.style.touchAction = "none";
         const addHandle = (edge: "start" | "end") => {
           const handle = doc.createElement("span");
           handle.className = `semlo-editor-database-calendar-resize semlo-editor-database-calendar-resize-${edge}`;
