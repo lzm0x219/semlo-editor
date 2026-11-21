@@ -246,16 +246,22 @@ test("document search follows data table filters when they change", async ({ pag
   await expect(panel.locator(".semlo-editor-find-counter")).toHaveText("1/2");
   await expect(host.locator(".semlo-editor-database-cell.semlo-editor-find-match")).toHaveCount(0);
   const table = host.locator(".semlo-editor-database");
+  await table.getByRole("button", { name: "搜索", exact: true }).click();
+  await table.getByRole("searchbox", { name: "搜索记录" }).fill("甲记录");
+  await expect(table.getByRole("status")).toHaveText("0 条匹配");
+  await expect(table.getByRole("textbox", { name: /行 文本$/ })).toHaveCount(1);
   await table.getByRole("button", { name: "筛选", exact: true }).click();
   await table.getByRole("dialog", { name: "筛选" }).getByRole("button", { name: "删除筛选规则" }).click();
   await expect(panel.locator(".semlo-editor-find-counter")).toHaveText("1/4");
   await expect(table.locator(".semlo-editor-database-cell.semlo-editor-find-match")).toHaveCount(1);
+  await expect(table.getByRole("status")).toHaveText("1 条匹配");
   await table.getByRole("dialog", { name: "筛选" }).getByRole("button", { name: "关闭" }).click();
   await table.getByRole("button", { name: "字段配置" }).click();
   const fieldPanel = table.getByRole("dialog", { name: "字段配置" });
   await fieldPanel.getByRole("checkbox", { name: "显示文本" }).uncheck();
   await expect(panel.locator(".semlo-editor-find-counter")).toHaveText("1/2");
   await expect(table.locator(".semlo-editor-database-cell.semlo-editor-find-match")).toHaveCount(0);
+  await expect(table.getByRole("status")).toHaveText("0 条匹配");
   await fieldPanel.getByRole("checkbox", { name: "显示文本" }).check();
   await expect(panel.locator(".semlo-editor-find-counter")).toHaveText("1/4");
 });
@@ -341,7 +347,7 @@ test("the shortcut inside a data table opens its own search, not document search
   await expect(second.getByLabel("第 1 行 文本")).toHaveValue("甲记录甲记录");
 });
 
-test("document find follows record search across table, calendar and chart views", async ({ page }) => {
+test("table search marks matches without hiding rows or narrowing document find", async ({ page }) => {
   const data = sampleData();
   const [title, , date] = data.fields;
   data.records[0].values[date.id] = "2026-11-03";
@@ -365,8 +371,15 @@ test("document find follows record search across table, calendar and chart views
 
   await toggle.click();
   await database.getByRole("searchbox", { name: "搜索记录" }).fill("另一件");
-  await expect(database.getByRole("textbox", { name: /行 文本$/ })).toHaveCount(1);
-  await expect(counter).toHaveText("1/2");
+  await expect(database.getByRole("textbox", { name: /行 文本$/ })).toHaveCount(3);
+  await expect(database.locator(".semlo-editor-database-search-match")).toHaveCount(1);
+  await expect(database.locator(".semlo-editor-database-search-match")).toHaveCSS(
+    "background-color",
+    "rgb(228, 243, 233)",
+  );
+  await expect(database.locator(".semlo-editor-database-search-match input")).toHaveValue("另一件");
+  await expect(database.getByRole("status")).toHaveText("1 条匹配");
+  await expect(counter).toHaveText("1/4");
   expect(await page.evaluate(() => window.__semloRequireFixture("databaseFindEditors")[0].getSnapshot().json)).toEqual(
     before,
   );
@@ -381,15 +394,22 @@ test("document find follows record search across table, calendar and chart views
   await expect(counter).toHaveText("1/4");
 });
 
-test("finishing an edit refreshes rows excluded by the active record search", async ({ page }) => {
+test("finishing a cell edit refreshes table search marks and retains the row", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 780 });
   const host = await mount(page);
   const database = host.locator(".semlo-editor-database");
-  await database.getByRole("button", { name: "搜索", exact: true }).click();
-  await database.getByRole("searchbox", { name: "搜索记录" }).fill("甲记录");
+  await database.getByRole("button", { name: "搜索", exact: true }).press("Enter");
+  const search = database.getByRole("searchbox", { name: "搜索记录" });
+  await expect(search).toBeFocused();
+  await search.fill("甲记录");
+  const match = database.locator(".semlo-editor-database-search-match input");
+  await expect(match).toHaveValue("甲记录甲记录");
   const row = database.getByRole("textbox", { name: "第 1 行 文本" });
   await row.fill("修改后");
   await row.press("Enter");
-  await expect(row).toHaveCount(0);
+  await expect(row).toHaveValue("修改后");
+  await expect(match).toHaveCount(0);
+  await expect(database.getByRole("status")).toHaveText("0 条匹配");
 
   await database.getByRole("button", { name: "搜索", exact: true }).click();
   await expect(row).toHaveValue("修改后");

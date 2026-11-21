@@ -76,7 +76,7 @@ test("record selection does not survive replacing a document with matching ident
   await expect(root.getByLabel("选择第 1 条记录")).not.toBeChecked();
 });
 
-test("bulk delete follows the records still visible after searching", async ({ page }) => {
+test("bulk delete remains limited to matches while table search keeps all visible rows", async ({ page }) => {
   const data = createDatabaseData();
   const title = data.fields[0].id;
   data.records[0].values[title] = "甲";
@@ -86,7 +86,16 @@ test("bulk delete follows the records still visible after searching", async ({ p
   await root.getByRole("checkbox", { name: "选择第 2 条记录" }).check();
   await root.getByRole("button", { name: "搜索", exact: true }).click();
   await root.getByRole("searchbox", { name: "搜索记录" }).fill("乙");
+  await expect(root.getByRole("textbox", { name: /行 文本$/ })).toHaveCount(3);
+  const first = root.getByRole("checkbox", { name: "选择第 1 条记录" });
+  await expect(first).not.toBeChecked();
+  await expect(first).toBeDisabled();
+  const selectMatches = root.getByRole("checkbox", { name: "选择所有匹配记录" });
+  await expect(selectMatches).toBeChecked();
+  await selectMatches.uncheck();
+  await selectMatches.check();
   const remove = root.getByRole("button", { name: "删除选中记录" });
+  await expect(remove).toHaveText("删除 1 条");
   await remove.click();
   const recordIds = () =>
     page.evaluate(() => {

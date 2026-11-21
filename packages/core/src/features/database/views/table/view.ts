@@ -5,6 +5,7 @@ import type { createColumnDrag } from "../../column-drag";
 import {
   createDatabaseRecord,
   databaseGroupKey,
+  databaseValueMatchesSearch,
   databaseValueText,
   orderedDatabaseFields,
   type DatabaseData,
@@ -69,7 +70,13 @@ export function createTableView({
   statisticPanel,
   change,
 }: TableViewContext) {
-  return (container: HTMLElement, data: DatabaseData, active: DatabaseView, records: DatabaseRecord[]) => {
+  return (
+    container: HTMLElement,
+    data: DatabaseData,
+    active: DatabaseView,
+    records: DatabaseRecord[],
+    search: string,
+  ) => {
     const fields = orderedDatabaseFields(data, active).filter((field) => !active.hiddenFields.includes(field.id));
     const grid = doc.createElement("div");
     grid.className = `semlo-editor-database-grid is-${active.rowHeight}`;
@@ -83,12 +90,12 @@ export function createTableView({
     all.className = "semlo-editor-database-row-head";
     const checkAll = doc.createElement("input");
     checkAll.type = "checkbox";
-    checkAll.setAttribute("aria-label", "选择所有记录");
-    const renderedIds = new Set<string>();
+    checkAll.setAttribute("aria-label", search ? "选择所有匹配记录" : "选择所有记录");
+    const selectableIds = new Set<string>();
     checkAll.addEventListener("change", () => {
-      if (!dom.contains(checkAll)) return;
+      if (!dom.contains(checkAll) || checkAll.disabled) return;
       const selected = getSelected();
-      for (const id of renderedIds) {
+      for (const id of selectableIds) {
         if (checkAll.checked) selected.add(id);
         else selected.delete(id);
       }
@@ -128,7 +135,11 @@ export function createTableView({
 
     const recordIndexes = new Map(records.map((record, index) => [record.id, index]));
     const paintRow = (record: DatabaseRecord) => {
-      renderedIds.add(record.id);
+      const matchingFields = search
+        ? new Set(fields.filter((field) => databaseValueMatchesSearch(field, record.values[field.id], search)))
+        : null;
+      const selectable = matchingFields === null || matchingFields.size > 0;
+      if (selectable) selectableIds.add(record.id);
       const index = recordIndexes.get(record.id) ?? 0;
       const row = doc.createElement("div");
       row.className = "semlo-editor-database-row";
@@ -137,11 +148,11 @@ export function createTableView({
       number.className = "semlo-editor-database-row-head semlo-editor-database-record-index";
       const checkbox = doc.createElement("input");
       checkbox.type = "checkbox";
-      checkbox.checked = getSelected().has(record.id);
-      checkbox.disabled = !editor.isEditable;
+      checkbox.checked = selectable && getSelected().has(record.id);
+      checkbox.disabled = !editor.isEditable || !selectable;
       checkbox.setAttribute("aria-label", `选择第 ${index + 1} 条记录`);
       checkbox.addEventListener("change", () => {
-        if (!dom.contains(checkbox)) return;
+        if (!dom.contains(checkbox) || checkbox.disabled) return;
         if (checkbox.checked) getSelected().add(record.id);
         else getSelected().delete(record.id);
         paint();
@@ -152,7 +163,11 @@ export function createTableView({
       rowDrag.bind(row, handle, record.id);
       number.append(handle, checkbox, ordinal);
       row.append(number);
-      for (const field of fields) row.append(makeCell(field, record, index));
+      for (const field of fields) {
+        const cell = makeCell(field, record, index);
+        if (matchingFields?.has(field)) cell.classList.add("semlo-editor-database-search-match");
+        row.append(cell);
+      }
       const actions = doc.createElement("div");
       actions.className = "semlo-editor-database-row-actions";
       actions.append(
@@ -368,9 +383,9 @@ export function createTableView({
     }
     const selected = getSelected();
     let visibleSelectionCount = 0;
-    for (const id of selected) if (renderedIds.has(id)) visibleSelectionCount++;
-    checkAll.disabled = !editor.isEditable || renderedIds.size === 0;
-    checkAll.checked = renderedIds.size > 0 && visibleSelectionCount === renderedIds.size;
+    for (const id of selected) if (selectableIds.has(id)) visibleSelectionCount++;
+    checkAll.disabled = !editor.isEditable || selectableIds.size === 0;
+    checkAll.checked = selectableIds.size > 0 && visibleSelectionCount === selectableIds.size;
     checkAll.indeterminate = visibleSelectionCount > 0 && !checkAll.checked;
     if (!groupField) {
       const addRow = doc.createElement("div");
@@ -404,6 +419,6 @@ export function createTableView({
     foot.append(doc.createElement("div"));
     grid.append(foot);
     container.append(grid);
-    return renderedIds;
+    return selectableIds;
   };
 }

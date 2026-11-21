@@ -33,7 +33,8 @@ test("read-only view selection does not leak to a different database with matchi
   await expect(root.getByRole("table", { name: "另一视图" })).toBeVisible();
   await root.getByRole("button", { name: "搜索", exact: true }).click();
   await root.getByLabel("搜索记录").fill("没有结果");
-  await expect(root.locator(".semlo-editor-database-record-index")).toHaveCount(0);
+  await expect(root.locator(".semlo-editor-database-record-index")).toHaveCount(3);
+  await expect(root.getByRole("status")).toHaveText("0 条匹配");
   await page.evaluate(() => {
     const editor = window.__semloRequireFixture("readonlyViewStateEditor");
     editor.setContent(structuredClone(editor.getSnapshot().json));
