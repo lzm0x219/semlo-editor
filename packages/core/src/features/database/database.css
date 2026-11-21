@@ -773,6 +773,7 @@
 }
 .semlo-editor-database-card[draggable="true"] {
   cursor: grab;
+  -webkit-touch-callout: none;
 }
 .semlo-editor-database-card.is-board-dragging {
   opacity: 0.42;
