@@ -16,10 +16,22 @@ import { tableContextMenu } from "./context-menu";
 import { tableEdgesPlugin, type TableViewDisposerRegistration } from "./edges";
 import { mergedTablePaste } from "./paste";
 import { SemloEditorTableView, managedResize, fitColumnChanges } from "./resize";
+import { readTableColumnWidths } from "./schema";
 import { sequenceFirstColumnAttribute } from "./sequence";
 import { tableHeaderDecorations, tableStyleAttributes, tableStyleOutput } from "./toolbar";
 
 export const SemloEditorTable = Table.extend<TableOptions & { registerViewDisposer?: TableViewDisposerRegistration }>({
+  parseHTML() {
+    return [
+      {
+        tag: "table",
+        getAttrs: (table) => {
+          readTableColumnWidths(table as HTMLTableElement);
+          return null;
+        },
+      },
+    ];
+  },
   addKeyboardShortcuts() {
     return {
       ...this.parent?.(),
