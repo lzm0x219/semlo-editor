@@ -31,7 +31,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | 写作、标题与工具 | 常用输入、选区、粘贴撤销、大纲搜索、格式和插入菜单。引用后续写有 macOS 系统拼音样本。 | 其他跨块选区、输入法组合、长文真机操作。 [#20](https://github.com/lzm0x219/semlo-editor/issues/20) · [#21](https://github.com/lzm0x219/semlo-editor/issues/21) · [#22](https://github.com/lzm0x219/semlo-editor/issues/22) · [#23](https://github.com/lzm0x219/semlo-editor/issues/23) · [#24](https://github.com/lzm0x219/semlo-editor/issues/24) |
 | 列表与结构块 | 编号续接、嵌套跨项剪贴板、引用、折叠及分栏的直接段落移动。跨父项剪切和粘贴已分别验证根编号从 4 开始，以及保留末项的未选三级和四级后代。 | 自定义子起点缺少语雀样本。更深列表、其他跨结构格式刷及触屏拖动待核对。 [#25](https://github.com/lzm0x219/semlo-editor/issues/25) · [#26](https://github.com/lzm0x219/semlo-editor/issues/26) · [#27](https://github.com/lzm0x219/semlo-editor/issues/27) |
 | 表格与数据表 | 普通表格编辑、合并拆分、序号列及粘贴。Semlo 已验证拆分 2×2 合并格并保留列宽和相邻合并格。数据表字段、记录、多视图同步、日历、图表和查找。Chromium 触摸模拟已验证长按卡片跨组拖放。 | 语雀同样本执行拆分后仍保留合并且重置列宽。其他复杂表格组合、看板真机触屏、复杂筛选与聚合待核对。 [#28](https://github.com/lzm0x219/semlo-editor/issues/28) · [#31](https://github.com/lzm0x219/semlo-editor/issues/31) · [#32](https://github.com/lzm0x219/semlo-editor/issues/32) · [#33](https://github.com/lzm0x219/semlo-editor/issues/33) |
-| 图片、图册与媒体 | 图文混排、图册布局、主流格式的实际播放及常用控制。 | 实体触屏、系统画中画窗口、生产上传、转换及读者权限。 [#29](https://github.com/lzm0x219/semlo-editor/issues/29) · [#30](https://github.com/lzm0x219/semlo-editor/issues/30) |
+| 图片、图册与媒体 | 图文混排、图册布局、主流格式的实际播放及常用控制。 | 实体触屏、其他格式和浏览器的画中画、生产上传、转换及读者权限。 [#29](https://github.com/lzm0x219/semlo-editor/issues/29) · [#30](https://github.com/lzm0x219/semlo-editor/issues/30) |
 | 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、专注编辑、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方及真机绘图。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
 | 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | CodePen 同样本结果不同，宜搭示例拒绝嵌入，Figma 旧示例失效。其他受限资源仍需有效账号或样本。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
 
@@ -109,7 +109,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | 图片描述、链接与预览 | 已有主要实现 | 已操作   | #29 已验收 | 已验证描述、链接、预览切换与放大拖动，主要键盘路径有回归。 |
 | 图册                 | 已有主要实现 | 已操作   | #29 已验收 | 已核对三种布局、设置和撤销，Chromium 覆盖触屏重排及预览切换。更多尺寸组合和真机待核对。 |
 | 附件与本地文件       | 已有主要实现 | 已操作   | #30 已验收 | 已验证标题、卡片、嵌入、高度手势、原文件下载及撤销。宿主阅读页、转换服务和实际访问权限由应用提供。 |
-| 音频和视频           | 已有主要实现 | 已操作   | #30 已验收 | 语雀上传并播放了两秒 WAV 和 MP4。Semlo 已验证播放、主要控制、全屏、Chromium 画中画进入和退出、失败及撤销。系统浮窗显示及其他格式待核验。 |
+| 音频和视频           | 已有主要实现 | 已操作   | #30 已验收 | 语雀上传并播放了两秒 WAV 和 MP4。双方在 macOS Chrome 实测系统画中画浮窗开启、播放及退出。Semlo 已验证主要控制、全屏、失败及撤销。其他浏览器和格式待核验。 |
 
 ## 内容卡片与插入面板
 
