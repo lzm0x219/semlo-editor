@@ -175,7 +175,7 @@ export function captureBlockFormat(position: ResolvedPos): BlockFormat | null {
       attrs = position.node(2).attrs;
     const sequenceId = attrs[sequenceMemberAttribute];
     if (
-      attrs.semloEditorListIndent === 1 &&
+      attrs.semloEditorListIndent > 0 &&
       typeof sequenceId === "string" &&
       parseSequenceLink(list.attrs[sequenceLinkAttribute])
     )
@@ -245,14 +245,14 @@ function updateContinuation(tr: Transaction, previous: ProseMirrorNode): boolean
   return true;
 }
 
-/** 二级有序中间叶项转根级正文时，用显式续接保留两侧的原编号。 */
+/** 有序列表中间叶项转根级正文时，用显式续接保留同父项的编号。 */
 function paintOrderedChildParagraph(
   tr: Transaction,
   selection: TextSelection,
   source: BlockFormat,
 ): TextSelection | null {
   const position = selection.$from;
-  if ((position.depth !== 3 && position.depth !== 5) || position.node(1).type.name !== "orderedList") return null;
+  if (position.depth < 3 || position.node(1).type.name !== "orderedList") return null;
   const original = position.node(1);
   const state = EditorState.create({ doc: tr.doc, selection });
   const projected = hasNumberingSequences(original)
@@ -268,21 +268,27 @@ function paintOrderedChildParagraph(
   const items = list.content.content;
   const index = projected.index(1);
   const target = items[index];
+  const indent = target?.attrs.semloEditorListIndent;
   if (
     items[0]?.attrs.semloEditorListIndent !== 0 ||
-    target?.attrs.semloEditorListIndent !== 1 ||
-    items[index - 1]?.attrs.semloEditorListIndent !== 1 ||
-    items[index + 1]?.attrs.semloEditorListIndent !== 1 ||
+    !Number.isInteger(indent) ||
+    indent < 1 ||
+    items[index - 1]?.attrs.semloEditorListIndent !== indent ||
+    items[index + 1]?.attrs.semloEditorListIndent !== indent ||
     items.some(
       (item) =>
         item.type.name !== "listItem" ||
         item.childCount !== 1 ||
         item.firstChild?.type.name !== "paragraph" ||
         !defaultAttributes(item, ["semloEditorListIndent", sequenceMemberAttribute]) ||
-        ![0, 1].includes(item.attrs.semloEditorListIndent),
+        !Number.isInteger(item.attrs.semloEditorListIndent) ||
+        item.attrs.semloEditorListIndent < 0 ||
+        item.attrs.semloEditorListIndent > MAX_INDENT,
     )
   )
     return null;
+  const numbering = resolveListNumbering(list);
+  if (!numbering.ok || numbering.value.kind !== "v1") return null;
   const id = target.attrs[sequenceMemberAttribute];
   if (
     typeof id !== "string" ||

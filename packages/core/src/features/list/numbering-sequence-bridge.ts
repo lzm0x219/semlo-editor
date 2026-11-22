@@ -108,7 +108,7 @@ function rejoinParagraphs(
     right.marks.length
   )
     return false;
-  // 只有来自同一对 v1 片段的格式才能接回容器内正文或二级叶项。
+  // 只有来自同一对 v1 片段的格式才能接回容器内正文或嵌套叶项。
   if (
     source &&
     ((source.list !== left && source.list !== right) || leftLink.version !== 1 || leftLink.previous || rightLink.next)
@@ -125,11 +125,12 @@ function rejoinParagraphs(
   const before = resolveListNumbering(left),
     after = resolveListNumbering(right);
   if (!before.ok || before.value.kind !== "v1" || !after.ok || after.value.kind !== "v1") return false;
-  const indent = nestedSequence ? 1 : 0;
+  const indent = nestedSequence ? left.lastChild?.attrs.semloEditorListIndent : 0;
   if (
     nestedSequence &&
-    (left.firstChild?.attrs.semloEditorListIndent !== 0 ||
-      left.lastChild?.attrs.semloEditorListIndent !== indent ||
+    (!Number.isInteger(indent) ||
+      indent < 1 ||
+      left.firstChild?.attrs.semloEditorListIndent !== 0 ||
       right.firstChild?.attrs.semloEditorListIndent !== indent ||
       before.value.sequenceIds.at(-1) !== nestedSequence ||
       after.value.sequenceIds[0] !== nestedSequence)
@@ -143,7 +144,7 @@ function rejoinParagraphs(
         item.type.name !== "listItem" ||
         item.childCount !== 1 ||
         item.firstChild?.type.name !== "paragraph" ||
-        (Number(level) !== 0 && Number(level) !== indent) ||
+        (!nestedSequence && Number(level) !== 0) ||
         item.attrs.semloEditorListRestart === true
       )
         valid = false;
