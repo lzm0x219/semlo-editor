@@ -102,6 +102,90 @@ async function listMarkers(page: Page, selector = "#list-start-test"): Promise<s
   }
 }
 
+for (const representation of ["nested HTML", "flat mixed", "flat decimal"] as const) {
+  test(`direct children can restart and continue independently in ${representation}`, async ({ page }) => {
+    const nested = representation === "nested HTML";
+    const decimal = representation === "flat decimal";
+    const content = nested
+      ? '<ol start="4"><li>父甲<ol type="a" start="7"><li>子甲</li><li>子乙</li></ol></li>' +
+        '<li>父乙<ol type="a"><li value="10">子丙</li><li>子丁</li></ol></li></ol>'
+      : {
+          type: "doc",
+          content: [
+            {
+              type: "orderedList",
+              attrs: { start: 4, semloEditorOrderedStyle: decimal ? "decimal" : "mixed" },
+              content: [
+                item("父甲", 0),
+                item("子甲", 1),
+                item("子乙", 1),
+                item("父乙", 0),
+                item("子丙", 1),
+                item("子丁", 1),
+              ],
+            },
+          ],
+        };
+    await mount(page, content);
+    await expect(page.getByRole("button", { name: /设置列表编号/ })).toHaveCount(4);
+
+    const menu = page.getByRole("menu", { name: "设置列表编号" });
+    const restart = menu.getByRole("menuitem", { name: "重新编号" });
+    const continueNumbering = menu.getByRole("menuitem", { name: "继续编号" });
+    const openItem = (text: string) => page.getByRole("button", { name: `设置列表编号：${text}`, exact: true }).click();
+    const undo = () => page.evaluate(() => window.__semloRequireFixture("listStartEditor").editor.commands.undo());
+    const redo = () => page.evaluate(() => window.__semloRequireFixture("listStartEditor").editor.commands.redo());
+    const before = (await snapshot(page)).json;
+    const initial = decimal ? ["4.", "4.1.", "4.2.", "5.", "5.1.", "5.2."] : ["4.", "a.", "b.", "5.", "a.", "b."];
+    const changed = [...initial];
+    changed[2] = initial[1];
+    expect(await listMarkers(page)).toEqual(initial);
+
+    await openItem("子乙");
+    await expect(continueNumbering).toBeDisabled();
+    await restart.click();
+    expect(await listMarkers(page)).toEqual(changed);
+    const restarted = structuredClone(before);
+    const root = restarted.content![0].content!;
+    const target = nested ? root[0].content![1].content![1] : root[2];
+    target.attrs = { ...target.attrs, semloEditorListRestart: true };
+    expect((await snapshot(page)).json).toEqual(restarted);
+
+    expect(await undo()).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before);
+    expect(await redo()).toBe(true);
+    const saved = await snapshot(page);
+    expect(saved.json).toEqual(restarted);
+    if (nested) expect(saved.html).toContain('<ol start="7" type="a">');
+
+    for (const reopened of [saved.json, saved.html]) {
+      await mount(page, reopened);
+      expect((await snapshot(page)).json).toEqual(restarted);
+      expect(await listMarkers(page)).toEqual(changed);
+      await openItem("子乙");
+      await expect(restart).toBeDisabled();
+      await continueNumbering.click();
+      expect((await snapshot(page)).json).toEqual(before);
+      expect(await listMarkers(page)).toEqual(initial);
+      expect(await undo()).toBe(true);
+      expect((await snapshot(page)).json).toEqual(restarted);
+      expect(await redo()).toBe(true);
+      expect((await snapshot(page)).json).toEqual(before);
+    }
+
+    // 首个子项已经显示为 1，重启仍建立可清除的局部边界。
+    await openItem("子丙");
+    await expect(continueNumbering).toBeDisabled();
+    await restart.click();
+    expect((await snapshot(page)).json).not.toEqual(before);
+    expect(await listMarkers(page)).toEqual(initial);
+    await openItem("子丙");
+    await expect(restart).toBeDisabled();
+    await continueNumbering.click();
+    expect((await snapshot(page)).json).toEqual(before);
+  });
+}
+
 test("sparse level starts survive editing, undo, redo and an HTML round trip", async ({ page }) => {
   const host = await mount(page, {
     type: "doc",

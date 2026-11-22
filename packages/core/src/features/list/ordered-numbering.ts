@@ -38,6 +38,7 @@ type Target = {
   multilevel: boolean;
   hasRestarts: boolean;
   taskChain: TaskNumberChain | null;
+  localChild?: true;
   sequence?: { restart: boolean; continue: boolean };
   quoteChain: { previous: ProseMirrorNode; following: ProseMirrorNode; followingPos: number } | null;
 };
@@ -47,6 +48,7 @@ type ListShape = {
   hasRestarts: boolean;
   flat: boolean;
   directChildren: boolean;
+  directChildGroups: boolean;
   twoParentShape: boolean;
   restartIndex: number;
   restartCount: number;
@@ -69,6 +71,7 @@ function listShape(list: ProseMirrorNode, cache?: WeakMap<ProseMirrorNode, ListS
     hasRestarts: false,
     flat: true,
     directChildren: true,
+    directChildGroups: true,
     twoParentShape: list.childCount === 4 || list.childCount === 5,
     restartIndex: -1,
     restartCount: 0,
@@ -85,10 +88,23 @@ function listShape(list: ProseMirrorNode, cache?: WeakMap<ProseMirrorNode, ListS
     if (!Number.isInteger(indent) || indent < 0 || indent > 8 || !paragraph) result.valid = false;
     if (indent !== 0 || !paragraph) result.flat = false;
     if (indent !== (index === 0 ? 0 : 1)) result.directChildren = false;
+    if (indent !== 0 && (index === 0 || indent !== 1)) result.directChildGroups = false;
     if (indent !== (index === 0 || index === 2 ? 0 : 1)) result.twoParentShape = false;
   });
   cache?.set(list, result);
   return result;
+}
+
+function supportsLocalChildNumbering(list: ProseMirrorNode): boolean {
+  return (
+    list.attrs[sequenceRegistryAttribute] == null &&
+    list.attrs[sequenceLinkAttribute] == null &&
+    list.attrs.semloEditorListQuoteChain == null &&
+    list.attrs.semloEditorListTaskChain == null &&
+    list.attrs.semloEditorListLevelStarts == null &&
+    list.attrs.semloEditorOrderedAncestorPath == null &&
+    list.attrs.semloEditorListFirstContinue !== true
+  );
 }
 
 function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Target | null {
@@ -97,7 +113,22 @@ function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Targe
     list = $pos.parent;
   if (!item || item.type.name !== "listItem" || list.type.name !== "orderedList") return null;
   let quoteChain: Target["quoteChain"] = null;
-  if ($pos.depth === 2 && $pos.node(1).type.name === "blockquote" && $pos.node(1).childCount === 1) {
+  const nested = $pos.depth === 3;
+  if (nested) {
+    const root = $pos.node(1);
+    const parent = $pos.node(2);
+    if (
+      root.type.name !== "orderedList" ||
+      parent.type.name !== "listItem" ||
+      parent.childCount !== 2 ||
+      parent.firstChild?.type.name !== "paragraph" ||
+      Number(parent.attrs.semloEditorListIndent ?? 0) !== 0 ||
+      parent.attrs[sequenceMemberAttribute] != null ||
+      !supportsLocalChildNumbering(root) ||
+      !supportsLocalChildNumbering(list)
+    )
+      return null;
+  } else if ($pos.depth === 2 && $pos.node(1).type.name === "blockquote" && $pos.node(1).childCount === 1) {
     const quotePos = $pos.before(1);
     const quote = $pos.node(1);
     const previous = doc.resolve(quotePos).nodeBefore;
@@ -166,20 +197,50 @@ function targetAt(doc: ProseMirrorNode, pos: number, cache?: TargetCache): Targe
     };
   }
   if (list.attrs.semloEditorListLevelStarts != null || list.attrs.semloEditorOrderedAncestorPath != null) return null;
-  const { valid, multilevel, hasRestarts, directChildren, twoParentShape, restartIndex, restartCount } = listShape(
-    list,
-    cache?.shapes,
-  );
+  const {
+    valid,
+    flat,
+    multilevel,
+    hasRestarts,
+    directChildren,
+    directChildGroups,
+    twoParentShape,
+    restartIndex,
+    restartCount,
+  } = listShape(list, cache?.shapes);
   if (!valid) return null;
-  // A single decimal parent and its direct children have a verified restart path.
-  // Keep other group shapes unavailable until their boundary migrations are verified.
+  const index = $pos.index();
+  const restartedItem = item.attrs.semloEditorListRestart === true;
+  const isChild = (node: ProseMirrorNode | null) => Number(node?.attrs.semloEditorListIndent ?? 0) === 1;
+  // 子项的重启标记只改当前层的计数，沿用 HTML 嵌套和旧 JSON 缩进各自的结构。
+  const localChild = nested
+    ? flat && (list.childCount > 1 || restartedItem)
+    : $pos.depth === 1 &&
+      directChildGroups &&
+      supportsLocalChildNumbering(list) &&
+      isChild(item) &&
+      (isChild($pos.nodeBefore) || isChild(list.maybeChild(index + 1)) || restartedItem);
+  if (localChild) {
+    return {
+      list,
+      listPos,
+      index,
+      previous: null,
+      previousPos: listPos,
+      multilevel: true,
+      hasRestarts,
+      localChild: true,
+      quoteChain: null,
+      taskChain: null,
+    };
+  }
+  if (nested) return null;
+  // 保留已验证的独立尾段和单子项兼容路径。
   if (multilevel || hasRestarts) {
-    const index = $pos.index();
     const observedTwoParentTarget =
       twoParentShape &&
       index === list.childCount - 1 &&
       (list.childCount === 5 || (restartCount === 1 && restartIndex === index));
-    const restartedItem = item.attrs.semloEditorListRestart === true;
     const observedSingleParentTarget =
       directChildren &&
       restartCount <= 2 &&
@@ -348,6 +409,7 @@ function continueNumbering(editor: Editor, pos: number): boolean {
   if (
     editor.isEditable &&
     target &&
+    !target.localChild &&
     target.index === 0 &&
     !target.previous &&
     supportsFirstMode(target.list) &&
@@ -397,6 +459,7 @@ function openMenu(editor: Editor, pos: number, anchor: HTMLButtonElement, focusO
     !!target &&
     (target.list.child(target.index).attrs.semloEditorListRestart === true ||
       (target.index === 0 &&
+        !target.localChild &&
         Number(target.list.attrs.start ?? 1) === 1 &&
         (!!target.previous ||
           (supportsFirstMode(target.list) && target.list.attrs.semloEditorListFirstContinue !== true))));
@@ -457,6 +520,7 @@ function openMenu(editor: Editor, pos: number, anchor: HTMLButtonElement, focusO
         : isRestart ||
           unsupportedRestart ||
           (!!target &&
+            !target.localChild &&
             target.index === 0 &&
             Number(target.list.attrs.start ?? 1) === 1 &&
             !target.previous &&
