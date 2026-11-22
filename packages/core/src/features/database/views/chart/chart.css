@@ -308,8 +308,7 @@
   overflow: auto;
   padding: 12px 0;
 }
-.semlo-editor-database-chart-setting,
-.semlo-editor-database-chart-filter-heading {
+.semlo-editor-database-chart-setting {
   display: grid;
   min-height: 29px;
   grid-template-columns: 110px minmax(0, 1fr);
@@ -318,10 +317,14 @@
   color: #676c69;
   font-size: 13px;
 }
+.semlo-editor-database-chart-filter-heading,
 .semlo-editor-database-chart-section {
   margin: 10px 0 4px;
   color: #a6aaa8;
   font-size: 13px;
+}
+.semlo-editor-database-chart-filter-heading {
+  color: #676c69;
 }
 .semlo-editor-database-chart-input,
 .semlo-editor-database-chart-select {
@@ -430,11 +433,34 @@
 .semlo-editor-database-chart-remove-filter:hover {
   background: #f3f5f4;
 }
+.semlo-editor-database-chart-filter-controls,
+.semlo-editor-database-chart-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.semlo-editor-database-chart-filter-controls .semlo-editor-database-chart-remove-filter {
+  margin-inline-start: auto;
+}
+.semlo-editor-database-chart-filter-group {
+  margin-block: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid #e3e7e5;
+}
+.semlo-editor-database-chart-filter-group
+  .semlo-editor-database-chart-filter-group
+  .semlo-editor-database-chart-filter-group {
+  padding-inline-start: 0;
+}
 .semlo-editor-database-chart-filter-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 25px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 25px;
   gap: 2px;
   padding: 4px 0;
+}
+.semlo-editor-database-chart-filter-row .semlo-editor-database-chart-remove-filter {
+  grid-column: 4;
 }
 .semlo-editor-database-chart-filter-row .semlo-editor-database-chart-input,
 .semlo-editor-database-chart-filter-row .semlo-editor-database-chart-select {

@@ -183,7 +183,7 @@ export interface DatabaseChartLayout {
   h: number;
 }
 /** Each chart has its own configuration while sharing this database's records. */
-export interface DatabaseChart {
+export interface DatabaseChart extends DatabaseFilterSet {
   id: string;
   kind: DatabaseChartKind;
   title: string;
@@ -194,8 +194,6 @@ export interface DatabaseChart {
   statistic: DatabaseChartStatistic;
   groupFieldId: string;
   sort: DatabaseChartSort;
-  filters: DatabaseFilter[];
-  filterMode: "and" | "or";
   legend: DatabaseChartLegend;
   stacked: boolean;
   smooth: boolean;
@@ -739,8 +737,7 @@ export function normalizeDatabaseData(value: unknown): DatabaseData {
               : "count",
             groupFieldId: chartField(chart.groupFieldId),
             sort: chartSorts.includes(chart.sort as DatabaseChartSort) ? (chart.sort as DatabaseChartSort) : "default",
-            filters: normalizeFilters(chart.filters, fieldIds),
-            filterMode: chart.filterMode === "or" ? "or" : "and",
+            ...normalizeFilterSet(chart, fieldIds),
             legend: chartLegends.includes(chart.legend as DatabaseChartLegend)
               ? (chart.legend as DatabaseChartLegend)
               : chart.kind === "area"
