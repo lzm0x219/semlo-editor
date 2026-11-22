@@ -23,7 +23,7 @@ export function exportTable(data: DatabaseData) {
   if (!active) return { fields: data.fields, records: data.records };
   return {
     fields: orderedDatabaseFields(data, active),
-    records: visibleDatabaseRecords(data, { ...active, filters: [] }),
+    records: visibleDatabaseRecords(data, { ...active, filters: [], filterGroups: [] }),
   };
 }
 

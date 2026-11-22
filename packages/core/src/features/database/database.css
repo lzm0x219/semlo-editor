@@ -698,6 +698,26 @@
 .semlo-editor-database-field-toggle input {
   accent-color: #35b779;
 }
+.semlo-editor-database-filter-group {
+  margin-block: 8px;
+  padding: 6px 4px 0 8px;
+  border-inline-start: 2px solid #e6e9e7;
+}
+.semlo-editor-database-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.semlo-editor-database-filter-remove-group {
+  float: inline-end;
+  border: 0;
+  background: transparent;
+  color: #737b75;
+  font-size: 17px;
+}
+.semlo-editor-database-filter-group .semlo-editor-database-rule {
+  flex-wrap: wrap;
+}
 .semlo-editor-database-rule {
   display: flex;
   align-items: center;

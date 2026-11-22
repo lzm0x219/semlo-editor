@@ -5,6 +5,7 @@ import {
   DatabaseContentError,
   databaseFieldTypes,
   databaseFiles,
+  databaseFilterSets,
   databaseLimits,
   databaseTimeFormats,
   databaseValueText,
@@ -570,7 +571,7 @@ export function createDatabaseFieldInteractions({
             const index = next.fields.indexOf(existing);
             next.fields[index] = field;
             for (const view of next.views) {
-              for (const filter of [...view.filters, ...view.charts.flatMap((chart) => chart.filters)]) {
+              for (const filter of [...databaseFilterSets(view), ...view.charts].flatMap((set) => set.filters)) {
                 if (filter.fieldId !== field.id || !filter.optionId) continue;
                 const options = existing.type === field.type ? field.options : existing.options;
                 const selected = options.find((item) => item.id === filter.optionId);
@@ -729,7 +730,7 @@ export function createDatabaseFieldInteractions({
       item(name, () => {
         change((data, active) => {
           if (active.kind === "table") {
-            const sortedView = { ...active, filters: [], sorts: [{ fieldId: field.id, direction }] };
+            const sortedView = { ...active, filters: [], filterGroups: [], sorts: [{ fieldId: field.id, direction }] };
             active.recordOrder = visibleDatabaseRecords(data, sortedView).map((record) => record.id);
             active.sorts = [];
           } else {
@@ -744,7 +745,8 @@ export function createDatabaseFieldInteractions({
         data.fields = data.fields.filter((item) => item.id !== field.id);
         for (const record of data.records) delete record.values[field.id];
         for (const entry of data.views) {
-          entry.filters = entry.filters.filter((item) => item.fieldId !== field.id);
+          for (const set of databaseFilterSets(entry))
+            set.filters = set.filters.filter((item) => item.fieldId !== field.id);
           entry.sorts = entry.sorts.filter((item) => item.fieldId !== field.id);
           entry.hiddenFields = entry.hiddenFields.filter((id) => id !== field.id);
           entry.fieldOrder = entry.fieldOrder.filter((id) => id !== field.id);

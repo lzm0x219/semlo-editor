@@ -14,6 +14,7 @@ import { createDatabaseViewSettings } from "./interactions/view-settings";
 import {
   createDatabaseRecord,
   DatabaseContentError,
+  databaseFilterSets,
   databaseLimits,
   databaseValueMatchesSearch,
   databaseValueText,
@@ -531,7 +532,10 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       if (
         input.dataset.semloEditorHistory !== "cell" ||
         active.kind !== "table" ||
-        (!query.trim() && !active.filters.length && !active.sorts.length && !active.groupFieldId)
+        (!query.trim() &&
+          !databaseFilterSets(active).some((set) => set.filters.length) &&
+          !active.sorts.length &&
+          !active.groupFieldId)
       )
         return;
       pendingBodyRefresh = true;
@@ -1000,9 +1004,8 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         if (active.kind === "calendar") calendarSettingsPanel(fields);
         else fieldsPanel(fields);
       });
-      const filter = button("筛选", active.filters.length ? `☰ ${active.filters.length}` : "☰", () =>
-        filterPanel(filter),
-      );
+      const filterCount = databaseFilterSets(active).reduce((count, set) => count + set.filters.length, 0);
+      const filter = button("筛选", filterCount ? `☰ ${filterCount}` : "☰", () => filterPanel(filter));
       const group = button("分组", "▤", () => groupPanel(group));
       const sort = button("排序", "↕", () => sortPanel(sort));
       const height = button("行高", "☷", () => heightPanel(height));
@@ -1030,10 +1033,10 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       );
       fields.innerHTML = toolbarIcons.fields;
       filter.innerHTML = toolbarIcons.filter;
-      if (active.filters.length) {
+      if (filterCount) {
         const count = doc.createElement("span");
         count.className = "semlo-editor-database-toolbar-count";
-        count.textContent = String(active.filters.length);
+        count.textContent = String(filterCount);
         filter.append(count);
       }
       group.innerHTML = toolbarIcons.group;
@@ -1146,6 +1149,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       const recordId = input.dataset.recordId;
       const fieldId = input.dataset.fieldId;
       const filterId = input.dataset.filterId;
+      const filterGroupId = input.dataset.filterGroupId;
       const fromDialog = !!popovers.current?.contains(input);
       const start = input.selectionStart;
       const end = input.selectionEnd;
@@ -1174,12 +1178,20 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         ).find((entry) => entry.dataset.recordId === recordId && entry.dataset.fieldId === fieldId);
       } else if (kind === "view-name") {
         replacement = dom.querySelector<HTMLInputElement>('input[data-semlo-editor-history="view-name"]') ?? undefined;
-      } else if (kind === "filter" && getView(getData()).filters.some((filter) => filter.id === filterId)) {
+      } else if (kind === "filter") {
+        const view = getView(getData());
+        const set =
+          filterGroupId === undefined
+            ? view
+            : databaseFilterSets(view)
+                .slice(1)
+                .find((group) => group.id === filterGroupId);
+        if (!set?.filters.some((filter) => filter.id === filterId)) return;
         const control = surface.querySelector<HTMLButtonElement>('button[aria-label="筛选"]');
         if (control) filterPanel(control);
         replacement = Array.from(
           dom.querySelectorAll<HTMLInputElement>('input[data-semlo-editor-history="filter"]'),
-        ).find((entry) => entry.dataset.filterId === filterId);
+        ).find((entry) => entry.dataset.filterId === filterId && entry.dataset.filterGroupId === filterGroupId);
       }
       if (replacement) {
         replacement.focus();
