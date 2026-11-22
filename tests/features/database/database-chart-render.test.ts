@@ -193,6 +193,42 @@ test("number averages count matching blank records and show two decimal places",
   }
 });
 
+test("statistics numbers can select a median and save an existing median configuration", async ({ page }) => {
+  const { data, amount } = fixture();
+  const [first, second, third] = data.records;
+  first.values = { [amount.id]: "-3" };
+  second.values = { [amount.id]: "-3" };
+  third.values = {};
+  const chart = createDatabaseChart("number", data.fields);
+  chart.fieldId = amount.id;
+  chart.statistic = "median";
+  const card = await mountCharts(page, data, [chart]);
+  const value = card.locator(".semlo-editor-database-chart-number");
+  await expect(value).toHaveText("-3");
+  await card.getByRole("button", { name: "图表操作" }).click();
+  await page.getByRole("menu", { name: "图表操作" }).getByRole("menuitem", { name: "编辑图表" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "编辑图表" });
+  const statistic = dialog.getByLabel("统计方式");
+  const preview = dialog.locator(".semlo-editor-database-chart-number");
+  await expect(statistic).toHaveValue("median");
+  await expect(preview).toHaveText("-3");
+  await statistic.selectOption("count");
+  await expect(preview).toHaveText("3");
+  await statistic.selectOption({ label: "中位数" });
+  await dialog.getByLabel("图表名称").fill("负数中位数");
+  await dialog.getByRole("button", { name: "确定" }).click();
+  await expect(card.getByText("负数中位数", { exact: true })).toBeVisible();
+  await expect(value).toHaveText("-3");
+
+  const saved = await page.evaluate(() => window.__semloRequireFixture("chartRenderEditor").getSnapshot());
+  for (const content of [saved.json, saved.html]) {
+    await page.evaluate((content) => window.__semloRequireFixture("chartRenderEditor").setContent(content), content);
+    await expect(card.getByText("负数中位数", { exact: true })).toBeVisible();
+    await expect(value).toHaveText("-3");
+  }
+});
+
 test("funnel layers follow cumulative values, custom ordering and proportional seams", async ({ page }) => {
   const { data, status } = fixture();
   data.records.push({ id: "fourth", values: { [status.id]: status.options[2].id } });
