@@ -1,4 +1,4 @@
-import { expect, test } from "@rstest/playwright";
+import { expect, test, type Page } from "@rstest/playwright";
 
 import type { EditorController } from "../../../packages/core/src/types";
 import { installFixtureGuards } from "../../fixtures/browser/fixture-browser-runtime";
@@ -13,18 +13,31 @@ declare global {
   }
 }
 
-test("Amap coordinate input preserves the marker across undo, conversion and snapshots", async ({ page }) => {
-  const location = "https://uri.amap.com/marker?position=121.287689,31.234527&name=park";
-  const preview = "https://uri.amap.com/marker?position=121.287689%2C31.234527&name=park&callnative=0&platform=pc";
-  await page.route("https://uri.amap.com/**", (route) => route.fulfill({ status: 200, body: "Amap fixture" }));
+test("Amap marker URI survives undo, conversion and snapshots", async ({ page }) => {
+  await verifyAmapLink(
+    page,
+    "https://uri.amap.com/marker?position=121.287689,31.234527&name=park",
+    "https://uri.amap.com/marker?position=121.287689%2C31.234527&name=park&callnative=0&platform=pc",
+  );
+});
+
+test("Amap coordinate page survives undo, conversion and snapshots", async ({ page }) => {
+  await verifyAmapLink(
+    page,
+    "https://ditu.amap.com/regeo?lng=121.287689&lat=31.234527&name=park&callnative=0&platform=pc",
+  );
+});
+
+async function verifyAmapLink(page: Page, location: string, preview = location) {
+  await page.route(preview, (route) => route.fulfill({ status: 200, body: "Amap fixture" }));
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
     content: `
-    import { createEditor } from '/dist/index.js';
-    const host = document.createElement('div'); host.id = 'amap-test'; document.body.prepend(host);
-    window.amapTestEditor = createEditor({element: host, outline: false, content: '<p>第一段</p>'});
-  `,
+  import { createEditor } from '/dist/index.js';
+  const host = document.createElement('div'); host.id = 'amap-test'; document.body.prepend(host);
+  window.amapTestEditor = createEditor({element: host, outline: false, content: '<p>第一段</p>'});
+`,
   });
   const host = page.locator("#amap-test");
   await host.locator(".semlo-editor-prose p").first().click();
@@ -62,4 +75,4 @@ test("Amap coordinate input preserves the marker across undo, conversion and sna
   expect(await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").editor.commands.undo())).toBe(true);
   await expect(frame).toHaveAttribute("src", preview);
   await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").destroy());
-});
+}

@@ -16,6 +16,10 @@ describe("Amap embeds", () => {
         "https://uri.amap.com/marker?position=121.287689%2C31.234527&name=%E5%85%AC%E5%9B%AD&src=mypage&coordinate=gaode&callnative=0&platform=pc",
     });
   });
+  test("accepts the map coordinate page used by Yuque and preserves the original link", () => {
+    const url = "https://ditu.amap.com/regeo?lng=121.287689&lat=31.234527&name=park&innersrc=uriapi";
+    expect(resolveEmbed("amap", url)).toEqual({ url, embedUrl: `${url}&callnative=0&platform=pc` });
+  });
   test("rejects spoofed hosts, ambiguous coordinates and other location link formats", () => {
     for (const url of [
       "http://ditu.amap.com/",
@@ -24,6 +28,10 @@ describe("Amap embeds", () => {
       "https://ditu.amap.com/place/B0ABC",
       "https://ditu.amap.com/?location=116,39",
       "https://ditu.amap.com/#place",
+      "https://ditu.amap.com/regeo?lng=181&lat=31",
+      "https://ditu.amap.com/regeo?lng=121",
+      "https://ditu.amap.com/regeo?lng=121&lng=120&lat=31",
+      "https://ditu.amap.com/regeo?lng=121&lat=31&position=120,30",
       "https://uri.amap.com.evil.test/marker?position=121,31",
       "https://uri.amap.com/marker?poiid=B0FFFAB6J2",
       "https://uri.amap.com/marker?position=121,31&poiid=B0FFFAB6J2",
