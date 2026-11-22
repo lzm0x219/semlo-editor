@@ -113,6 +113,7 @@ export function isEmbedProvider(value: unknown): value is EmbedProvider {
 const figmaFilePath = /^\/(file|design|board|proto|slides|deck)\/([a-zA-Z0-9]{1,128})(?:\/[^/]+)?\/?$/;
 const figmaNodeParameters = ["node-id", "starting-point-node-id"] as const;
 const figmaNodeID = /^[0-9]+[:-][0-9]+$/;
+const amapCoordinate = /^-?\d+(?:\.\d+)?$/;
 
 function hasLegacyURLControls(value: string): boolean {
   return Array.from(value).some((character) => {
@@ -325,32 +326,44 @@ export function resolveEmbed(provider: unknown, value: unknown): EmbedTarget | n
   if (provider === "amap") {
     if (url.hostname === "ditu.amap.com" && url.pathname === "/" && !url.search && !url.hash)
       return { url: "https://ditu.amap.com/", embedUrl: "https://ditu.amap.com/" };
+    const marker = url.hostname === "uri.amap.com" && url.pathname === "/marker";
+    const mapPage = url.hostname === "ditu.amap.com" && url.pathname === "/regeo";
     const params = url.searchParams;
+    const allowed = [
+      "name",
+      "src",
+      "callnative",
+      "platform",
+      ...(marker ? ["position", "coordinate"] : ["lng", "lat", "innersrc"]),
+    ];
     if (
-      url.hostname !== "uri.amap.com" ||
-      url.pathname !== "/marker" ||
+      (!marker && !mapPage) ||
       url.hash ||
       hasDuplicateEmbedParameters(params) ||
-      Array.from(params.keys()).some(
-        (key) => !["position", "name", "src", "coordinate", "callnative", "platform"].includes(key),
-      )
+      Array.from(params.keys()).some((key) => !allowed.includes(key))
     )
       return null;
 
-    const position = params.get("position");
+    const coordinates = marker ? (params.get("position") ?? "").split(",") : [params.get("lng"), params.get("lat")];
+    const [longitude, latitude] = coordinates;
     const coordinate = params.get("coordinate");
     const callNative = params.get("callnative");
     const platform = params.get("platform");
+    const source = params.get("innersrc");
     if (
-      !position ||
-      !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(position) ||
+      coordinates.length !== 2 ||
+      !longitude ||
+      !latitude ||
+      !amapCoordinate.test(longitude) ||
+      !amapCoordinate.test(latitude) ||
+      Math.abs(Number(longitude)) > 180 ||
+      Math.abs(Number(latitude)) > 90 ||
       (coordinate !== null && coordinate !== "gaode" && coordinate !== "wgs84") ||
       (callNative !== null && callNative !== "0" && callNative !== "1") ||
-      (platform !== null && platform !== "pc")
+      (platform !== null && platform !== "pc") ||
+      (source !== null && source !== "uriapi")
     )
       return null;
-    const [longitude, latitude] = position.split(",").map(Number);
-    if (Math.abs(longitude) > 180 || Math.abs(latitude) > 90) return null;
 
     const embed = new URL(url.href);
     // 使用官方网页地图预览，避免嵌入时尝试唤起手机应用。
