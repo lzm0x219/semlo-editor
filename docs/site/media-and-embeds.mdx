@@ -57,6 +57,8 @@ import FeatureDemo from "../components/FeatureDemo";
 
 第三方站点可能因权限或嵌入策略拒绝预览。遇到浏览器的拒绝提示时，可用“打开链接”前往原站。原站是否可访问仍取决于该资源的权限。
 
+高德地图接受地图首页和 `https://uri.amap.com/marker?position=经度,纬度` 坐标标注链接。预览显示网页地图。保存、打开和转换为普通链接时保留原坐标地址及受支持的参数。POI 编号链接暂不支持。[高德地图坐标标注说明](https://lbs.amap.com/api/uri-api/guide/mobile-web/point)
+
 Figma 也接受经过校验的旧式 `figma.com/embed?embed_host=…&url=…` 地址，嵌入和直接转链接保留该包装地址。普通文件或原型链接仍按原有规则规范化。Figma 继续支持这种 Embed Kit 1.0 文件嵌入，见[官方说明](https://developers.figma.com/docs/embeds/embed-kit-2.0/)。
 
 嵌入只接受已支持服务的链接格式，不能作为任意 iframe 的插入接口。应用应根据自身隐私和内容策略决定是否使用第三方嵌入。
