@@ -4,6 +4,7 @@ import { documentWithoutSlashDraft } from "../../features/insertion/slash-draft"
 import { clearAttachments } from "../../features/media/attachment/uploads";
 import { clearGalleryUploads } from "../../features/media/gallery/uploads";
 import { clearUploads } from "../../features/media/image/uploads";
+import { committedCompositionState, endObsoleteComposition } from "../../runtime/cross-block-composition";
 import {
   assertTransactionMayStart,
   ReentrantTransactionError,
@@ -60,7 +61,8 @@ export function createContentReplacement(options: {
       // 同一内容回写不替换文档；活动查询按保存投影比较，保留仍在编辑的查询。
       const state = editor.state;
       const current = state.doc;
-      const projected = documentWithoutSlashDraft(state);
+      const committed = committedCompositionState(state);
+      const projected = documentWithoutSlashDraft(committed);
       if (parsed.eq(current) || parsed.eq(projected)) return { status: "unchanged" };
       // 普通文档只为有效挂载视图新增快路径；先前已卸载时仍允许原有的内容替换。
       if (typeof content === "string" && (projected !== current || !editor.isDestroyed)) {
@@ -123,7 +125,9 @@ export function createContentReplacement(options: {
         return true;
       });
       if (unavailable()) return { status: "interrupted", reason: "destroyed" };
-      return parsed.eq(editor.state.doc) ? { status: "applied" } : { status: "interrupted", reason: "not-applied" };
+      if (!parsed.eq(editor.state.doc)) return { status: "interrupted", reason: "not-applied" };
+      if (committed !== state && !editor.isDestroyed) endObsoleteComposition(editor.view);
+      return { status: "applied" };
     } catch (error) {
       return interrupted(error) ?? failure("failed", error);
     }

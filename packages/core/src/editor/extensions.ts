@@ -68,6 +68,7 @@ import { RootParagraphPaste } from "../features/text/paragraph-paste";
 import { PlainTextPaste } from "../features/text/plain-paste";
 import { QuoteKeyboard } from "../features/text/quote-keyboard";
 import { QuotePaste, QuotePasteHistory } from "../features/text/quote-paste";
+import { CrossBlockComposition } from "../runtime/cross-block-composition";
 import { TransactionGuard } from "../runtime/transaction-guard";
 import type { EditorOptions } from "../types";
 import { createStarterKitWithCodeFonts } from "./starter-kit";
@@ -92,6 +93,7 @@ export function createEditorExtensions({
   interactiveController,
   registerViewDisposer,
   pointerExtension,
+  syncTextSelection,
   openInsertBelow,
   openLink,
   slashActions,
@@ -104,6 +106,7 @@ export function createEditorExtensions({
   interactiveController: InteractiveCardHostController;
   registerViewDisposer: (dispose: () => void) => () => void;
   pointerExtension: () => AnyExtension;
+  syncTextSelection: () => boolean;
   openInsertBelow: NonNullable<Parameters<typeof createBlockActions>[0]>["openInsertBelow"];
   openLink: () => void;
   slashActions: Parameters<typeof slashCommands>;
@@ -112,6 +115,7 @@ export function createEditorExtensions({
 }): Extensions {
   return [
     pointerExtension(),
+    CrossBlockComposition.configure({ syncSelection: syncTextSelection }),
     EncryptedText.configure({ getProvider: () => getIntegrations().encryptedTextProvider }),
     CheckinCard.configure({ host: interactiveController }),
     VoteCard.configure({ host: interactiveController }),
