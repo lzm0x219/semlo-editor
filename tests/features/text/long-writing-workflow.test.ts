@@ -577,6 +577,49 @@ test("取消跨数据表和视频的组合输入时保存原文、反向选区�
   await ime.detach();
 });
 
+test("未经确认的拼音候选结束时保留跨数据表和视频的反向选区", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const before = await page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const saved = await page.evaluate(() => sessionStorage.getItem("article"));
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const originalSelection = await selection();
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ce'shi", selectionStart: 6, selectionEnd: 6 });
+  await expect(prose.locator(":scope > h2")).toContainText("ce'shi");
+
+  await prose.evaluate((element) => {
+    element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "ce'shi" }));
+  });
+  await expect.poll(selection).toEqual(originalSelection);
+  expect(await page.evaluate(() => window.longWritingEditor!.getSnapshot())).toEqual(before);
+  expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(saved);
+  expect(await page.evaluate(() => window.longWritingEditor!.editor.can().undo())).toBe(false);
+  await ime.detach();
+});
+
+test("按 Enter 确认可用拼音原文替换跨块选区", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const before = await snapshot();
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ce'shi", selectionStart: 6, selectionEnd: 6 });
+  await expect(prose.locator(":scope > h2")).toContainText("ce'shi");
+  await prose.evaluate((element) => {
+    element.addEventListener("keydown", (event) => event.preventDefault(), { once: true });
+  });
+  await page.keyboard.press("Enter");
+  await prose.evaluate((element) => {
+    element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "ce'shi" }));
+  });
+
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半ce'shi结尾后半");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(before);
+  await ime.detach();
+});
+
 test("确认跨块组合输入时只提交一次并可撤销到原反向选区", async ({ page }) => {
   const { prose, value, video } = await mountCrossMediaArticle(page);
   const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());

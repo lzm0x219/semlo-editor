@@ -51,7 +51,11 @@ import { installWritingAssistant } from "../features/writing-assistant/session";
 import { createIntegrationBindings } from "../integrations/bindings";
 import { createIntegrationUpdateCoordinator } from "../integrations/update-coordinator";
 import { popupEditorOwner } from "../platform/dom/popup-owner";
-import { committedCompositionState, endObsoleteComposition } from "../runtime/cross-block-composition";
+import {
+  committedCompositionState,
+  endObsoleteComposition,
+  recordCompositionConfirmation,
+} from "../runtime/cross-block-composition";
 import { createSelectionSync } from "../runtime/selection-sync";
 import type { EditorControllerWithResults, EditorOptions } from "../types";
 import { mountFindReplace, type FindReplaceController } from "../ui/find/find-replace";
@@ -560,7 +564,10 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
           },
           keydown: (view, event) => {
             // 跳过下游快捷键，但不阻止浏览器默认行为，避免组合输入触发删除线等文字格式。
-            if (event.isComposing || event.keyCode === 229 || view.composing) return true;
+            if (event.isComposing || event.keyCode === 229 || view.composing) {
+              recordCompositionConfirmation(view, event);
+              return true;
+            }
             const listKind = view.editable && !event.defaultPrevented ? listShortcut(view, event) : null;
             if (view.editable && !event.defaultPrevented && (lineHeightShortcut(view, event) || listKind)) {
               const platform = view.dom.ownerDocument.defaultView?.navigator.platform ?? "";
