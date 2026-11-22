@@ -57,7 +57,12 @@ function numeric(value: DatabaseValue | undefined): number | undefined {
   return Number.isFinite(number) ? number : undefined;
 }
 
-function statistic(records: DatabaseRecord[], field: DatabaseField | undefined, mode: DatabaseChartStatistic): number {
+function statistic(
+  records: DatabaseRecord[],
+  field: DatabaseField | undefined,
+  mode: DatabaseChartStatistic,
+  countBlanksAsZero = false,
+): number {
   if (mode === "count") return records.length;
   const values = field ? records.map((record) => databaseValueText(field, record.values[field.id])) : [];
   const filled = values.filter((value) => value.trim() !== "");
@@ -94,7 +99,9 @@ function statistic(records: DatabaseRecord[], field: DatabaseField | undefined, 
     case "median": {
       const numbers = field
         ? records.flatMap((record) => {
-            const value = numeric(record.values[field.id]);
+            const raw = record.values[field.id];
+            if (countBlanksAsZero && (raw === undefined || (typeof raw === "string" && !raw.trim()))) return [0];
+            const value = numeric(raw);
             return value === undefined ? [] : [value];
           })
         : [];
@@ -112,9 +119,10 @@ function statistic(records: DatabaseRecord[], field: DatabaseField | undefined, 
   }
 }
 
-function formatted(value: number, precision: number, percent = false) {
+function formatted(value: number, precision: number, percent = false, minimumFractionDigits = 0) {
   const places = Math.max(0, Math.min(10, Number.isFinite(precision) ? Math.floor(precision) : 0));
-  return `${value.toLocaleString("zh-CN", { minimumFractionDigits: percent ? places : 0, maximumFractionDigits: places })}${percent ? "%" : ""}`;
+  const minimum = percent ? places : Math.min(places, minimumFractionDigits);
+  return `${value.toLocaleString("zh-CN", { minimumFractionDigits: minimum, maximumFractionDigits: places })}${percent ? "%" : ""}`;
 }
 
 /** Apply component filters to records already filtered by the parent view. */
@@ -132,7 +140,9 @@ export function calculateDatabaseChart(
   const group = data.fields.find((item) => item.id === chart.groupFieldId);
   const numberField = field ?? measure;
   const mode = chart.statistic;
-  const value = statistic(records, numberField, mode);
+  // 统计数字的平均值将筛选范围内的空白数值计为零。
+  const isNumberAverage = chart.kind === "number" && mode === "average";
+  const value = statistic(records, numberField, mode, isNumberAverage);
   const isPercent = mode === "filledPercent" || mode === "emptyPercent" || mode === "uniquePercent";
   const buckets = new Map<
     string,
@@ -193,10 +203,10 @@ export function calculateDatabaseChart(
   const series = group
     ? [...groupLabels].map(([key, label]) => ({ key, label }))
     : entries.map(({ key, label }) => ({ key, label }));
-  // Number components have no decimal-precision control in the reference UI.
-  // Keep ordinary fractional statistics readable even with the default setting.
+  // 统计数字没有小数位设置，默认至少允许显示两位小数。
   const valuePrecision = chart.kind === "number" && mode !== "count" ? Math.max(chart.precision, 2) : chart.precision;
-  return { records, buckets: entries, series, value, formattedValue: formatted(value, valuePrecision, isPercent) };
+  const formattedValue = formatted(value, valuePrecision, isPercent, isNumberAverage ? 2 : 0);
+  return { records, buckets: entries, series, value, formattedValue };
 }
 
 function svgElement<K extends keyof SVGElementTagNameMap>(

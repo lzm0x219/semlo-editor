@@ -166,6 +166,33 @@ async function mountCharts(page: Page, data: DatabaseData, charts: DatabaseChart
   return page.locator("#chart-render-test .semlo-editor-database-chart-card");
 }
 
+test("number averages count matching blank records and show two decimal places", async ({ page }) => {
+  const { data, name, amount } = fixture();
+  const [first, second, third] = data.records;
+  first.values = { [name.id]: "样本甲", [amount.id]: "0" };
+  second.values = { [name.id]: "样本乙", [amount.id]: "10" };
+  third.values = { [name.id]: "样本丙" };
+
+  const number = createDatabaseChart("number", data.fields);
+  number.fieldId = amount.id;
+  number.statistic = "average";
+  const values = ["乙", "丙", "不存在"];
+  const filtered = values.map((value, index) => ({
+    ...createDatabaseChart("number", data.fields),
+    fieldId: amount.id,
+    statistic: "average" as const,
+    filters: [{ id: `filter-${index}`, fieldId: name.id, operator: "endsWith" as const, value }],
+  }));
+  const sum = { ...createDatabaseChart("number", data.fields), fieldId: amount.id, statistic: "sum" as const };
+  const median = { ...createDatabaseChart("number", data.fields), fieldId: amount.id, statistic: "median" as const };
+  const cards = await mountCharts(page, data, [number, ...filtered, sum, median]);
+  await expect(cards).toHaveCount(6);
+  const expected = ["3.33", "10.00", "0.00", "0.00", "10", "5"];
+  for (const [index, value] of expected.entries()) {
+    await expect(cards.nth(index).locator(".semlo-editor-database-chart-number")).toHaveText(value);
+  }
+});
+
 test("funnel layers follow cumulative values, custom ordering and proportional seams", async ({ page }) => {
   const { data, status } = fixture();
   data.records.push({ id: "fourth", values: { [status.id]: status.options[2].id } });
