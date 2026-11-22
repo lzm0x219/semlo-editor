@@ -14,10 +14,19 @@ type Composition = {
 };
 
 const key = new PluginKey<Composition | null>("semloEditorCrossBlockComposition");
+const confirmationKeys = new WeakSet<object>();
 
 /** 候选文字尚未提交时，宿主快照仍以原文为准。 */
 export function committedCompositionState(state: EditorState) {
   return key.getState(state)?.original ?? state;
+}
+
+/** 记录组合期间的确认键，按键本身仍交给系统输入法。 */
+export function recordCompositionConfirmation(view: EditorView, event: KeyboardEvent) {
+  const session = key.getState(view.state);
+  if (!session || !event.isTrusted) return;
+  if (event.key === "Enter" || event.key === " " || /^[1-9]$/.test(event.key)) confirmationKeys.add(session.token);
+  else confirmationKeys.delete(session.token);
 }
 
 /** DOM 已由宿主更换或转为只读时，结束旧浏览器组合会话。 */
@@ -149,8 +158,11 @@ export const CrossBlockComposition = Extension.create<{ syncSelection: () => boo
               const session = key.getState(view.state);
               if (session) {
                 const { token } = session;
+                // 桌面拼音有时以仍在编辑的拉丁候选结束。缺少确认键时保留原跨块选区。
+                const interrupted =
+                  !event.isTrusted && !confirmationKeys.has(token) && /^[a-z]+(?:'[a-z]+)*$/i.test(event.data);
                 // 等待 ProseMirror 刷新 compositionend 之前的 DOM 改动。
-                queueMicrotask(() => queueMicrotask(() => finish(view, token, event.data)));
+                queueMicrotask(() => queueMicrotask(() => finish(view, token, interrupted ? "" : event.data)));
               }
               return false;
             },
