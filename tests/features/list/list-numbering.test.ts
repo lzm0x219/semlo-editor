@@ -343,34 +343,38 @@ test("a direct child can restart decimal numbering while preserving its parent a
   }
 });
 
-test("nested numbering stays unavailable for unverified list shapes", async ({ page }) => {
+test("nested numbering stays unavailable for unsupported list shapes", async ({ page }) => {
   await page.goto(origin);
   await page.waitForFunction(() => window.createListFoldEditor);
-  for (const specimen of [
-    { levels: [0, 1, 0, 1], style: "decimal", start: 1, restarts: [] },
-    { levels: [0, 1, 2, 1], style: "decimal", start: 1, restarts: [] },
-    { levels: [0, 1, 1], style: "mixed", start: 1, restarts: [] },
-    { levels: [0, 1, 1], style: "decimal", start: 5, restarts: [] },
-    { levels: [0, 1, 1, 1, 1], style: "decimal", start: 1, restarts: [2, 3, 4] },
+  for (const levels of [
+    [0, 1, 0, 1],
+    [0, 1, 2, 1],
+    [1, 1],
   ]) {
-    await page.evaluate(({ levels, style, start, restarts }) => {
+    await page.evaluate((levels) => {
       window.__semloRequireFixture("createListFoldEditor")({
         type: "doc",
         content: [
           {
             type: "orderedList",
-            attrs: { semloEditorOrderedStyle: style, start },
+            attrs: { semloEditorOrderedStyle: "decimal" },
             content: levels.map((level, index) => ({
               type: "listItem",
-              attrs: { semloEditorListIndent: level, semloEditorListRestart: restarts.includes(index) },
+              attrs: { semloEditorListIndent: level },
               content: [{ type: "paragraph", content: [{ type: "text", text: `item${index}` }] }],
             })),
           },
         ],
       });
-    }, specimen);
+    }, levels);
     await expect(page.getByRole("button", { name: /设置列表编号/ })).toHaveCount(0);
   }
+  await page.evaluate(() =>
+    window.__semloRequireFixture("createListFoldEditor")(
+      "<ol><li>甲<ol><li>乙<ol><li>丙</li><li>丁</li></ol></li><li>戊</li></ol></li></ol>",
+    ),
+  );
+  await expect(page.getByRole("button", { name: /设置列表编号/ })).toHaveCount(0);
 });
 
 test("continuing one of two restarted children preserves the other boundary", async ({ page }) => {
