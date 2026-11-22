@@ -2,6 +2,8 @@ import { linkPopup } from "../../../../platform/dom/popup-owner";
 import {
   createDatabaseChart,
   createDatabaseId,
+  databaseFilterSets,
+  databaseLimits,
   type DatabaseChart,
   type DatabaseChartKind,
   type DatabaseChartLayout,
@@ -10,7 +12,9 @@ import {
   type DatabaseChartStatistic,
   type DatabaseData,
   type DatabaseField,
+  type DatabaseFilter,
   type DatabaseFilterOperator,
+  type DatabaseFilterSet,
   type DatabaseRecord,
   type DatabaseView,
 } from "../../model";
@@ -361,7 +365,7 @@ export function paintDatabaseCharts(options: DatabaseChartsOptions): DatabaseCha
     closeButton.addEventListener("click", () => close(true));
     let tab: "basic" | "style" = "basic";
     let refreshFunnelOrder: (() => void) | undefined;
-    let previousFilters = JSON.stringify([draft.filterMode, draft.filters]);
+    let previousFilters = JSON.stringify([draft.filterMode, draft.filters, draft.filterGroups]);
     let previousFunnelKeys: string[] = [];
     function renderPreview() {
       previewTitle.textContent = draft.title;
@@ -462,65 +466,125 @@ export function paintDatabaseCharts(options: DatabaseChartsOptions): DatabaseCha
     function renderFilters() {
       const wrap = element(doc, "div", "semlo-editor-database-chart-filters");
       const head = element(doc, "div", "semlo-editor-database-chart-filter-heading");
-      const caption = element(doc, "span");
-      caption.textContent = "数据筛选";
-      const add = button(doc, "添加筛选规则", "semlo-editor-database-chart-add-filter");
-      add.textContent = "☰ 添加";
-      add.disabled = data.fields.length === 0;
-      add.addEventListener("click", () => {
-        const first = data.fields[0];
-        if (!first) return;
-        draft.filters.push({ id: createDatabaseId("filter"), fieldId: first.id, operator: "contains", value: "" });
-        renderForm();
-        renderPreview();
+      head.textContent = "数据筛选";
+      const focusTargets = new Map<DatabaseFilter | DatabaseFilterSet, HTMLElement>();
+      const firstField = data.fields[0];
+      const createRule = (fieldId: string): DatabaseFilter => ({
+        id: createDatabaseId("filter"),
+        fieldId,
+        operator: "contains",
+        value: "",
       });
-      head.append(caption, add);
-      wrap.append(head);
-      if (draft.filters.length > 1) {
-        wrap.append(
-          select(
-            "筛选关系",
-            [
-              ["and", "满足全部条件"],
-              ["or", "满足任一条件"],
-            ],
-            draft.filterMode,
-            (value) => {
-              draft.filterMode = value === "or" ? "or" : "and";
-            },
-          ),
-        );
+      const refresh = (focus: DatabaseFilter | DatabaseFilterSet) => {
+        render();
+        renderPreview();
+        focusTargets.get(focus)?.focus();
+      };
+
+      function renderSet(set: DatabaseFilterSet, container: HTMLElement, remaining: number, removeGroup?: () => void) {
+        const controls = element(doc, "div", "semlo-editor-database-chart-filter-controls");
+        if (set.filters.length + (set.filterGroups?.length ?? 0) > 1) {
+          controls.append(
+            select(
+              set === draft ? "筛选关系" : "分组内筛选关系",
+              [
+                ["and", "满足全部条件"],
+                ["or", "满足任一条件"],
+              ],
+              set.filterMode,
+              (value) => {
+                set.filterMode = value === "or" ? "or" : "and";
+              },
+            ),
+          );
+        }
+        if (removeGroup) {
+          const remove = button(doc, "删除筛选分组", "semlo-editor-database-chart-remove-filter");
+          remove.textContent = "×";
+          remove.addEventListener("click", removeGroup);
+          controls.append(remove);
+        }
+        if (controls.childElementCount) container.append(controls);
+
+        for (const filter of set.filters) {
+          const filterRow = element(doc, "div", "semlo-editor-database-chart-filter-row");
+          const selectedOption = data.fields
+            .find((item) => item.id === filter.fieldId)
+            ?.options.find((item) => item.id === filter.optionId);
+          const value = input("筛选值", selectedOption?.label ?? filter.value, (next) => {
+            filter.value = next;
+            delete filter.optionId;
+          });
+          const field = fieldSelect("筛选列", filter.fieldId, (next) => {
+            filter.fieldId = next;
+            filter.value = "";
+            value.value = "";
+            delete filter.optionId;
+          });
+          const operator = select("筛选条件", filters, filter.operator, (next) => {
+            filter.operator = next as DatabaseFilterOperator;
+            value.hidden = next === "empty" || next === "notEmpty";
+          });
+          value.hidden = filter.operator === "empty" || filter.operator === "notEmpty";
+          const remove = button(doc, "删除筛选规则", "semlo-editor-database-chart-remove-filter");
+          remove.textContent = "×";
+          remove.addEventListener("click", () => {
+            set.filters = set.filters.filter((entry) => entry !== filter);
+            refresh(set);
+          });
+          filterRow.append(field, operator, value, remove);
+          focusTargets.set(filter, field);
+          container.append(filterRow);
+        }
+
+        for (const group of set.filterGroups ?? []) {
+          const section = element(doc, "div", "semlo-editor-database-chart-filter-group");
+          section.setAttribute("role", "group");
+          section.setAttribute("aria-label", "筛选分组");
+          renderSet(group, section, remaining, () => {
+            const groups = set.filterGroups?.filter((entry) => entry !== group);
+            if (groups?.length) set.filterGroups = groups;
+            else delete set.filterGroups;
+            refresh(set);
+          });
+          container.append(section);
+        }
+
+        const actions = element(doc, "div", "semlo-editor-database-chart-filter-actions");
+        const add = button(doc, "添加筛选规则", "semlo-editor-database-chart-add-filter");
+        const addGroup = button(doc, "添加筛选分组", "semlo-editor-database-chart-add-filter");
+        add.disabled = !firstField || remaining < 1;
+        addGroup.disabled = !firstField || remaining < 2;
+        add.addEventListener("click", () => {
+          if (!firstField) return;
+          const rule = createRule(firstField.id);
+          set.filters.push(rule);
+          refresh(rule);
+        });
+        addGroup.addEventListener("click", () => {
+          if (!firstField) return;
+          const rule = createRule(firstField.id);
+          (set.filterGroups ??= []).push({
+            id: createDatabaseId("filter-group"),
+            filterMode: "or",
+            filters: [rule],
+          });
+          refresh(rule);
+        });
+        focusTargets.set(set, add);
+        actions.append(add, addGroup);
+        container.append(actions);
       }
-      for (const filter of draft.filters) {
-        const filterRow = element(doc, "div", "semlo-editor-database-chart-filter-row");
-        const field = fieldSelect("筛选列", filter.fieldId, (value) => {
-          filter.fieldId = value;
-          filter.value = "";
-          delete filter.optionId;
-          renderForm();
-        });
-        const operator = select("筛选条件", filters, filter.operator, (value) => {
-          filter.operator = value as DatabaseFilterOperator;
-          renderForm();
-        });
-        const selectedOption = data.fields
-          .find((item) => item.id === filter.fieldId)
-          ?.options.find((item) => item.id === filter.optionId);
-        const value = input("筛选值", selectedOption?.label ?? filter.value, (next) => {
-          filter.value = next;
-          delete filter.optionId;
-        });
-        value.hidden = filter.operator === "empty" || filter.operator === "notEmpty";
-        const remove = button(doc, "删除筛选规则", "semlo-editor-database-chart-remove-filter");
-        remove.textContent = "×";
-        remove.addEventListener("click", () => {
-          draft.filters = draft.filters.filter((entry) => entry.id !== filter.id);
-          renderForm();
-          renderPreview();
-        });
-        filterRow.append(field, operator, value, remove);
-        wrap.append(filterRow);
+
+      function render() {
+        const sets = databaseFilterSets(draft);
+        const remaining =
+          databaseLimits.filters + 1 - sets.length - sets.reduce((count, set) => count + set.filters.length, 0);
+        focusTargets.clear();
+        wrap.replaceChildren(head);
+        renderSet(draft, wrap, remaining);
       }
+      render();
       form.append(wrap);
     }
     function renderForm() {
@@ -630,7 +694,7 @@ export function paintDatabaseCharts(options: DatabaseChartsOptions): DatabaseCha
         refreshFunnelOrder = () => {
           const buckets = calculateDatabaseChart(data, draft, records).buckets;
           const bucketsByKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
-          const currentFilters = JSON.stringify([draft.filterMode, draft.filters]);
+          const currentFilters = JSON.stringify([draft.filterMode, draft.filters, draft.filterGroups]);
           if (currentFilters !== previousFilters) {
             // Once a filter removes a level, Yuque appends it when that level returns.
             draft.funnelOrder = previousFunnelKeys.filter((key) => bucketsByKey.has(key));

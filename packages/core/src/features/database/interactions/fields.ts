@@ -571,7 +571,8 @@ export function createDatabaseFieldInteractions({
             const index = next.fields.indexOf(existing);
             next.fields[index] = field;
             for (const view of next.views) {
-              for (const filter of [...databaseFilterSets(view), ...view.charts].flatMap((set) => set.filters)) {
+              const sets = [...databaseFilterSets(view), ...view.charts.flatMap(databaseFilterSets)];
+              for (const filter of sets.flatMap((set) => set.filters)) {
                 if (filter.fieldId !== field.id || !filter.optionId) continue;
                 const options = existing.type === field.type ? field.options : existing.options;
                 const selected = options.find((item) => item.id === filter.optionId);

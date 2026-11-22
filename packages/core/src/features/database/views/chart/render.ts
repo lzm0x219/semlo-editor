@@ -134,6 +134,7 @@ export function calculateDatabaseChart(
   const filterView = createDatabaseView();
   filterView.filters = chart.filters;
   filterView.filterMode = chart.filterMode;
+  filterView.filterGroups = chart.filterGroups;
   const records = visibleDatabaseRecords({ ...data, records: source }, filterView);
   const field = data.fields.find((item) => item.id === chart.fieldId);
   const measure = data.fields.find((item) => item.id === chart.metricFieldId);

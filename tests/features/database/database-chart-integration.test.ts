@@ -139,6 +139,76 @@ test("chart views round-trip through JSON and HTML and update from shared record
   await expect(chart(root, "状态分布").getByRole("img")).toHaveAttribute("aria-label", /待开始：1.*进行中：2/);
 });
 
+for (const width of [1280, 390]) {
+  test(`chart preview and saved settings apply nested component filters (${width}px)`, async ({ page }) => {
+    const { root, nameId } = await mount(page);
+    await page.setViewportSize({ width, height: 844 });
+    const dialog = page.getByRole("dialog", { name: "编辑图表" });
+    const open = async () => {
+      await chart(root, "数量汇总").getByRole("button", { name: "图表操作" }).click();
+      await page.getByRole("menu", { name: "图表操作" }).getByRole("menuitem", { name: "编辑图表" }).click();
+    };
+    const filters = dialog.locator(".semlo-editor-database-chart-filters");
+    const child = (scope: Locator) => scope.locator(":scope > .semlo-editor-database-chart-filter-group");
+    const actions = (scope: Locator) => scope.locator(":scope > .semlo-editor-database-chart-filter-actions");
+    const rule = (scope: Locator) => scope.locator(":scope > .semlo-editor-database-chart-filter-row");
+
+    const before = await snapshot(page);
+    await open();
+    await actions(filters).getByRole("button", { name: "添加筛选分组" }).press("Enter");
+    const group = child(filters);
+    await expect(rule(group).getByLabel("筛选列")).toBeFocused();
+    await expect(rule(group).getByLabel("筛选列")).toHaveValue(nameId);
+    await rule(group).getByLabel("筛选值").fill("甲");
+    await actions(group).getByRole("button", { name: "添加筛选分组" }).click();
+    const subgroup = child(group);
+    await rule(subgroup).getByLabel("筛选值").fill("丙");
+    const preview = dialog.getByRole("img");
+    await expect(preview).toHaveAttribute("aria-label", /待开始：2.*进行中：4/);
+
+    await rule(subgroup).getByLabel("筛选值").fill("乙");
+    await expect(preview).toHaveAttribute("aria-label", /待开始：5/);
+    await expect(preview).not.toHaveAttribute("aria-label", /进行中：/);
+    await dialog.getByLabel("筛选关系", { exact: true }).selectOption("or");
+    await expect(preview).toHaveAttribute("aria-label", /待开始：5.*进行中：4/);
+    await dialog.getByLabel("筛选关系", { exact: true }).selectOption("and");
+    expect((await snapshot(page)).json).toEqual(before.json);
+    await dialog.getByRole("button", { name: "确定" }).click();
+
+    const plot = chart(root, "数量汇总").getByRole("img");
+    await expect(plot).toHaveAttribute("aria-label", /待开始：5/);
+    await expect(plot).not.toHaveAttribute("aria-label", /进行中：/);
+    await expect(chart(root, "状态分布").getByRole("img")).toHaveAttribute("aria-label", /待开始：2.*进行中：1/);
+    const saved = await snapshot(page);
+    expect(
+      await page.evaluate(() => window.__semloRequireFixture("chartIntegrationEditors")[0].editor.commands.undo()),
+    ).toBe(true);
+    expect((await snapshot(page)).json).toEqual(before.json);
+    expect(
+      await page.evaluate(() => window.__semloRequireFixture("chartIntegrationEditors")[0].editor.commands.redo()),
+    ).toBe(true);
+    expect((await snapshot(page)).json).toEqual(saved.json);
+
+    for (const content of [saved.html, saved.json]) {
+      await page.evaluate((next) => {
+        const editor = window.__semloRequireFixture("chartIntegrationEditors")[0];
+        editor.setContent("<p>重新打开</p>");
+        editor.setContent(next);
+      }, content);
+      expect((await snapshot(page)).json).toEqual(saved.json);
+      await open();
+      await expect(dialog.getByLabel("分组内筛选关系")).toHaveValue("or");
+      await expect(rule(subgroup).getByLabel("筛选值")).toHaveValue("乙");
+      await dialog.getByRole("button", { name: "关闭图表设置" }).click();
+    }
+    await open();
+    await subgroup.getByRole("button", { name: "删除筛选分组" }).click();
+    await expect(preview).toHaveAttribute("aria-label", /待开始：2/);
+    await dialog.getByRole("button", { name: "关闭图表设置" }).click();
+    expect((await snapshot(page)).json).toEqual(saved.json);
+  });
+}
+
 test("deleting a chart field updates JSON and HTML references and undo restores them", async ({ page }) => {
   const { root, amountId } = await mount(page);
   await switchView(root, "表格视图");
