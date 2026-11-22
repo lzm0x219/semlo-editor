@@ -10,6 +10,7 @@ import {
 } from "../../features/list/numbering-sequence-document";
 import { normalizeOrderedListLevelStarts } from "../../features/list/ordinals";
 import { sequenceFirstColumnAttribute } from "../../features/table/sequence";
+import { committedCompositionState } from "../../runtime/cross-block-composition";
 import type { EditorSnapshot } from "../../types";
 import { cloneContentValue } from "./clone-value";
 import { serializeEditorHTML } from "./html-output";
@@ -81,7 +82,7 @@ function snapshotJSON(content: ProseMirrorNode): JSONContent {
 }
 
 export function getEditorSnapshot(editor: Editor, doc: Document): EditorSnapshot {
-  const content = documentWithoutSlashDraft(editor.state);
+  const content = documentWithoutSlashDraft(committedCompositionState(editor.state));
   return {
     json: snapshotJSON(content),
     html: serializeEditorHTML(editor, doc, content),

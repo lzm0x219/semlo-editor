@@ -12,6 +12,7 @@ declare global {
     mountLongWriting?: (content: string) => void;
     rejectLongWritingPaste?: boolean;
     longWritingRejectedPastes?: number;
+    longWritingRejectedCompositions?: number;
   }
 }
 
@@ -411,6 +412,32 @@ test("桌面跨标题、正文和编号项替换保留未选内容，一次撤�
   expect(await snapshot()).toEqual(after);
 });
 
+async function mountCrossMediaArticle(page: Page) {
+  await page.setViewportSize({ width: 1280, height: 1200 });
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto(process.env.SEMLO_FIXTURE_URL!);
+  const videoUrl = new URL("/tests/sample-video.mp4", page.url()).href;
+  const initial: JSONContent = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "上节保留" }] },
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "章节前半章节后半" }] },
+      createDemoDatabase(new Date(2026, 10, 20)),
+      { type: "semloEditorVideo", attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" } },
+      { type: "paragraph", content: [{ type: "text", text: "结尾前半结尾后半" }] },
+      { type: "paragraph", content: [{ type: "text", text: "下节保留" }] },
+    ],
+  };
+  await page.evaluate((doc) => sessionStorage.setItem("article", JSON.stringify(doc)), initial);
+  await mountFromStorage(page, "json");
+  const prose = page.locator("#long-writing .semlo-editor-prose");
+  const value = prose.getByLabel("第 1 行 事项");
+  const video = prose.locator("video");
+  await expect(value).toHaveValue("收集灵感");
+  await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
+  return { prose, value, video, videoUrl };
+}
+
 const crossMediaPasteCases = [
   {
     name: "单行纯文本",
@@ -437,28 +464,7 @@ const crossMediaPasteCases = [
 
 for (const sample of crossMediaPasteCases) {
   test(`跨数据表和视频粘贴${sample.name}后，一次撤销恢复原文和反向选区`, async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 1200 });
-    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.goto(process.env.SEMLO_FIXTURE_URL!);
-    const videoUrl = new URL("/tests/sample-video.mp4", page.url()).href;
-    const initial: JSONContent = {
-      type: "doc",
-      content: [
-        { type: "paragraph", content: [{ type: "text", text: "上节保留" }] },
-        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "章节前半章节后半" }] },
-        createDemoDatabase(new Date(2026, 10, 20)),
-        { type: "semloEditorVideo", attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" } },
-        { type: "paragraph", content: [{ type: "text", text: "结尾前半结尾后半" }] },
-        { type: "paragraph", content: [{ type: "text", text: "下节保留" }] },
-      ],
-    };
-    await page.evaluate((doc) => sessionStorage.setItem("article", JSON.stringify(doc)), initial);
-    await mountFromStorage(page, "json");
-    const prose = page.locator("#long-writing .semlo-editor-prose");
-    const value = prose.getByLabel("第 1 行 事项");
-    const video = prose.locator("video");
-    await expect(value).toHaveValue("收集灵感");
-    await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
+    const { prose, value, video, videoUrl } = await mountCrossMediaArticle(page);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -537,3 +543,173 @@ for (const sample of crossMediaPasteCases) {
     }
   });
 }
+
+test("取消跨数据表和视频的组合输入时保存原文、反向选区和既有重做", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const before = await snapshot();
+
+  await selectText(page, "下节保留");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.insertText("补记");
+  await expect(prose.locator(":scope > p").last()).toHaveText("下节保留补记");
+  const otherEdit = await snapshot();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(before);
+  const beforeSave = await page.evaluate(() => sessionStorage.getItem("article"));
+
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const beforeSelection = await selection();
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ceshi", selectionStart: 5, selectionEnd: 5 });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+  expect(await snapshot()).toEqual(before);
+  expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(beforeSave);
+
+  await ime.send("Input.imeSetComposition", { text: "", selectionStart: 0, selectionEnd: 0 });
+  await expect.poll(selection).toEqual(beforeSelection);
+  expect(await snapshot()).toEqual(before);
+  expect(await page.evaluate(() => sessionStorage.getItem("article"))).toBe(beforeSave);
+  expect(await page.evaluate(() => window.longWritingEditor!.editor.can().undo())).toBe(false);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await snapshot()).toEqual(otherEdit);
+  await ime.detach();
+});
+
+test("确认跨块组合输入时只提交一次并可撤销到原反向选区", async ({ page }) => {
+  const { prose, value, video } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const before = await snapshot();
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const beforeSelection = await selection();
+
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ceshi", selectionStart: 5, selectionEnd: 5 });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+  const echo = await page.evaluate((content) => {
+    const editor = window.longWritingEditor!;
+    if ("trySetContent" in editor && typeof editor.trySetContent === "function") return editor.trySetContent(content);
+    throw new Error("缺少宿主回写接口");
+  }, before.json);
+  expect(echo).toEqual({ status: "unchanged" });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+  await ime.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
+  await ime.send("Input.insertText", { text: "测试" });
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半测试结尾后半");
+  await expect(prose.locator(":scope > p")).toHaveText(["上节保留", "下节保留"]);
+  await expect(value).toHaveCount(0);
+  await expect(video).toHaveCount(0);
+  const after = await snapshot();
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem("article")!))).toEqual(after.json);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  expect(await page.evaluate(() => window.longWritingEditor!.editor.can().undo())).toBe(false);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await snapshot()).toEqual(after);
+  await page.reload();
+  await mountFromStorage(page, "json");
+  expect(await snapshot()).toEqual(after);
+  await ime.detach();
+});
+
+test("宿主在组合输入期间切换文档，结束事件不会改写新文档", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ceshi", selectionStart: 5, selectionEnd: 5 });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+
+  await page.evaluate(() => window.longWritingEditor!.setContent("<p>新文档</p>"));
+  await expect(prose.locator(":scope > p")).toHaveText("新文档");
+  const replacement = await snapshot();
+  await ime.send("Input.imeSetComposition", { text: "", selectionStart: 0, selectionEnd: 0 });
+  await page.waitForFunction(() => !window.longWritingEditor!.editor.view.composing);
+  expect(await snapshot()).toEqual(replacement);
+  await ime.detach();
+});
+
+test("宿主拒绝跨块组合输入的最终替换时保留原稿与选区", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const before = await snapshot();
+  await page.addScriptTag({
+    type: "module",
+    content: `
+      import { Plugin } from '/dist/index.js';
+      window.longWritingRejectedCompositions = 0;
+      window.longWritingEditor.editor.registerPlugin(new Plugin({
+        filterTransaction(transaction) {
+          if (!transaction.docChanged || transaction.doc.content.content.some((node) => node.type.name === 'semloEditorDatabase')) return true;
+          window.longWritingRejectedCompositions++;
+          return false;
+        }
+      }));
+    `,
+  });
+  await page.waitForFunction(() => window.longWritingRejectedCompositions === 0);
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const beforeSelection = await selection();
+
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "测试", selectionStart: 2, selectionEnd: 2 });
+  await expect(prose.locator(":scope > h2")).toContainText("测试");
+  await ime.send("Input.insertText", { text: "测试" });
+  await expect.poll(() => page.evaluate(() => window.longWritingRejectedCompositions)).toBe(1);
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半章节后半");
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  expect(await page.evaluate(() => window.longWritingEditor!.editor.can().undo())).toBe(false);
+  await ime.detach();
+});
+
+test("只读切换取消保护中的候选文字并保留原稿", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const before = await snapshot();
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ceshi", selectionStart: 5, selectionEnd: 5 });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+  await page.evaluate(() => window.longWritingEditor!.setEditable(false));
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半章节后半");
+  await expect(prose).toHaveAttribute("contenteditable", "false");
+  expect(await snapshot()).toEqual(before);
+  await page.evaluate(() => window.longWritingEditor!.setEditable(true));
+  await selectText(page, "下节保留");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.insertText("续写");
+  await expect(prose.locator(":scope > p").last()).toHaveText("下节保留续写");
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(before);
+  await ime.detach();
+});
+
+test("卸载再挂载时丢弃已失效的跨块候选文字", async ({ page }) => {
+  const { prose } = await mountCrossMediaArticle(page);
+  const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
+  const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
+  const before = await snapshot();
+  await dragTextRange(page, prose, "结尾前半结尾后半", "章节前半章节后半");
+  const beforeSelection = await selection();
+
+  const ime = await page.context().newCDPSession(page);
+  await ime.send("Input.imeSetComposition", { text: "ceshi", selectionStart: 5, selectionEnd: 5 });
+  await expect(prose.locator(":scope > h2")).toContainText("ceshi");
+  await page.evaluate(() => {
+    const { editor } = window.longWritingEditor!;
+    const element = editor.options.element;
+    if (!(element instanceof HTMLElement)) throw new Error("缺少编辑器挂载点");
+    editor.unmount();
+    editor.mount(element);
+  });
+  await expect(prose.locator(":scope > h2")).toHaveText("章节前半章节后半");
+  expect(await snapshot()).toEqual(before);
+  expect(await selection()).toEqual(beforeSelection);
+  await ime.detach();
+});

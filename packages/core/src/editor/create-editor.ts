@@ -51,6 +51,7 @@ import { installWritingAssistant } from "../features/writing-assistant/session";
 import { createIntegrationBindings } from "../integrations/bindings";
 import { createIntegrationUpdateCoordinator } from "../integrations/update-coordinator";
 import { popupEditorOwner } from "../platform/dom/popup-owner";
+import { committedCompositionState, endObsoleteComposition } from "../runtime/cross-block-composition";
 import { createSelectionSync } from "../runtime/selection-sync";
 import type { EditorControllerWithResults, EditorOptions } from "../types";
 import { mountFindReplace, type FindReplaceController } from "../ui/find/find-replace";
@@ -153,6 +154,9 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     options.onError?.(normalized);
   };
   const snapshot = () => getEditorSnapshot(editor, doc);
+  const notifyCommittedChange = () => {
+    if (!viewUnavailable() && committedCompositionState(editor.state) === editor.state) options.onChange?.(snapshot());
+  };
   const selectionSync = createSelectionSync({ getEditor: () => editor, registerViewDisposer });
   const { syncTextSelection } = selectionSync;
   let closeDropdown: (() => void) | undefined;
@@ -502,6 +506,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
         interactiveController,
         registerViewDisposer,
         pointerExtension: createPointerExtension,
+        syncTextSelection,
         openInsertBelow: (_editor, target) => showCardMenu(target.anchor, target),
         openLink: () => openURL("link"),
         slashActions: [
@@ -588,9 +593,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
           },
         },
       },
-      onUpdate: () => {
-        if (!viewUnavailable()) options.onChange?.(snapshot());
-      },
+      onUpdate: notifyCommittedChange,
       onSelectionUpdate: refresh,
       onTransaction: refresh,
     });
@@ -687,9 +690,7 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
       () => shell.remove(),
     ]);
   }
-  const observeDraftCommit = createSlashDraftCommitObserver(editor.state, () => {
-    if (!viewUnavailable()) options.onChange?.(snapshot());
-  });
+  const observeDraftCommit = createSlashDraftCommitObserver(editor.state, notifyCommittedChange);
   const pointerTransaction = ({
     transaction,
     appendedTransactions = [],
@@ -839,6 +840,9 @@ export function createEditor(options: EditorOptions): EditorControllerWithResult
     setEditable(editable: boolean) {
       if (unavailable() || editor.isEditable === editable) return;
       if (!editable) {
+        if (!editor.isDestroyed && committedCompositionState(editor.state) !== editor.state)
+          endObsoleteComposition(editor.view);
+        if (unavailable()) return;
         writingAssistant?.invalidate("编辑器已只读，草稿保留。请关闭后重新打开助手。");
         if (unavailable()) return;
         translationPanel?.close();
