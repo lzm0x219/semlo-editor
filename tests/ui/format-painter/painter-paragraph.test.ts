@@ -609,12 +609,21 @@ function startedList(versioned: boolean, ...items: JSONContent[]): JSONContent {
   return list;
 }
 
-for (const versioned of [false, true]) {
-  test(`二级有序列表格式刷保留同父编号并接回正文（${versioned ? "新版" : "旧版"}）`, async ({ page }) => {
+for (const { indent, versioned } of [
+  { indent: 1, versioned: false },
+  { indent: 1, versioned: true },
+  { indent: 2, versioned: false },
+  { indent: 2, versioned: true },
+]) {
+  test(`${indent + 1} 级有序列表格式刷保留同父编号并接回正文（${versioned ? "新版" : "旧版"}）`, async ({ page }) => {
     if (versioned) await page.setViewportSize({ width: 375, height: 812 });
     const children = [item("CHILD A"), item("TARGET"), item("CHILD C")];
     const roots = [item("PARENT A"), item("PARENT B")];
     const neighbor = item("NEIGHBOR");
+    const branch = item("BRANCH");
+    const branchPeer = item("BRANCH PEER");
+    const nestedSample = indent === 2;
+    const childStyle = nestedSample ? "semlo-mixed-roman" : "lower-alpha";
     const nested = orderedList(false, ...roots);
     if (versioned) {
       const numbered = (node: JSONContent, id: string, indent: number) => ({
@@ -624,17 +633,24 @@ for (const versioned of [false, true]) {
       nested.attrs = {
         semloEditorListSequences: {
           version: 1,
-          sequences: ["root", "first", "second"].map((id) => ({ id, start: 1, origin: "initial" })),
+          sequences: ["root", "first", "second", ...(nestedSample ? ["branch"] : [])].map((id) => ({
+            id,
+            start: 1,
+            origin: "initial",
+          })),
         },
       };
       nested.content = [
         numbered(roots[0], "root", 0),
-        ...children.map((child) => numbered(child, "first", 1)),
+        ...(nestedSample ? [numbered(branch, "branch", 1)] : []),
+        ...children.map((child) => numbered(child, "first", indent)),
+        ...(nestedSample ? [numbered(branchPeer, "branch", 1)] : []),
         numbered(roots[1], "root", 0),
         numbered(neighbor, "second", 1),
       ];
     } else {
-      roots[0].content!.push(orderedList(false, ...children));
+      if (nestedSample) branch.content!.push(orderedList(false, ...children));
+      roots[0].content!.push(orderedList(false, ...(nestedSample ? [branch, branchPeer] : children)));
       roots[1].content!.push(orderedList(false, neighbor));
     }
     await setupBlocks(page, [{ ...paragraph("SOURCE", true), attrs: {} }, nested, paragraph("NEXT", false)], "SOURCE");
@@ -652,13 +668,23 @@ for (const versioned of [false, true]) {
     await expect(prose.locator(":scope > p > strong")).toHaveText(["SOURCE", "TARGET"]);
     expect(await numbering()).toEqual([
       ["PARENT A", "1", "decimal"],
-      ["CHILD A", "1", "lower-alpha"],
-      ["CHILD C", "2", "lower-alpha"],
+      ...(nestedSample ? [["BRANCH", "1", "lower-alpha"]] : []),
+      ["CHILD A", "1", childStyle],
+      ["CHILD C", "2", childStyle],
+      ...(nestedSample ? [["BRANCH PEER", "2", "lower-alpha"]] : []),
       ["PARENT B", "2", "decimal"],
       ["NEIGHBOR", "1", "lower-alpha"],
     ]);
     const split = await snapshot(page);
-    for (const label of ["PARENT A", "PARENT B", "CHILD A", "CHILD C", "NEIGHBOR", "NEXT"])
+    for (const label of [
+      "PARENT A",
+      "PARENT B",
+      "CHILD A",
+      "CHILD C",
+      "NEIGHBOR",
+      "NEXT",
+      ...(nestedSample ? ["BRANCH", "BRANCH PEER"] : []),
+    ])
       expect(findTextblock(split.json, label)).toEqual(findTextblock(before.json, label));
     expect(await page.evaluate(() => window.taskConversionEditor!.editor.commands.undo())).toBe(true);
     expect((await snapshot(page)).json).toEqual(before.json);
@@ -692,10 +718,11 @@ for (const versioned of [false, true]) {
     await painter.click();
     await target.click();
     await expect(prose.locator(":scope > ol")).toHaveCount(1);
-    expect((await numbering()).slice(1, 4)).toEqual([
-      ["CHILD A", "1", "lower-alpha"],
-      ["TARGET", "2", "lower-alpha"],
-      ["CHILD C", "3", "lower-alpha"],
+    const firstChildIndex = nestedSample ? 2 : 1;
+    expect((await numbering()).slice(firstChildIndex, firstChildIndex + 3)).toEqual([
+      ["CHILD A", "1", childStyle],
+      ["TARGET", "2", childStyle],
+      ["CHILD C", "3", childStyle],
     ]);
     const restored = await snapshot(page);
     expect(restored.html).not.toContain("data-semlo-editor-list-sequence-link");
