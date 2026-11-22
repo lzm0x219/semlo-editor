@@ -633,6 +633,12 @@ Semlo 的新版编号序列此前拒绝这两种复制；当前支持根级单�
 
 语雀临时测试稿已清理，重载确认原题「，」、唯一空段、0 字及最新版本。 [#41](https://github.com/lzm0x219/semlo-editor/issues/41)
 
+### 2026-11-22 CodePen 内嵌预览与原站
+
+用同一桌面 Chrome 会话，在语雀和本地 Semlo 打开 `Mamboleoo/XWJPxpZ` 示例。两个编辑器生成对应的 `/embed/` 地址，框内均显示拒绝连接。Semlo 的控制台记录 CodePen 响应带 `X-Frame-Options: sameorigin`。此前曾在 Semlo 显示的日期选择器样本 `afc163-1472555193/oNXqWGP`，本轮在 Semlo 也收到同样的限制。
+
+Semlo 的两个只读卡片均可见「打开链接」，目标为各自 `/pen/` 地址。相同地址在独立标签页显示两个 CodePen 作品的编辑界面。是否可嵌入取决于本次站点响应；语雀隔离稿已清理并重载为空。 [滑块示例](https://codepen.io/Mamboleoo/pen/XWJPxpZ) · [日期选择器示例](https://codepen.io/afc163-1472555193/pen/oNXqWGP) · [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
+
 ### 2026-11-22 高德地图坐标页
 
 在媒体隔离稿中，从 `/gddt` 插入高德地图。官方 `uri.amap.com/marker` 示例及带桌面参数的地址均提示「暂不支持显示该网站内容」。同一地点的 `ditu.amap.com/regeo` 坐标页被接受，iframe 显示地图、一个标记和「在西八图附近」。隔离稿清理并重载，确认最新版本、正文为空。 [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
