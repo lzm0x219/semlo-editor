@@ -67,6 +67,7 @@ const numberStatistics: Array<[DatabaseChartStatistic, string]> = [
   ...statistics,
   ["sum", "总和"],
   ["average", "平均值"],
+  ["median", "中位数"],
   ["min", "最小值"],
   ["max", "最大值"],
 ];
