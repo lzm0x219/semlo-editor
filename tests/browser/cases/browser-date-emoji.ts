@@ -52,9 +52,17 @@ async function _browserTest(page: import("playwright").Page) {
   await page.keyboard.type("/bq");
   await page.keyboard.press("Enter");
   const emoji = page.getByRole("dialog", { name: "选择表情" });
-  await emoji.getByLabel("搜索表情").fill("狐狸");
+  const search = emoji.getByLabel("搜索表情");
+  await search.fill("狐狸");
   await emoji.getByRole("button", { name: "狐狸", exact: true }).click();
-  await emoji.getByLabel("搜索表情").fill("挥手");
+  // 等待插入后的一帧及编辑区焦点更新，再走用户直接键入的路径。
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+  );
+  if (!(await search.evaluate((input) => input === input.ownerDocument.activeElement)))
+    throw new Error("选择表情后搜索框失去焦点");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.insertText("挥手");
   await emoji.getByLabel("表情肤色").selectOption("3");
   await emoji.getByRole("button", { name: "挥手", exact: true }).click();
   if (!(await page.locator(".semlo-editor-prose").innerText()).includes("🦊👋🏽"))
