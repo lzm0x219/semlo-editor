@@ -407,7 +407,8 @@ for (const type of ["copy", "cut"] as const) {
             const { dom, text } = view.serializeForClipboard(view.state.selection.content())
             window.headingTableCopyTrace.push({ phase, html: dom.innerHTML, text })
           }
-          const host = new Plugin({ key: new PluginKey('hostDOMClipboard'), props: { handleDOMEvents: {
+          const key = new PluginKey('hostDOMClipboard')
+          const host = new Plugin({ key, props: { handleDOMEvents: {
             ${type}(view, event) {
               record('host', view)
               queueMicrotask(() => record('host-microtask', view))
@@ -421,7 +422,12 @@ for (const type of ["copy", "cut"] as const) {
             plugins.splice(index + ${order === "after" ? 1 : 0}, 0, added)
             return plugins
           })
+          window.headingTableCopyPluginKey = key
         `,
+      });
+      await page.waitForFunction(() => {
+        const editor = window.__semloRequireFixture("headingTableCopyEditor").editor;
+        return Boolean(window.headingTableCopyPluginKey?.get(editor.state));
       });
       await selectHeadings(page);
       const original = await page.evaluate(
