@@ -11,16 +11,18 @@ declare global {
   }
 }
 
-for (const action of ["mode"] as const) {
+for (const action of ["mode", "group mode"] as const) {
   test(`a rejected ${action} change restores the filter control and can be retried`, async ({ page }) => {
     await installFixtureGuards(page);
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const data = createDatabaseData();
-    data.views[0].filters = [
+    const filters: DatabaseData["views"][number]["filters"] = [
       { id: "filter-a", fieldId: data.fields[0].id, operator: "startsWith", value: "B" },
       { id: "filter-b", fieldId: data.fields[0].id, operator: "contains", value: "" },
     ];
+    if (action === "mode") data.views[0].filters = filters;
+    else data.views[0].filterGroups = [{ id: "test-group", filterMode: "and", filters }];
     data.records.forEach((record, index) => (record.values[data.fields[0].id] = ["B", "C", "A"][index]));
     const content = { type: "doc", content: [{ type: "semloEditorDatabase", attrs: { data } }, { type: "paragraph" }] };
     await page.goto(process.env.SEMLO_TEST_ORIGIN!);
@@ -43,8 +45,9 @@ for (const action of ["mode"] as const) {
     const root = page.locator("#database-filter-reject .semlo-editor-database");
     await root.getByRole("button", { name: "筛选", exact: true }).click();
     const panel = root.getByRole("dialog", { name: "筛选" });
+    const mode = panel.getByLabel(action === "mode" ? "筛选关系" : "分组内筛选关系", { exact: true });
     const perform = async () => {
-      await panel.getByLabel("筛选关系").selectOption("or");
+      await mode.selectOption("or");
     };
     const read = async () =>
       (await page.evaluate(
@@ -56,11 +59,13 @@ for (const action of ["mode"] as const) {
       .poll(() => errors.join(" | "))
       .toContain("A transaction cannot be dispatched before the current transaction commits");
     const rejected = await read();
-    expect(rejected.views[0].filterMode).toBe("and");
-    expect(rejected.views[0].filters).toEqual(data.views[0].filters);
+    const filterSet = (database: DatabaseData) =>
+      action === "mode" ? database.views[0] : database.views[0].filterGroups?.[0];
+    expect(filterSet(rejected)?.filterMode).toBe("and");
+    expect(filterSet(rejected)?.filters).toEqual(filters);
     expect(rejected.records.map((record) => record.values[data.fields[0].id])).toEqual(["B", "C", "A"]);
-    await expect(panel.getByLabel("筛选关系")).toHaveValue("and");
+    await expect(mode).toHaveValue("and");
     await perform();
-    expect((await read()).views[0].filterMode).toBe("or");
+    expect(filterSet(await read())?.filterMode).toBe("or");
   });
 }

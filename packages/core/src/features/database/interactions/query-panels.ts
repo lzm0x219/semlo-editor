@@ -2,9 +2,12 @@ import type { Editor } from "@tiptap/core";
 
 import {
   createDatabaseId,
+  databaseFilterSets,
+  databaseLimits,
   visibleDatabaseRecords,
   type DatabaseData,
   type DatabaseFilterOperator,
+  type DatabaseFilterSet,
   type DatabaseView,
 } from "../model";
 
@@ -90,35 +93,59 @@ export function createDatabaseQueryPanels({
     select.value = selectedId;
     return select;
   };
+  const createFilter = (data: DatabaseData, fieldId: string) => {
+    const type = data.fields.find((field) => field.id === fieldId)?.type;
+    const operator: DatabaseFilterOperator =
+      type === "checkbox"
+        ? "notEmpty"
+        : type === "singleSelect" || type === "multiSelect"
+          ? "contains"
+          : type === "number" || type === "date" || type === "rating" || type === "progress"
+            ? "equals"
+            : "startsWith";
+    return { id: createDatabaseId("filter"), fieldId, operator, value: "" };
+  };
   const addFilter = (fieldId: string) =>
     change((data, active) => {
-      const type = data.fields.find((field) => field.id === fieldId)?.type;
-      const operator =
-        type === "checkbox"
-          ? "notEmpty"
-          : type === "singleSelect" || type === "multiSelect"
-            ? "contains"
-            : type === "number" || type === "date" || type === "rating" || type === "progress"
-              ? "equals"
-              : "startsWith";
-      active.filters.push({ id: createDatabaseId("filter"), fieldId, operator, value: "" });
+      active.filters.push(createFilter(data, fieldId));
     });
 
   const filterPanel = (anchor: HTMLElement) => {
     const dialog = panel(anchor, "筛选");
-    const render = () => {
-      const data = getData();
-      const active = getView(data);
-      dialog.replaceChildren();
-      panelHeading(dialog, "筛选");
-      if (active.filters.length > 1) {
+    function renderSet(
+      active: DatabaseFilterSet,
+      container: HTMLElement,
+      data: DatabaseData,
+      remaining: number,
+      groupId?: string,
+    ) {
+      const findSet = (current: DatabaseView) =>
+        groupId === undefined
+          ? current
+          : databaseFilterSets(current)
+              .slice(1)
+              .find((group) => group.id === groupId);
+      const mutateSet = (
+        mutate: (next: DatabaseData, set: DatabaseFilterSet) => void,
+        repaint?: boolean,
+        origin?: HTMLElement,
+      ) =>
+        change(
+          (next, current) => {
+            const set = findSet(current);
+            if (set) mutate(next, set);
+          },
+          repaint,
+          origin,
+        );
+      if (active.filters.length + (active.filterGroups?.length ?? 0) > 1) {
         const mode = doc.createElement("select");
-        mode.setAttribute("aria-label", "筛选关系");
+        mode.setAttribute("aria-label", groupId === undefined ? "筛选关系" : "分组内筛选关系");
         mode.append(option("and", "满足全部条件"), option("or", "满足任一条件"));
         mode.value = active.filterMode;
         mode.addEventListener("change", () => {
           try {
-            change(
+            mutateSet(
               (_data, view) => {
                 view.filterMode = mode.value === "or" ? "or" : "and";
               },
@@ -126,11 +153,11 @@ export function createDatabaseQueryPanels({
               mode,
             );
           } catch (error) {
-            if (dom.contains(mode)) mode.value = getView(getData()).filterMode;
+            if (dom.contains(mode)) mode.value = findSet(getView(getData()))?.filterMode ?? active.filterMode;
             throw error;
           }
         });
-        dialog.append(mode);
+        container.append(mode);
       }
       for (const filter of active.filters) {
         const row = doc.createElement("div");
@@ -162,7 +189,7 @@ export function createDatabaseQueryPanels({
         field.addEventListener("change", () => {
           if (!dom.contains(field)) return;
           try {
-            change((_data, view) => {
+            mutateSet((_data, view) => {
               const target = view.filters.find((item) => item.id === filter.id);
               const nextField = _data.fields.find((item) => item.id === field.value);
               if (!target || !nextField) return;
@@ -188,7 +215,7 @@ export function createDatabaseQueryPanels({
         operator.addEventListener("change", () => {
           if (!dom.contains(operator)) return;
           try {
-            change((_data, view) => {
+            mutateSet((_data, view) => {
               const target = view.filters.find((item) => item.id === filter.id);
               if (target) target.operator = operator.value as DatabaseFilterOperator;
             });
@@ -197,7 +224,7 @@ export function createDatabaseQueryPanels({
           }
         });
         const remove = button("删除筛选规则", "×", () => {
-          change((_data, view) => {
+          mutateSet((_data, view) => {
             view.filters = view.filters.filter((item) => item.id !== filter.id);
           });
           render();
@@ -213,7 +240,7 @@ export function createDatabaseQueryPanels({
           select.addEventListener("change", () => {
             if (!dom.contains(select)) return;
             try {
-              change(
+              mutateSet(
                 (_data, view) => {
                   const target = view.filters.find((item) => item.id === filter.id);
                   const option = _data.fields
@@ -234,7 +261,7 @@ export function createDatabaseQueryPanels({
             } catch (error) {
               if (dom.contains(select)) {
                 const data = getData();
-                const target = getView(data).filters.find((item) => item.id === filter.id);
+                const target = findSet(getView(data))?.filters.find((item) => item.id === filter.id);
                 const options = data.fields.find((item) => item.id === target?.fieldId)?.options ?? [];
                 select.value = options.some((item) => item.id === target?.optionId) ? target!.optionId! : "";
               }
@@ -242,7 +269,7 @@ export function createDatabaseQueryPanels({
             }
           });
           row.append(prefix, field, operator, select, remove);
-          dialog.append(row);
+          container.append(row);
           continue;
         }
         const input = doc.createElement("input");
@@ -251,13 +278,14 @@ export function createDatabaseQueryPanels({
         input.setAttribute("aria-label", "筛选值");
         input.dataset.semloEditorHistory = "filter";
         input.dataset.filterId = filter.id;
+        if (groupId !== undefined) input.dataset.filterGroupId = groupId;
         input.hidden = filter.operator === "empty" || filter.operator === "notEmpty";
         input.addEventListener("focus", () => {
           endContinuousEditing();
         });
         input.addEventListener("input", () => {
           try {
-            change(
+            mutateSet(
               (_data, view) => {
                 const target = view.filters.find((item) => item.id === filter.id);
                 if (target) target.value = input.value;
@@ -268,29 +296,85 @@ export function createDatabaseQueryPanels({
           } catch (error) {
             if (dom.contains(input)) {
               const data = getData();
-              input.value = getView(data).filters.find((item) => item.id === filter.id)?.value ?? "";
+              input.value = findSet(getView(data))?.filters.find((item) => item.id === filter.id)?.value ?? "";
             }
             throw error;
           }
         });
         row.append(prefix, field, operator, input, remove);
-        dialog.append(row);
+        container.append(row);
       }
-      dialog.append(
-        button(
-          "添加筛选规则",
-          "+ 添加筛选规则",
+      for (const group of active.filterGroups ?? []) {
+        const section = doc.createElement("div");
+        section.className = "semlo-editor-database-filter-group";
+        section.setAttribute("role", "group");
+        section.setAttribute("aria-label", "筛选分组");
+        const remove = button(
+          "删除筛选分组",
+          "×",
           () => {
-            const field = getData().fields[0];
-            if (field) addFilter(field.id);
+            mutateSet((_next, set) => {
+              const groups = set.filterGroups?.filter((entry) => entry.id !== group.id);
+              if (groups?.length) set.filterGroups = groups;
+              else delete set.filterGroups;
+            });
             render();
           },
-          "semlo-editor-database-add-rule",
-        ),
+          "semlo-editor-database-filter-remove-group",
+        );
+        section.append(remove);
+        renderSet(group, section, data, remaining, group.id);
+        container.append(section);
+      }
+      const actions = doc.createElement("div");
+      actions.className = "semlo-editor-database-filter-actions";
+      const addRule = button(
+        "添加筛选规则",
+        "+ 添加筛选规则",
+        () => {
+          mutateSet((next, set) => {
+            if (next.fields[0]) set.filters.push(createFilter(next, next.fields[0].id));
+          });
+          render();
+        },
+        "semlo-editor-database-add-rule",
       );
+      const addGroup = button(
+        "添加筛选分组",
+        "+ 添加筛选分组",
+        () => {
+          mutateSet((next, set) => {
+            if (!next.fields[0]) return;
+            (set.filterGroups ??= []).push({
+              id: createDatabaseId("filter-group"),
+              filterMode: "or",
+              filters: [createFilter(next, next.fields[0].id)],
+            });
+          });
+          render();
+        },
+        "semlo-editor-database-add-rule",
+      );
+      addRule.disabled = addRule.disabled || remaining < 1 || !data.fields.length;
+      addGroup.disabled = addGroup.disabled || remaining < 2 || !data.fields.length;
+      actions.append(addRule, addGroup);
+      container.append(actions);
+    }
+
+    const render = () => {
+      const data = getData();
+      const view = getView(data);
+      const sets = databaseFilterSets(view);
+      const remaining =
+        databaseLimits.filters + 1 - sets.length - sets.reduce((count, set) => count + set.filters.length, 0);
+      dialog.replaceChildren();
+      panelHeading(dialog, "筛选");
+
+      renderSet(view, dialog, data, remaining);
     };
     const data = getData();
-    if (!getView(data).filters.length && data.fields[0]) addFilter(data.fields[0].id);
+    const view = getView(data);
+    if (!view.filters.length && !view.filterGroups?.length && data.fields[0]) addFilter(data.fields[0].id);
     render();
   };
 
@@ -355,9 +439,12 @@ export function createDatabaseQueryPanels({
             if (view.id !== initialView.id) return;
             if (keepSorting) view.sorts = structuredClone(draft);
             else {
-              view.recordOrder = visibleDatabaseRecords(data, { ...view, filters: [], sorts: draft }).map(
-                (record) => record.id,
-              );
+              view.recordOrder = visibleDatabaseRecords(data, {
+                ...view,
+                filters: [],
+                filterGroups: [],
+                sorts: draft,
+              }).map((record) => record.id);
               view.sorts = [];
             }
           },

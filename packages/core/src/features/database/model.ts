@@ -96,6 +96,20 @@ export interface DatabaseFilter {
   /** Stable selected option identity; absent on legacy text filters. */
   optionId?: string;
 }
+export interface DatabaseFilterSet {
+  filters: DatabaseFilter[];
+  filterMode: "and" | "or";
+  filterGroups?: DatabaseFilterGroup[];
+}
+export interface DatabaseFilterGroup extends DatabaseFilterSet {
+  id: string;
+}
+
+/** 先遍历当前层，再遍历子组，供编辑和清理条件使用。 */
+export function databaseFilterSets(set: DatabaseFilterGroup): DatabaseFilterGroup[] {
+  return [set, ...(set.filterGroups ?? []).flatMap(databaseFilterSets)];
+}
+
 export interface DatabaseSort {
   fieldId: string;
   direction: "asc" | "desc";
@@ -201,7 +215,7 @@ export interface DatabaseChart {
   /** Assigned when the chart is placed on the grid. */
   layout?: DatabaseChartLayout;
 }
-export interface DatabaseView {
+export interface DatabaseView extends DatabaseFilterSet {
   id: string;
   name: string;
   kind: "table" | "gallery" | "kanban" | "calendar" | "chart";
@@ -209,8 +223,6 @@ export interface DatabaseView {
   fieldOrder: string[];
   recordOrder: string[];
   showFieldNames: boolean;
-  filters: DatabaseFilter[];
-  filterMode: "and" | "or";
   sorts: DatabaseSort[];
   groupFieldId: string;
   groupDirection: "asc" | "desc";
@@ -510,6 +522,31 @@ function normalizeFilters(value: unknown, fieldIds: Set<string>): DatabaseFilter
     },
   );
 }
+
+function normalizeFilterSet(
+  entry: Record<string, unknown>,
+  fieldIds: Set<string>,
+  budget = { remaining: databaseLimits.filters },
+  ids = new Set<string>(),
+): DatabaseFilterSet {
+  const groups = Array.isArray(entry.filterGroups) ? entry.filterGroups : undefined;
+  budget.remaining -= (Array.isArray(entry.filters) ? entry.filters.length : 0) + (groups?.length ?? 0);
+  // 每组也占一个名额，避免空分组或循环输入绕过条件上限。
+  if (budget.remaining < 0) throw new DatabaseContentError("筛选条件超出上限");
+  return {
+    filters: normalizeFilters(entry.filters, fieldIds),
+    filterMode: entry.filterMode === "or" ? "or" : "and",
+    ...(groups && {
+      filterGroups: groups.map((value, index) => {
+        const group = object(value);
+        return {
+          id: uniqueId(group.id, `filter-group-${index}`, ids),
+          ...normalizeFilterSet(group, fieldIds, budget, ids),
+        };
+      }),
+    }),
+  };
+}
 function boundedInteger(value: unknown, fallback: number, min: number, max: number): number {
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max ? value : fallback;
 }
@@ -658,7 +695,7 @@ export function normalizeDatabaseData(value: unknown): DatabaseData {
   const views = boundedItems(Array.isArray(data.views) ? data.views : [], databaseLimits.views, "视图").map(
     (entry, index): DatabaseView => {
       const view = object(entry);
-      const filters = normalizeFilters(view.filters, fieldIds);
+      const filterSet = normalizeFilterSet(view, fieldIds);
       const sorts = boundedItems(Array.isArray(view.sorts) ? view.sorts : [], databaseLimits.sorts, "排序条件").flatMap(
         (entry): DatabaseSort[] => {
           const sort = object(entry);
@@ -757,8 +794,7 @@ export function normalizeDatabaseData(value: unknown): DatabaseData {
           ),
         ],
         showFieldNames: view.showFieldNames === true,
-        filters,
-        filterMode: view.filterMode === "or" ? "or" : "and",
+        ...filterSet,
         sorts,
         groupFieldId: fieldIds.has(str(view.groupFieldId, 100)) ? str(view.groupFieldId, 100) : "",
         groupDirection: view.groupDirection === "desc" ? "desc" : "asc",
@@ -1025,21 +1061,31 @@ export function orderedDatabaseFields(data: DatabaseData, view: DatabaseView): D
   return [...ordered, ...fields.values()];
 }
 
+function databaseFilterPredicate(
+  data: DatabaseData,
+  set: DatabaseFilterSet,
+): ((record: DatabaseRecord) => boolean) | null {
+  const rules = set.filters.map((filter) => {
+    const field = data.fields.find((item) => item.id === filter.fieldId);
+    const optionExists = !!filter.optionId && !!field?.options.some((item) => item.id === filter.optionId);
+    return (record: DatabaseRecord) => !field || matchesFilter(field, record.values[field.id], filter, optionExists);
+  });
+  for (const group of set.filterGroups ?? []) {
+    const matches = databaseFilterPredicate(data, group);
+    if (matches) rules.push(matches);
+  }
+  if (!rules.length) return null;
+  return set.filterMode === "or"
+    ? (record) => rules.some((rule) => rule(record))
+    : (record) => rules.every((rule) => rule(record));
+}
+
 export function visibleDatabaseRecords(data: DatabaseData, view: DatabaseView, query = ""): DatabaseRecord[] {
   const search = query.trim().toLocaleLowerCase();
-  const filters = view.filters.map((filter) => {
-    const field = data.fields.find((item) => item.id === filter.fieldId);
-    return {
-      filter,
-      field,
-      optionExists: !!filter.optionId && !!field?.options.some((item) => item.id === filter.optionId),
-    };
-  });
+  const matches = databaseFilterPredicate(data, view);
   const filtered = data.records.filter((record) => {
-    const matches = ({ filter, field, optionExists }: (typeof filters)[number]) =>
-      !field || matchesFilter(field, record.values[field.id], filter, optionExists);
     return (
-      (!filters.length || (view.filterMode === "or" ? filters.some(matches) : filters.every(matches))) &&
+      (!matches || matches(record)) &&
       (!search || data.fields.some((field) => databaseValueMatchesSearch(field, record.values[field.id], search)))
     );
   });
