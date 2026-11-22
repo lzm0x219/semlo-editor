@@ -133,7 +133,8 @@ export function openEmojiPicker(editor: Editor, anchor?: HTMLElement): () => voi
       item.addEventListener("mousedown", (event) => event.preventDefault());
       item.addEventListener("click", () => {
         if (editor.isDestroyed || !editor.isEditable) return;
-        editor.chain().focus().insertContent(chosen).run();
+        // 使用编辑器保留的选区，避免下一帧将焦点从搜索框抢回编辑区。
+        editor.commands.insertContent(chosen);
         input.focus();
       });
       grid.append(item);
