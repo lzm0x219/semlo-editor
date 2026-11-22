@@ -81,7 +81,7 @@ export const embedProviders: Record<EmbedProvider, { label: string; placeholder:
   },
   amap: {
     label: "高德地图",
-    placeholder: "粘贴高德地图链接，如 https://ditu.amap.com/",
+    placeholder: "粘贴高德地图首页或坐标标注链接",
     example: "https://ditu.amap.com/",
   },
   yida: {
@@ -323,10 +323,40 @@ export function resolveEmbed(provider: unknown, value: unknown): EmbedTarget | n
   }
 
   if (provider === "amap") {
-    // The observed Yuque example is the map homepage. Point-specific links
-    // require a separate verified contract; don't silently discard a location.
-    if (url.hostname !== "ditu.amap.com" || url.pathname !== "/" || url.search || url.hash) return null;
-    return { url: "https://ditu.amap.com/", embedUrl: "https://ditu.amap.com/" };
+    if (url.hostname === "ditu.amap.com" && url.pathname === "/" && !url.search && !url.hash)
+      return { url: "https://ditu.amap.com/", embedUrl: "https://ditu.amap.com/" };
+    const params = url.searchParams;
+    if (
+      url.hostname !== "uri.amap.com" ||
+      url.pathname !== "/marker" ||
+      url.hash ||
+      hasDuplicateEmbedParameters(params) ||
+      Array.from(params.keys()).some(
+        (key) => !["position", "name", "src", "coordinate", "callnative", "platform"].includes(key),
+      )
+    )
+      return null;
+
+    const position = params.get("position");
+    const coordinate = params.get("coordinate");
+    const callNative = params.get("callnative");
+    const platform = params.get("platform");
+    if (
+      !position ||
+      !/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(position) ||
+      (coordinate !== null && coordinate !== "gaode" && coordinate !== "wgs84") ||
+      (callNative !== null && callNative !== "0" && callNative !== "1") ||
+      (platform !== null && platform !== "pc")
+    )
+      return null;
+    const [longitude, latitude] = position.split(",").map(Number);
+    if (Math.abs(longitude) > 180 || Math.abs(latitude) > 90) return null;
+
+    const embed = new URL(url.href);
+    // 使用官方网页地图预览，避免嵌入时尝试唤起手机应用。
+    embed.searchParams.set("callnative", "0");
+    embed.searchParams.set("platform", "pc");
+    return { url: url.href, embedUrl: embed.href };
   }
 
   if (provider === "yida") {

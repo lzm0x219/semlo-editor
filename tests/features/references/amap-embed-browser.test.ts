@@ -13,8 +13,10 @@ declare global {
   }
 }
 
-test("Amap input, undo, conversion, HTML and JSON round trips", async ({ page }) => {
-  await page.route("https://ditu.amap.com/**", (route) => route.fulfill({ status: 200, body: "Amap fixture" }));
+test("Amap coordinate input preserves the marker across undo, conversion and snapshots", async ({ page }) => {
+  const location = "https://uri.amap.com/marker?position=121.287689,31.234527&name=park";
+  const preview = "https://uri.amap.com/marker?position=121.287689%2C31.234527&name=park&callnative=0&platform=pc";
+  await page.route("https://uri.amap.com/**", (route) => route.fulfill({ status: 200, body: "Amap fixture" }));
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
     type: "module",
@@ -36,12 +38,12 @@ test("Amap input, undo, conversion, HTML and JSON round trips", async ({ page })
   await input.press("Enter");
   await expect(host.getByRole("status")).toHaveText("暂不支持显示该网站内容");
   await expect(host.locator("iframe")).toHaveCount(0);
-  await input.fill("https://ditu.amap.com/");
+  await input.fill(location);
   await input.press("Enter");
   const frame = host.locator("iframe");
-  await expect(frame).toHaveAttribute("src", "https://ditu.amap.com/");
+  await expect(frame).toHaveAttribute("src", preview);
   expect(await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").editor.commands.undo())).toBe(true);
-  await expect(input).toHaveValue("https://ditu.amap.com/");
+  await expect(input).toHaveValue(location);
   expect(await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").editor.commands.redo())).toBe(true);
   const snapshot = await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").getSnapshot());
   for (const content of [snapshot.html, snapshot.json]) {
@@ -51,13 +53,13 @@ test("Amap input, undo, conversion, HTML and JSON round trips", async ({ page })
     expect((await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").getSnapshot())).json).toEqual(
       snapshot.json,
     );
-    await expect(frame).toHaveCount(1);
+    await expect(frame).toHaveAttribute("src", preview);
   }
   await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").editor.commands.setTextSelection(1));
   await host.getByRole("button", { name: "选择嵌入内容" }).click();
   await host.getByRole("button", { name: "转换为链接" }).click();
-  await expect(host.locator(".semlo-editor-prose a")).toHaveAttribute("href", "https://ditu.amap.com/");
+  await expect(host.locator(".semlo-editor-prose a")).toHaveAttribute("href", location);
   expect(await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").editor.commands.undo())).toBe(true);
-  await expect(frame).toHaveCount(1);
+  await expect(frame).toHaveAttribute("src", preview);
   await page.evaluate(() => window.__semloRequireFixture("amapTestEditor").destroy());
 });
