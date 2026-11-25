@@ -1482,6 +1482,80 @@ for (const sample of [
   });
 }
 
+for (const sample of [
+  { name: "待办", type: "taskList", selector: 'ul[data-type="taskList"]', button: "待办事项", pasteAfterGap: false },
+  { name: "无序列表", type: "bulletList", selector: "ul", button: "无序列表", pasteAfterGap: true },
+  { name: "三级标题", type: "heading", selector: "h3", button: null, pasteAfterGap: false },
+] as const) {
+  test(`根级编号中间项转为${sample.name}后，多行粘贴与重开续号`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate(() => {
+      const html = "<ol><li>首项</li><li>起点尾缀</li><li>间隔</li><li>续号</li></ol>";
+      window.sequencePasteFixture.mount("primary", html, "html");
+    });
+    const prose = page.locator("#primary .semlo-editor-prose");
+    const gap = prose.locator(`:scope > ${sample.selector}`).filter({ hasText: "间隔" });
+    const items = prose.locator(":scope > ol > li");
+    const numbers = () => items.evaluateAll((nodes) => nodes.map((item) => (item as HTMLLIElement).value));
+    await select(page, "间隔", 1);
+    if (sample.button) await page.getByRole("button", { name: sample.button, exact: true }).click();
+    else await page.keyboard.press("ControlOrMeta+Alt+3");
+    await expect(gap).toBeVisible();
+    expect(await numbers()).toEqual([1, 2, 3]);
+    const before = await snapshot(page);
+
+    await select(page, sample.pasteAfterGap ? "续号" : "起点尾缀", sample.pasteAfterGap ? 1 : 2);
+    await page.evaluate(() => navigator.clipboard.writeText("首行\n次行"));
+    await page.keyboard.press("ControlOrMeta+v");
+    const finalItems = sample.pasteAfterGap
+      ? ["首项", "起点尾缀", "续首行", "号"]
+      : ["首项", "起点首行", "尾缀", "续号"];
+    await expect(items).toHaveText(finalItems);
+    await expect(prose.locator(":scope > p")).toHaveText(["次行"]);
+    await expect(gap).toBeVisible();
+    expect(await numbers()).toEqual([1, 2, 3, 4]);
+    const after = await snapshot(page);
+    expect(after.json.content!.map((node) => node.type)).toEqual(
+      sample.pasteAfterGap
+        ? ["orderedList", sample.type, "orderedList", "paragraph", "orderedList"]
+        : ["orderedList", "paragraph", "orderedList", sample.type, "orderedList"],
+    );
+    await history(page, "undo");
+    expect(await snapshot(page)).toEqual(before);
+    await history(page, "redo");
+    expect(await snapshot(page)).toEqual(after);
+
+    await page.reload();
+    await page.waitForFunction(() => Boolean(window.sequencePasteFixture));
+    await page.evaluate((html) => window.sequencePasteFixture.mount("primary", html, "html"), after.html);
+    expect(await snapshot(page)).toEqual(after);
+    await expect(items).toHaveText(finalItems);
+    expect(await numbers()).toEqual([1, 2, 3, 4]);
+
+    if (sample.type === "taskList") {
+      await select(page, "起点首行", 2);
+      await page.evaluate(() => navigator.clipboard.writeText("再粘\n又一行"));
+      await page.keyboard.press("ControlOrMeta+v");
+      await expect(items).toHaveText(["首项", "起点再粘", "首行", "尾缀", "续号"]);
+      await expect(prose.locator(":scope > p")).toHaveText(["又一行", "次行"]);
+      expect(await numbers()).toEqual([1, 2, 3, 4, 5]);
+      const repeated = await snapshot(page);
+      await history(page, "undo");
+      expect(await snapshot(page)).toEqual(after);
+      await history(page, "redo");
+      expect(await snapshot(page)).toEqual(repeated);
+      await select(page, "起点再粘", 4);
+    } else {
+      await select(page, finalItems[1], finalItems[1].length);
+    }
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText("新增");
+    await expect(items.nth(2)).toHaveText("新增");
+    expect(await numbers()).toEqual(sample.type === "taskList" ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5]);
+    await expect(gap).toBeVisible();
+  });
+}
+
 test("可信多行纯文本粘贴拆出正文并接续目标编号，一次撤销恢复", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   const before = await snapshot(page);
