@@ -420,7 +420,7 @@ test("pasting a single HTML cell repeats it over a selected rectangle", async ({
   );
 });
 
-test("pasting into a rectangle containing a vertical merge preserves the merge", async ({ page, context }) => {
+test("pasting into a rectangle containing a vertical merge follows the source shape", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(process.env.SEMLO_TEST_ORIGIN!);
   await page.addScriptTag({
@@ -435,7 +435,8 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
   });
   await page.waitForFunction(() => Boolean(window.tablePasteEditor));
   const prose = page.locator("#table-paste-test .semlo-editor-prose");
-  const before = await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot());
+  const snapshot = () => page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot());
+  const before = await snapshot();
   const first = await prose.locator("td[rowspan='2']").boundingBox();
   const last = await prose.getByRole("cell", { name: "C", exact: true }).boundingBox();
   if (!first || !last) throw new Error("Missing table cells");
@@ -486,7 +487,9 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
     navigator.clipboard.write([
       new ClipboardItem({
         "text/html": new Blob(
-          ["<table><tbody><tr><td>甲</td><td>乙</td></tr><tr><td>丙</td><td>丁</td></tr></tbody></table>"],
+          [
+            "<table><tbody><tr><td><strong>甲</strong></td><td>乙</td></tr><tr><td>丙</td><td>丁</td></tr></tbody></table>",
+          ],
           { type: "text/html" },
         ),
         "text/plain": new Blob(["甲\t乙\n丙\t丁"], { type: "text/plain" }),
@@ -497,6 +500,13 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
   await expect(prose.locator("td[rowspan='2']")).toHaveCount(0);
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲", "乙", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙", "丁", "D"]);
+  await expect(prose.locator("tr").first().locator("td strong")).toHaveText("甲");
+  await expect(prose.locator(":scope > p")).toHaveText("后文");
+  const richPasted = await snapshot();
+  expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
+  expect(await snapshot()).toEqual(before);
+  expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.redo())).toBe(true);
+  expect(await snapshot()).toEqual(richPasted);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
   await page.evaluate(() =>
     navigator.clipboard.write([
@@ -519,9 +529,15 @@ test("pasting into a rectangle containing a vertical merge preserves the merge",
   await expect(prose.locator("tr").nth(0).locator("td")).toHaveText(["甲\t乙", "甲\t乙", "B"]);
   await expect(prose.locator("tr").nth(1).locator("td")).toHaveText(["丙\t丁", "D"]);
   expect(await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").editor.commands.undo())).toBe(true);
-  expect((await page.evaluate(() => window.__semloRequireFixture("tablePasteEditor").getSnapshot())).json).toEqual(
-    before.json,
-  );
+  expect(await snapshot()).toEqual(before);
+  for (const content of [richPasted.html, richPasted.json]) {
+    await page.evaluate(
+      (original) => window.__semloRequireFixture("tablePasteEditor").setContent(original),
+      before.json,
+    );
+    await page.evaluate((value) => window.__semloRequireFixture("tablePasteEditor").setContent(value), content);
+    expect(await snapshot()).toEqual(richPasted);
+  }
 });
 
 test("pasting lists and quotes into a selected rectangle follows their observed cell mapping", async ({
