@@ -412,18 +412,27 @@ test("桌面跨标题、正文和编号项替换保留未选内容，一次撤�
   expect(await snapshot()).toEqual(after);
 });
 
-async function mountCrossMediaArticle(page: Page) {
+async function mountCrossMediaArticle(page: Page, mediaKind: "video" | "youku" = "video") {
   await page.setViewportSize({ width: 1280, height: 1200 });
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const youkuUrl = "https://v.youku.com/v_show/id_XNDc1NDU1MTQwOA==.html";
+  const youkuFrameUrl = "https://player.youku.com/embed/XNDc1NDU1MTQwOA==";
+  if (mediaKind === "youku") {
+    await page.route(youkuFrameUrl, (route) => route.fulfill({ status: 200, body: "Youku fixture" }));
+  }
   await page.goto(process.env.SEMLO_FIXTURE_URL!);
   const videoUrl = new URL("/tests/sample-video.mp4", page.url()).href;
+  const mediaNode: JSONContent =
+    mediaKind === "youku"
+      ? { type: "semloEditorEmbed", attrs: { provider: "youku", url: youkuUrl } }
+      : { type: "semloEditorVideo", attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" } };
   const initial: JSONContent = {
     type: "doc",
     content: [
       { type: "paragraph", content: [{ type: "text", text: "上节保留" }] },
       { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "章节前半章节后半" }] },
       createDemoDatabase(new Date(2026, 10, 20)),
-      { type: "semloEditorVideo", attrs: { src: videoUrl, name: "进展录像.mp4", size: 3009, mimeType: "video/mp4" } },
+      mediaNode,
       { type: "paragraph", content: [{ type: "text", text: "结尾前半结尾后半" }] },
       { type: "paragraph", content: [{ type: "text", text: "下节保留" }] },
     ],
@@ -432,10 +441,14 @@ async function mountCrossMediaArticle(page: Page) {
   await mountFromStorage(page, "json");
   const prose = page.locator("#long-writing .semlo-editor-prose");
   const value = prose.getByLabel("第 1 行 事项");
-  const video = prose.locator("video");
+  const media = prose.locator(mediaKind === "youku" ? "iframe" : "video");
+  const mediaUrl = mediaKind === "youku" ? youkuFrameUrl : videoUrl;
   await expect(value).toHaveValue("收集灵感");
-  await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
-  return { prose, value, video, videoUrl };
+  await expect(media).toHaveAttribute("src", mediaUrl);
+  if (mediaKind === "video") {
+    await expect.poll(() => media.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBeGreaterThan(0);
+  }
+  return { prose, value, media, mediaUrl };
 }
 
 const crossMediaPasteCases = [
@@ -462,9 +475,14 @@ const crossMediaPasteCases = [
   },
 ];
 
-for (const sample of crossMediaPasteCases) {
-  test(`跨数据表和视频粘贴${sample.name}后，一次撤销恢复原文和反向选区`, async ({ page }) => {
-    const { prose, value, video, videoUrl } = await mountCrossMediaArticle(page);
+const crossMediaCases = (["video", "youku"] as const).flatMap((mediaKind) =>
+  crossMediaPasteCases.map((sample) => ({ mediaKind, sample })),
+);
+
+for (const { mediaKind, sample } of crossMediaCases) {
+  const mediaName = mediaKind === "youku" ? "优酷卡片" : "视频";
+  test(`跨数据表和${mediaName}粘贴${sample.name}后，一次撤销恢复原文和反向选区`, async ({ page }) => {
+    const { prose, value, media, mediaUrl } = await mountCrossMediaArticle(page, mediaKind);
     await page.addScriptTag({
       type: "module",
       content: `
@@ -519,13 +537,13 @@ for (const sample of crossMediaPasteCases) {
       await expect(prose.locator(":scope > p > em")).toHaveText("末行");
     }
     await expect(value).toHaveCount(0);
-    await expect(video).toHaveCount(0);
+    await expect(media).toHaveCount(0);
     const after = await snapshot();
     expect(await saved()).toEqual(after.json);
 
     await page.keyboard.press("ControlOrMeta+z");
     await expect(value).toHaveValue("收集灵感");
-    await expect(video).toHaveAttribute("src", videoUrl);
+    await expect(media).toHaveAttribute("src", mediaUrl);
     expect(await snapshot()).toEqual(before);
     expect(await selection()).toEqual(beforeSelection);
     expect(await saved()).toEqual(before.json);
@@ -541,6 +559,13 @@ for (const sample of crossMediaPasteCases) {
       await mountFromStorage(page, "html");
       expect(await snapshot()).toEqual(after);
     }
+    const lastParagraph = prose.locator(":scope > p").last();
+    await lastParagraph.click();
+    await page.keyboard.press("End");
+    await page.keyboard.insertText("续写");
+    await expect(lastParagraph).toHaveText("下节保留续写");
+    await page.keyboard.press("ControlOrMeta+z");
+    expect(await snapshot()).toEqual(after);
   });
 }
 
@@ -621,7 +646,7 @@ test("按 Enter 确认可用拼音原文替换跨块选区", async ({ page }) =>
 });
 
 test("确认跨块组合输入时只提交一次并可撤销到原反向选区", async ({ page }) => {
-  const { prose, value, video } = await mountCrossMediaArticle(page);
+  const { prose, value, media } = await mountCrossMediaArticle(page);
   const snapshot = () => page.evaluate(() => window.longWritingEditor!.getSnapshot());
   const selection = () => page.evaluate(() => window.longWritingEditor!.editor.state.selection.toJSON());
   const before = await snapshot();
@@ -643,7 +668,7 @@ test("确认跨块组合输入时只提交一次并可撤销到原反向选区",
   await expect(prose.locator(":scope > h2")).toHaveText("章节前半测试结尾后半");
   await expect(prose.locator(":scope > p")).toHaveText(["上节保留", "下节保留"]);
   await expect(value).toHaveCount(0);
-  await expect(video).toHaveCount(0);
+  await expect(media).toHaveCount(0);
   const after = await snapshot();
   expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem("article")!))).toEqual(after.json);
   await page.keyboard.press("ControlOrMeta+z");
