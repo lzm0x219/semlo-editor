@@ -655,6 +655,12 @@ Semlo 的两个只读卡片均可见「打开链接」，目标为各自 `/pen/`
 
 使用 Figma 官方 Embed Kit 2.0 示例文件。语雀拒绝所测的 `www.figma.com/design` 文件直链和 `embed.figma.com/design` 预览直链。将同一文件放入旧式 `www.figma.com/embed` 包装后，语雀与 Semlo 在同一有界面 Chrome 会话均打开 Figma 文件页，显示文件名及「Open in Figma」入口。Semlo 用现代文件直链也显示同一文件名及入口。稳定状态下未确认可交互的画布；另一次独立的无界面 Chrome 检查中，Semlo 的两种地址都收到 Figma 返回的 403。样本清除后重载，确认隔离稿为空。 [官方示例说明](https://developers.figma.com/docs/embeds/embed-kit-2.0/) · [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
 
+### 2026-11-25 Figma 公开原型切帧
+
+改用 Figma 官方文档中的 Bakery Bliss 原型。官方示例从节点 `5-3` 开始，右方向键能切至 `3-1075`。将同一原型地址放入旧式包装，语雀接受插入。在语雀和 Semlo 的编辑页点击内嵌原型的下一帧按钮，均从 `5-3` 切至 `3-1075`。Semlo 编辑页先选中卡片，再操作原型。
+
+Semlo 另用原型直链插入，保留起始节点参数。将焦点移入画布后，右方向键可切帧。保存重开后，卡片仍加载原型，只读时点击下一帧仍能切换，「打开链接」指向原型地址。语雀隔离稿已经清理，保存重开后为空。 [官方原型示例](https://developers.figma.com/docs/embeds/embed-figma-prototype/#example-prototype-embed) · [验证记录](validation.md#2026-11-25-figma-公开原型切帧) · [#42](https://github.com/lzm0x219/semlo-editor/issues/42)
+
 ## 2026-11-20 工具栏、插入菜单与浮动工具验收
 
 - 语雀从第一段的块操作进入「在下方添加」，面板按功能分组，未显示搜索框。选择「引用」后，新引用位于两段之间，随后输入进入引用。第一次撤销撤掉输入，第二次撤销撤掉空引用，两段原文保留。面板打开后尝试按方向键，焦点仍在正文，此样本未确认语雀的键盘选项切换。

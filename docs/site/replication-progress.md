@@ -33,7 +33,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | 表格与数据表 | 普通表格编辑、合并拆分、序号列及粘贴。双方已验证在目标格内拆分 2×2 合并格并保留列宽、富文本和相邻合并格。数据表字段、记录、多视图同步、日历、图表和查找。Chromium 触摸模拟已验证长按卡片跨组拖放。 | 语雀长文样本曾出现拆分时重置列宽，当前复验未出现，触发条件待核对。其他复杂表格组合、看板真机触屏及其余图表聚合待核对。 [#28](https://github.com/lzm0x219/semlo-editor/issues/28) · [#31](https://github.com/lzm0x219/semlo-editor/issues/31) · [#32](https://github.com/lzm0x219/semlo-editor/issues/32) · [#33](https://github.com/lzm0x219/semlo-editor/issues/33) |
 | 图片、图册与媒体 | 图文混排、图册布局、主流格式的实际播放及常用控制。 | 实体触屏、其他格式和浏览器的画中画、生产上传、转换及读者权限。 [#29](https://github.com/lzm0x219/semlo-editor/issues/29) · [#30](https://github.com/lzm0x219/semlo-editor/issues/30) |
 | 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、专注编辑、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方及真机绘图。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
-| 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | 当前 CodePen 样本和宜搭示例均遇到内嵌限制。Figma 双方可打开同一公开文件的旧式包装预览，画布交互及受限资源待核验。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
+| 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | 当前 CodePen 样本和宜搭示例均遇到内嵌限制。Figma 双方已验证同一公开原型的旧式嵌入可切帧，受限资源待核验。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
 
 整合验收已补齐背景色快捷键的选区准备和首页触摸滚动的手势验证。 [Chromium 回归 #86](https://github.com/lzm0x219/semlo-editor/issues/86)
 
@@ -150,7 +150,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | 淘宝视频 | 部分实现 | 已操作 | #40 已验收 | 双方实际播放历史 MP4 直链，语雀本轮已核对转链接及撤销。其他格式和权限待核验。 |
 | 高德地图 | 部分实现 | 已操作 | #41 首页及坐标页样本通过 | 双方实测地图首页及高德 `/regeo` 坐标页。Semlo 同时支持官方 `/marker` 链接，该形式在语雀入口被拒绝。Semlo 通过坐标链接转换、撤销和 JSON / HTML 往返。其他位置格式待核验。 |
 | 墨刀 | 部分实现 | 已操作 | #41 已验收 | 双方实测公开原型，转换保留 `screen` 参数。复杂原型及权限待核验。 |
-| Figma | 部分实现 | 已操作 | 公开文件包装预览通过 | 原有示例文件不可用。更换为官方公开样本后，双方旧式包装均显示文件名和打开入口。Semlo 还接受语雀拒绝的现代直链。画布交互及文件权限待核验。 |
+| Figma | 部分实现 | 已操作 | 公开原型切帧通过 | 双方的旧式包装均可切换官方公开原型的画面。Semlo 另验证原型直链、键盘切帧、保存重开和只读点击。受限文件及其他原型待核验。 |
 | ProcessOn | 部分实现 | 已操作 | #41 已验收 | 双方实测公开示例，核对转换和撤销。受限文件待核验。 |
 | Canva | 部分实现 | 已操作 | #41 已验收 | 双方实测公开设计，转换保留 `embed`。其他地址和权限待核验。 |
 | 码上掘金 | 部分实现 | 已操作 | #41 已验收 | 双方显示同一公开示例的代码界面，转链接保留 `embed=true`，撤销恢复预览。 |
