@@ -10,7 +10,7 @@ description: 按当前范围区分功能实现、语雀观察与对照验收，�
 ## 范围与口径
 
 - 当前范围包括选区浮动工具、第三方服务入口、投票和打卡等内容卡片。宿主服务和真实身份行为按实际环境核对。
-- 多人协作、评论、Lake 数据格式兼容及[智能写作助手 #36](https://github.com/lzm0x219/semlo-editor/issues/36)排除在本轮开发和整合验收范围外。
+- 多人协作、评论、Lake 数据格式兼容、[智能写作助手 #36](https://github.com/lzm0x219/semlo-editor/issues/36)及宜搭排除在本轮开发和整合验收范围外。
 - 每行是一个**已识别功能条目**，沿用历史对照表的拆分粒度；功能复杂度不同，未发现的功能尚未纳入。条目数和比例不能代表工作量、产品成熟度或最终整体复刻完成率。
 - **已有主要实现**：当前功能文档和源码已有该条目的主要能力，历史记录标为“已有实现”；不表示所有交互已完成。**部分实现**：历史记录标为部分实现，当前功能文档或源码仍有相关能力或入口；仍有已知差异、依赖或待实现内容。**未实现**：未发现所需能力。
 - **语雀已操作**仅表示曾在语雀测试文档操作过该条目的部分场景；**仅见入口**表示只观察到入口。它们不是完整的双方对照，也不是验收结论；具体观察及当时的测试范围见各组的历史记录。
@@ -33,7 +33,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | 表格与数据表 | 普通表格编辑、合并拆分、序号列及粘贴。双方已验证在目标格内拆分 2×2 合并格并保留列宽、富文本和相邻合并格。数据表字段、记录、多视图同步、日历、图表和查找。Chromium 触摸模拟已验证长按卡片跨组拖放。 | 语雀长文样本曾出现拆分时重置列宽，当前复验未出现，触发条件待核对。其他复杂表格组合、看板真机触屏及其余图表聚合待核对。 [#28](https://github.com/lzm0x219/semlo-editor/issues/28) · [#31](https://github.com/lzm0x219/semlo-editor/issues/31) · [#32](https://github.com/lzm0x219/semlo-editor/issues/32) · [#33](https://github.com/lzm0x219/semlo-editor/issues/33) |
 | 图片、图册与媒体 | 图文混排、图册布局、主流格式的实际播放及常用控制。 | 实体触屏、其他格式和浏览器的画中画、生产上传、转换及读者权限。 [#29](https://github.com/lzm0x219/semlo-editor/issues/29) · [#30](https://github.com/lzm0x219/semlo-editor/issues/30) |
 | 内容卡片与绘图 | 日期、日历、提及、代码和公式、四类内容卡片、专注编辑、画布及思维导图编辑与重载。 | 真实宿主身份、投票和打卡记录、加密提供方及真机绘图。 [#34](https://github.com/lzm0x219/semlo-editor/issues/34) · [#35](https://github.com/lzm0x219/semlo-editor/issues/35) · [#37](https://github.com/lzm0x219/semlo-editor/issues/37) · [#38](https://github.com/lzm0x219/semlo-editor/issues/38) · [#39](https://github.com/lzm0x219/semlo-editor/issues/39) · [#87](https://github.com/lzm0x219/semlo-editor/issues/87) |
-| 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | 当前 CodePen 样本和宜搭示例均遇到内嵌限制。Figma 双方已验证同一公开原型的旧式嵌入可切帧，受限资源待核验。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
+| 第三方嵌入 | 公开媒体播放、设计与代码示例、链接转换和撤销。 | 当前 CodePen 样本遇到内嵌限制。Figma 双方已验证同一公开原型的旧式嵌入可切帧，受限资源待核验。 [#40](https://github.com/lzm0x219/semlo-editor/issues/40) · [#41](https://github.com/lzm0x219/semlo-editor/issues/41) |
 
 整合验收已补齐背景色快捷键的选区准备和首页触摸滚动的手势验证。 [Chromium 回归 #86](https://github.com/lzm0x219/semlo-editor/issues/86)
 
@@ -154,7 +154,7 @@ Semlo 另在 375px WebKit 触摸模拟中核对表格编辑、撤销重做和标
 | ProcessOn | 部分实现 | 已操作 | #41 已验收 | 双方实测公开示例，核对转换和撤销。受限文件待核验。 |
 | Canva | 部分实现 | 已操作 | #41 已验收 | 双方实测公开设计，转换保留 `embed`。其他地址和权限待核验。 |
 | 码上掘金 | 部分实现 | 已操作 | #41 已验收 | 双方显示同一公开示例的代码界面，转链接保留 `embed=true`，撤销恢复预览。 |
-| 宜搭 | 部分实现 | 已操作 | 预览被拒绝 | 双方示例均拒绝嵌入。Semlo 只读视图可打开原链接，示例原站仍提示升级权益。 |
+| 宜搭 | 部分实现 | 已操作 | 本轮范围外 | 既有示例的嵌入限制和原链接核对见[历史记录](https://github.com/lzm0x219/semlo-editor/blob/main/engineering/yuque-behavior-review.md#2026-11-20-第三方设计地图代码和表单嵌入验收)。 |
 | 金数据 | 部分实现 | 已操作 | #41 已验收 | 双方实测官方公开表单，转链接保留四个参数。实际提交和权限待核验。 |
 
 ## 更新规则
