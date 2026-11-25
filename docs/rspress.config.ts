@@ -7,6 +7,7 @@ export default defineConfig({
   themeDir: resolve("docs/theme"),
   title: "semlo-editor",
   description: "semlo-editor 富文本编辑器文档",
+  sitemap: { siteUrl: "https://semlo-editor.0x219.com" },
   lang: "zh",
   search: { searchHooks: resolve("docs/theme/search-hooks.ts") },
   themeConfig: {
