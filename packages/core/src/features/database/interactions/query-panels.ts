@@ -138,25 +138,36 @@ export function createDatabaseQueryPanels({
           repaint,
           origin,
         );
+      const applyControl = (
+        control: HTMLInputElement | HTMLSelectElement,
+        mutate: (next: DatabaseData, set: DatabaseFilterSet) => void,
+        savedValue: (set: DatabaseFilterSet | undefined, data: DatabaseData) => string,
+      ) => {
+        if (!dom.contains(control)) return;
+        let committed = false;
+        try {
+          committed = mutateSet(mutate, true, control);
+        } finally {
+          if (!committed && dom.contains(control)) {
+            const saved = getData();
+            control.value = savedValue(findSet(getView(saved)), saved);
+          }
+        }
+      };
       if (active.filters.length + (active.filterGroups?.length ?? 0) > 1) {
         const mode = doc.createElement("select");
         mode.setAttribute("aria-label", groupId === undefined ? "筛选关系" : "分组内筛选关系");
         mode.append(option("and", "满足全部条件"), option("or", "满足任一条件"));
         mode.value = active.filterMode;
-        mode.addEventListener("change", () => {
-          try {
-            mutateSet(
-              (_data, view) => {
-                view.filterMode = mode.value === "or" ? "or" : "and";
-              },
-              true,
-              mode,
-            );
-          } catch (error) {
-            if (dom.contains(mode)) mode.value = findSet(getView(getData()))?.filterMode ?? active.filterMode;
-            throw error;
-          }
-        });
+        mode.addEventListener("change", () =>
+          applyControl(
+            mode,
+            (_data, view) => {
+              view.filterMode = mode.value === "or" ? "or" : "and";
+            },
+            (set) => set?.filterMode ?? active.filterMode,
+          ),
+        );
         container.append(mode);
       }
       for (const filter of active.filters) {
@@ -237,37 +248,30 @@ export function createDatabaseQueryPanels({
           select.append(option("", legacyLabel));
           for (const item of selectedField.options) select.append(option(item.id, item.label));
           select.value = selectedField.options.some((item) => item.id === filter.optionId) ? filter.optionId! : "";
-          select.addEventListener("change", () => {
-            if (!dom.contains(select)) return;
-            try {
-              mutateSet(
-                (_data, view) => {
-                  const target = view.filters.find((item) => item.id === filter.id);
-                  const option = _data.fields
-                    .find((item) => item.id === filter.fieldId)
-                    ?.options.find((item) => item.id === select.value);
-                  if (!target) return;
-                  if (option) {
-                    target.optionId = option.id;
-                    target.value = option.label;
-                  } else {
-                    delete target.optionId;
-                    target.value = "";
-                  }
-                },
-                true,
-                select,
-              );
-            } catch (error) {
-              if (dom.contains(select)) {
-                const data = getData();
-                const target = findSet(getView(data))?.filters.find((item) => item.id === filter.id);
-                const options = data.fields.find((item) => item.id === target?.fieldId)?.options ?? [];
-                select.value = options.some((item) => item.id === target?.optionId) ? target!.optionId! : "";
-              }
-              throw error;
-            }
-          });
+          select.addEventListener("change", () =>
+            applyControl(
+              select,
+              (next, view) => {
+                const target = view.filters.find((item) => item.id === filter.id);
+                if (!target) return;
+                const selected = next.fields
+                  .find((item) => item.id === target.fieldId)
+                  ?.options.find((item) => item.id === select.value);
+                if (selected) {
+                  target.optionId = selected.id;
+                  target.value = selected.label;
+                } else {
+                  delete target.optionId;
+                  target.value = "";
+                }
+              },
+              (set, saved) => {
+                const target = set?.filters.find((item) => item.id === filter.id);
+                const options = saved.fields.find((item) => item.id === target?.fieldId)?.options;
+                return options?.find((item) => item.id === target?.optionId)?.id ?? "";
+              },
+            ),
+          );
           row.append(prefix, field, operator, select, remove);
           container.append(row);
           continue;
@@ -283,24 +287,16 @@ export function createDatabaseQueryPanels({
         input.addEventListener("focus", () => {
           endContinuousEditing();
         });
-        input.addEventListener("input", () => {
-          try {
-            mutateSet(
-              (_data, view) => {
-                const target = view.filters.find((item) => item.id === filter.id);
-                if (target) target.value = input.value;
-              },
-              true,
-              input,
-            );
-          } catch (error) {
-            if (dom.contains(input)) {
-              const data = getData();
-              input.value = findSet(getView(data))?.filters.find((item) => item.id === filter.id)?.value ?? "";
-            }
-            throw error;
-          }
-        });
+        input.addEventListener("input", () =>
+          applyControl(
+            input,
+            (_data, view) => {
+              const target = view.filters.find((item) => item.id === filter.id);
+              if (target) target.value = input.value;
+            },
+            (set) => set?.filters.find((item) => item.id === filter.id)?.value ?? "",
+          ),
+        );
         row.append(prefix, field, operator, input, remove);
         container.append(row);
       }
