@@ -84,6 +84,55 @@ test("复制标题链接后可保存、重载并定位，旧内容不会提前�
   expect((await snapshot(page)).json).toEqual(saved.json);
 });
 
+for (const rewrite of ["prepend", "duplicate"] as const) {
+  const label = rewrite === "prepend" ? "前插同名标题" : "重复标题标识";
+  test(`首次复制段落链接时宿主回写${label}，核对实际保存的标识`, async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.addInitScript(() => {
+      window.headingAnchorScrolls = [];
+      const scrollIntoView = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function (options) {
+        const id = this.getAttribute("data-semlo-editor-heading-anchor");
+        if (id) window.headingAnchorScrolls?.push(id);
+        scrollIntoView.call(this, options);
+      };
+    });
+    await mount(page, "<h3>同名标题</h3><p>正文</p>", `${origin}/?page=42#route`);
+    await page.evaluate(async (mode) => {
+      await navigator.clipboard.writeText("原剪贴板");
+      const controller = window.__semloRequireFixture("taskConversionEditor");
+      const update = () => {
+        controller.editor.off("update", update);
+        const { html } = controller.getSnapshot();
+        controller.setContent((mode === "prepend" ? "<h3>同名标题</h3>" : html) + html);
+      };
+      controller.editor.on("update", update);
+    }, rewrite);
+    const headings = page.locator(".semlo-editor-prose > h3");
+    await headings.hover();
+    await page.getByRole("button", { name: "复制 3 级标题的段落链接" }).click();
+    await expect(headings).toHaveCount(2);
+    const status = page.locator(".semlo-editor-heading-link-status");
+    if (rewrite === "duplicate") {
+      await expect(status).toHaveText("无法创建段落链接");
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("原剪贴板");
+      return;
+    }
+    await expect(status).toHaveText("复制成功");
+    const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
+    const id = copied.searchParams.get("semlo-heading");
+    expect(id).toMatch(/^sh-[a-f0-9-]+$/);
+    expect(copied.searchParams.get("page")).toBe("42");
+    expect(copied.hash).toBe("#route");
+    const saved = await snapshot(page);
+    expect(saved.json.content?.[0].attrs?.semloEditorHeadingAnchor).toBeUndefined();
+    expect(saved.json.content?.[1].attrs?.semloEditorHeadingAnchor).toBe(id);
+    await mount(page, saved.html, copied.href);
+    await expect.poll(() => page.evaluate(() => window.headingAnchorScrolls)).toEqual([id]);
+    expect((await snapshot(page)).json).toEqual(saved.json);
+  });
+}
+
 for (const sample of [
   { name: "前插内容", inserted: "<h3>宿主新标题</h3>", expected: ["段落目标"] },
   {

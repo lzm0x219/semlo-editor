@@ -227,11 +227,12 @@ export const HeadingAnchor = Extension.create({
             .setNodeMarkup(pos, undefined, { ...heading.attrs, [anchorAttribute]: id })
             .setMeta("addToHistory", false),
         );
+        // 宿主可以在保存回调中移动标题，新标识在最新文档中仍唯一即可复制。
         if (
           closed ||
+          activeView !== view ||
           editor.isDestroyed ||
           view.isDestroyed ||
-          view.state.doc.nodeAt(pos)?.attrs[anchorAttribute] !== id ||
           anchors(view.state.doc).get(id)?.length !== 1
         ) {
           announce("无法创建段落链接");
