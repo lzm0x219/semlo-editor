@@ -215,19 +215,19 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
         view.dispatch(transaction);
         const nextPos = getPos();
         const live = typeof nextPos === "number" ? view.state.doc.nodeAt(nextPos) : null;
+        const committed = live && nextExpected && live.eq(nextExpected) ? live : null;
         if (
           projection &&
           projection.node === previousNode &&
           getDatabaseViewProjection(dom) === projection &&
-          live &&
-          nextExpected &&
-          live.eq(nextExpected)
+          committed
         ) {
-          setDatabaseViewProjection(dom, { ...projection, node: live });
+          setDatabaseViewProjection(dom, { ...projection, node: committed });
           dom.dispatchEvent(
             new (doc.defaultView?.Event ?? Event)("semlo-editor:database-view-change", { bubbles: true }),
           );
         }
+        return committed;
       } finally {
         writing = previousWriting;
         expectedWriteNode = previousExpected;

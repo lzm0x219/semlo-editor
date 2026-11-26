@@ -40,7 +40,7 @@ interface EditSessionContext {
   getActor(): DatabaseActor | null;
   reportError(error: DatabaseContentError): void;
   onValueApplied(input: HTMLInputElement): void;
-  dispatchWrite(transaction: Transaction, pos: number): void;
+  dispatchWrite(transaction: Transaction, pos: number): ProseMirrorNode | null;
   endContinuousEditing(): void;
   finishEditing(input: HTMLElement): void;
 }
@@ -97,8 +97,8 @@ export function createDatabaseEditSession({
       record?.modifiedBy ?? null,
     );
     const transaction = closeHistory(view.state.tr.step(step));
-    dispatchWrite(transaction, pos);
-    setCurrent(view.state.doc.nodeAt(pos) ?? getCurrent());
+    const committed = dispatchWrite(transaction, pos);
+    if (committed) setCurrent(committed);
   };
   const beginCellSession = (input: HTMLInputElement, recordId: string, fieldId: string, syncValue: () => void) => {
     if (!editor.isEditable || isDestroyed() || !dom.contains(input)) return;
@@ -175,9 +175,8 @@ export function createDatabaseEditSession({
     );
     const transaction = view.state.tr.step(step).setMeta("addToHistory", false);
     const expectedNode = transaction.doc.nodeAt(pos);
-    dispatchWrite(transaction, pos);
-    if (cellSession !== session) return false;
-    const updatedNode = view.state.doc.nodeAt(pos) ?? getCurrent();
+    const updatedNode = dispatchWrite(transaction, pos);
+    if (cellSession !== session || !updatedNode) return false;
     setCurrent(updatedNode);
     // 如果没有自动元数据列且文档未被追加事务替换，无需再次校验整表并遍历所有单元格。
     if (
@@ -204,12 +203,21 @@ export function createDatabaseEditSession({
     beginCellSession(input, recordId, fieldId, onRestore);
     const session = cellSession;
     if (!session || session.input !== input || session.states[session.index].value === input.value) return;
+    const restore = () => {
+      if (cellSession !== session || !dom.contains(input)) return;
+      const value = getData().records.find((entry) => entry.id === recordId)?.values[fieldId];
+      input.value = typeof value === "string" ? value : "";
+      onRestore();
+    };
     try {
       if (input.value.length > databaseLimits.text)
         throw new DatabaseContentError(`文本长度不能超过 ${databaseLimits.text} 个字符`);
       const time = new Date().toISOString();
       const actor = getActor();
-      if (!applySessionValue(session, input.value, time, actor)) return;
+      if (!applySessionValue(session, input.value, time, actor)) {
+        restore();
+        return;
+      }
       session.states.splice(session.index + 1);
       if (composingInput === input && session.compositionIndex !== null && session.index > session.compositionIndex) {
         session.states[session.index] = { value: input.value, time, actor };
@@ -218,11 +226,7 @@ export function createDatabaseEditSession({
         session.index++;
       }
     } catch (error) {
-      if (cellSession === session && dom.contains(input)) {
-        const value = getData().records.find((entry) => entry.id === recordId)?.values[fieldId];
-        input.value = typeof value === "string" ? value : "";
-        onRestore();
-      }
+      restore();
       if (error instanceof DatabaseContentError) reportError(error);
       else throw error;
     }
