@@ -331,12 +331,16 @@ export const HeadingAnchor = Extension.create({
               if (closed || editor.isDestroyed || view.isDestroyed || activeView !== view) return;
               const id = new URL(win.location.href).searchParams.get(anchorParameter);
               if (!validAnchor(id) || id === handled) return;
-              const found = anchors(view.state.doc).get(id);
+              const doc = view.state.doc;
+              const found = anchors(doc).get(id);
               if (found?.length !== 1) return;
-              handled = id;
               expandHeadingAncestors(editor, found[0]);
-              if (closed || editor.isDestroyed || view.isDestroyed) return;
-              const element = view.nodeDOM(found[0]);
+              if (closed || editor.isDestroyed || view.isDestroyed || activeView !== view) return;
+              // 展开会通知宿主，宿主同步回写后标题的位置和标识唯一性可能已变化。
+              const current = view.state.doc === doc ? found : anchors(view.state.doc).get(id);
+              if (current?.length !== 1) return;
+              handled = id;
+              const element = view.nodeDOM(current[0]);
               if (element instanceof win.HTMLElement) element.scrollIntoView({ block: "center" });
             });
           };
