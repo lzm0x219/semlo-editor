@@ -384,41 +384,48 @@ export function createDatabaseQueryPanels({
     const direction = doc.createElement("select");
     direction.setAttribute("aria-label", "分组顺序");
     direction.append(option("asc", "升序"), option("desc", "降序"));
-    direction.value = active.groupDirection;
-    const updateDirectionLabels = () => {
-      const selected = data.fields.find((item) => item.id === field.value);
+    const syncControls = (currentData: DatabaseData) => {
+      const view = getView(currentData);
+      field.value = view.groupFieldId;
+      direction.value = view.groupDirection;
+      const selected = currentData.fields.find((item) => item.id === view.groupFieldId);
       const optionBased = selected?.type === "singleSelect" || selected?.type === "multiSelect";
       direction.options[0].textContent = optionBased ? "选项顺序" : "升序";
       direction.options[1].textContent = optionBased ? "选项倒序" : "降序";
     };
-    updateDirectionLabels();
-    field.addEventListener("change", () => {
-      change(
-        (_data, view) => {
-          view.groupFieldId = field.value;
-        },
-        true,
-        field,
-      );
-      updateDirectionLabels();
-    });
+    const updateGroup = (update: (view: DatabaseView) => void, control: HTMLSelectElement) => {
+      try {
+        change((_data, view) => update(view), true, control);
+      } finally {
+        if (getPopup() === dialog) syncControls(getData());
+      }
+    };
+    syncControls(data);
+    field.addEventListener("change", () =>
+      updateGroup((view) => {
+        view.groupFieldId = field.value;
+      }, field),
+    );
     direction.addEventListener("change", () =>
-      change(
-        (_data, view) => {
-          view.groupDirection = direction.value === "desc" ? "desc" : "asc";
-        },
-        true,
-        direction,
-      ),
+      updateGroup((view) => {
+        view.groupDirection = direction.value === "desc" ? "desc" : "asc";
+      }, direction),
     );
     dialog.append(
       field,
       direction,
       button("移除分组", "移除分组", () => {
-        change((_data, view) => {
-          view.groupFieldId = "";
-        });
-        closePopup();
+        if (getPopup() !== dialog) return;
+        const removed =
+          !getView(getData()).groupFieldId ||
+          change(
+            (_data, view) => {
+              view.groupFieldId = "";
+            },
+            true,
+            dialog,
+          );
+        if (removed && getPopup() === dialog) closePopup();
       }),
     );
   };
@@ -429,33 +436,45 @@ export function createDatabaseQueryPanels({
     if (initialView.kind === "table") {
       let draft = structuredClone(initialView.sorts);
       let keepSorting = draft.length > 0;
-      const apply = () =>
-        change(
+      const apply = () => {
+        // 一次性排序的结果可能已经保存，此时仍可关闭面板。
+        let unchanged = false;
+        const committed = change(
           (data, view) => {
             if (view.id !== initialView.id) return;
             if (keepSorting) view.sorts = structuredClone(draft);
             else {
-              view.recordOrder = visibleDatabaseRecords(data, {
+              const order = visibleDatabaseRecords(data, {
                 ...view,
                 filters: [],
                 filterGroups: [],
                 sorts: draft,
               }).map((record) => record.id);
+              unchanged =
+                !view.sorts.length &&
+                order.length === view.recordOrder.length &&
+                order.every((id, index) => id === view.recordOrder[index]);
+              view.recordOrder = order;
               view.sorts = [];
             }
           },
           true,
           dialog,
         );
-      const updateDraft = (mutate: () => void): void => {
+        return committed || unchanged;
+      };
+      const updateDraft = (mutate: () => void): boolean => {
         const previous = structuredClone(draft);
         mutate();
+        let applied = false;
         try {
-          if (keepSorting) apply();
-        } catch (error) {
-          draft = previous;
-          if (getPopup() === dialog) renderTableSort();
-          throw error;
+          applied = !keepSorting || apply();
+          return applied;
+        } finally {
+          if (!applied) {
+            draft = previous;
+            if (getPopup() === dialog) renderTableSort();
+          }
         }
       };
       const renderTableSort = () => {
@@ -473,14 +492,13 @@ export function createDatabaseQueryPanels({
           keep.addEventListener("change", () => {
             const previous = keepSorting;
             keepSorting = keep.checked;
+            let applied = false;
             try {
-              apply();
-            } catch (error) {
-              keepSorting = previous;
+              applied = apply();
+            } finally {
+              if (!applied) keepSorting = previous;
               if (getPopup() === dialog) renderTableSort();
-              throw error;
             }
-            if (getPopup() === dialog) renderTableSort();
           });
           label.append(keep, doc.createTextNode("保持排序"));
           dialog.append(label);
@@ -501,9 +519,9 @@ export function createDatabaseQueryPanels({
             updateDraft(() => (draft[index].direction = direction.value === "desc" ? "desc" : "asc"));
           });
           const remove = button("删除排序", "×", () => {
-            updateDraft(() => draft.splice(index, 1));
+            if (!updateDraft(() => draft.splice(index, 1))) return;
             if (!draft.length) keepSorting = false;
-            renderTableSort();
+            if (getPopup() === dialog) renderTableSort();
           });
           row.append(field, direction, remove);
           dialog.append(row);
@@ -514,8 +532,8 @@ export function createDatabaseQueryPanels({
             "+ 添加排序",
             () => {
               const field = data.fields.find((entry) => !draft.some((sort) => sort.fieldId === entry.id));
-              if (field) updateDraft(() => draft.push({ fieldId: field.id, direction: "asc" }));
-              renderTableSort();
+              if (!field || !updateDraft(() => draft.push({ fieldId: field.id, direction: "asc" }))) return;
+              if (getPopup() === dialog) renderTableSort();
             },
             "semlo-editor-database-add-rule",
           ),
@@ -526,8 +544,7 @@ export function createDatabaseQueryPanels({
               if (getPopup() === dialog) closePopup();
             }),
             button("确定排序", "确定", () => {
-              apply();
-              if (getPopup() === dialog) closePopup();
+              if (apply() && getPopup() === dialog) closePopup();
             }),
           );
         }
@@ -564,8 +581,9 @@ export function createDatabaseQueryPanels({
         direction.append(option("asc", "升序"), option("desc", "降序"));
         direction.value = sort.direction;
         direction.addEventListener("change", () => {
+          let committed = false;
           try {
-            change(
+            committed = change(
               (_data, view) => {
                 const target = view.sorts.find((item) => item.fieldId === field.value);
                 if (target) target.direction = direction.value === "desc" ? "desc" : "asc";
@@ -573,9 +591,11 @@ export function createDatabaseQueryPanels({
               true,
               direction,
             );
-          } catch (error) {
-            if (getPopup() === dialog) render();
-            throw error;
+          } finally {
+            if (!committed && getPopup() === dialog) {
+              const saved = getView(getData()).sorts.find((item) => item.fieldId === field.value);
+              if (saved) direction.value = saved.direction;
+            }
           }
         });
         const remove = button("删除排序", "×", () => {
