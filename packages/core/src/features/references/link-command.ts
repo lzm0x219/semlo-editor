@@ -119,8 +119,16 @@ export function beginLinkEdit(editor: Editor, options: BeginLinkEditOptions = {}
     if (unavailable() || !editor.state.doc.eq(tr.doc)) return null;
   }
   const doc = editor.state.doc;
-  const text = doc.textBetween(from, to, " ");
   const href = existing ? (editor.getAttributes("link").href ?? null) : null;
+  let collapseSoftBreaks = false;
+  const text = doc.textBetween(from, to, " ", (node) => {
+    if (href === null && node.type.name === "hardBreak") {
+      // 新建链接的软换行先保留在占位选区，确认时用单行文本替换。
+      collapseSoftBreaks = true;
+      return "";
+    }
+    return node.type.spec.leafText?.(node) ?? "";
+  });
   const { anchor, head } = editor.state.selection;
   const view = editor.view.dom;
   let active = true;
@@ -166,7 +174,7 @@ export function beginLinkEdit(editor: Editor, options: BeginLinkEditOptions = {}
       if (typeof value.text !== "string" || !value.text.trim()) return "invalid-text";
       if (!isValid()) return "unavailable";
       const chain = editor.chain().focus().setTextSelection({ from, to });
-      if (text && value.text === text) chain.setLink({ href: url });
+      if (text && value.text === text && !collapseSoftBreaks) chain.setLink({ href: url });
       else {
         // 修改链接文字时保留首个选中文字或当前输入样式。
         let marks = editor.state.storedMarks ?? editor.state.doc.resolve(from).marks();
