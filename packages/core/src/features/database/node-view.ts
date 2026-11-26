@@ -280,7 +280,6 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       const continuous = !!input && !["checkbox", "radio"].includes(input.type);
       const transaction = view.state.tr.setNodeMarkup(pos, undefined, { ...live.attrs, data: nextData });
       if (!continuous || lastEditingElement !== input) closeHistory(transaction);
-      lastEditingElement = continuous ? input : null;
       const changedPinnedGroups = [...pendingGroups].filter(([id, pin]) => {
         const previous = baseline.records.get(id);
         const record = nextData.records.find((entry) => entry.id === id);
@@ -290,7 +289,8 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
           (previous && record && JSON.stringify(previous[pin.fieldId]) !== JSON.stringify(record.values[pin.fieldId]))
         );
       });
-      dispatchWrite(transaction, pos);
+      if (!dispatchWrite(transaction, pos)) return false;
+      lastEditingElement = continuous ? input : null;
       for (const [id, pin] of changedPinnedGroups) if (pendingGroups.get(id) === pin) pendingGroups.delete(id);
       if (repaint) paint();
       return true;
