@@ -25,21 +25,27 @@ test.beforeAll(async () => {
 test.beforeEach(async ({ page }) => installFixtureGuards(page));
 test.afterAll(async () => stop());
 
-async function mount(page: Page, content: string, url = origin) {
+async function mount(page: Page, content: string, url = origin, hostReplacement?: string) {
   await page.goto(url);
   await page.waitForFunction(() => window.taskConversionCreate);
-  await page.evaluate((html) => {
-    const host = document.createElement("div");
-    document.body.replaceChildren(host);
-    window.taskConversionEditor = window.__semloRequireFixture("taskConversionCreate")({
-      element: host,
-      outline: false,
-      content: html,
-      onChange(snapshot) {
-        window.taskConversionEditor?.setContent(snapshot.html);
-      },
-    });
-  }, content);
+  await page.evaluate(
+    ({ html, hostReplacement }) => {
+      const host = document.createElement("div");
+      document.body.replaceChildren(host);
+      let replacement = hostReplacement;
+      window.taskConversionEditor = window.__semloRequireFixture("taskConversionCreate")({
+        element: host,
+        outline: false,
+        content: html,
+        onChange(snapshot) {
+          const next = replacement ?? snapshot.html;
+          replacement = undefined;
+          window.taskConversionEditor?.setContent(next);
+        },
+      });
+    },
+    { html: content, hostReplacement },
+  );
 }
 
 const snapshot = (page: Page) =>
@@ -77,6 +83,39 @@ test("复制标题链接后可保存、重载并定位，旧内容不会提前�
     .toBe(true);
   expect((await snapshot(page)).json).toEqual(saved.json);
 });
+
+for (const sample of [
+  { name: "前插内容", inserted: "<h3>宿主新标题</h3>", expected: ["段落目标"] },
+  {
+    name: "引入重复标识",
+    inserted: '<h3 data-semlo-editor-heading-anchor="sh-target">宿主新标题</h3>',
+    expected: [],
+  },
+]) {
+  test(`段落链接展开章节时宿主${sample.name}，按最新文档定位`, async ({ page }) => {
+    await page.addInitScript(() => {
+      window.headingAnchorScrolls = [];
+      const scrollIntoView = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function (options) {
+        window.headingAnchorScrolls?.push(this.textContent ?? "");
+        scrollIntoView.call(this, options);
+      };
+    });
+    const target = '<h3 data-semlo-editor-heading-anchor="sh-target">段落目标</h3><p>段落正文</p>';
+    await mount(
+      page,
+      '<h2 data-semlo-editor-heading-folded="true">折叠章节</h2>' + target,
+      `${origin}/?semlo-heading=sh-target`,
+      "<h2>折叠章节</h2>" + sample.inserted + target,
+    );
+    await expect(page.locator(".semlo-editor-prose > h3")).toHaveText(["宿主新标题", "段落目标"]);
+    await expect(page.locator(".semlo-editor-prose > p")).toBeVisible();
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+    expect(await page.evaluate(() => window.headingAnchorScrolls)).toEqual(sample.expected);
+  });
+}
 
 test("在同一文档粘贴带链接的标题会生成独立标识", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
