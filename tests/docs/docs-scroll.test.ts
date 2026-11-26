@@ -179,12 +179,16 @@ test("home code examples disclose overflow, scroll by keyboard, and keep readabl
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.getByText("可横向滚动")).toHaveCount(0);
   await expect(reactCode).not.toHaveAttribute("tabindex");
+  const githubName = "GitHub（在新标签页打开）";
+  const githubUrl = "https://github.com/lzm0x219/semlo-editor";
+  await expect(page.getByRole("link", { name: githubName })).toHaveAttribute("href", githubUrl);
+
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("可横向滚动")).toBeVisible();
   await page.getByRole("button", { name: "打开站点导航" }).click();
   const nav = page.getByRole("dialog", { name: "站点导航" });
-  await expect(nav.getByText("项目链接暂未开放")).toBeVisible();
-  await expect(nav.getByRole("img", { name: "GitHub：暂未开通" })).toBeVisible();
+  await expect(nav.getByText("部分链接未开放")).toBeVisible();
+  await expect(nav.getByRole("link", { name: githubName })).toHaveAttribute("href", githubUrl);
 });
 
 for (const width of [1440, 900, 390]) {
