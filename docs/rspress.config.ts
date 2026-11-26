@@ -12,7 +12,7 @@ export default defineConfig({
   search: { searchHooks: resolve("docs/theme/search-hooks.ts") },
   themeConfig: {
     socialLinks: [
-      { icon: "github", mode: "text", content: "暂未开通" },
+      { icon: "github", mode: "link", content: "https://github.com/lzm0x219/semlo-editor" },
       { icon: "npm", mode: "text", content: "尚未发布" },
       { icon: "x", mode: "text", content: "暂未开通" },
     ],
