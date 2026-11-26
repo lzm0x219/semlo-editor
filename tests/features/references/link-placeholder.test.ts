@@ -57,6 +57,63 @@ test("an empty-cursor shortcut inserts an unaddressed link until the user confir
   await expect(prose.locator("a")).toHaveCount(0);
 });
 
+test("新建链接提交后仅合并选区内的软换行，保留首段字形与两步撤销", async ({ page }) => {
+  await mount(page, "<p>段首<strong>甲乙</strong><br><em>丙丁</em>段尾<br>段外</p><p>保留后文</p>");
+  const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
+  const paragraphs = prose.locator(":scope > p");
+  const first = paragraphs.first();
+  const snapshot = () => page.evaluate(() => window.__semloRequireFixture("linkPlaceholderTest").getSnapshot());
+  const original = await snapshot();
+  const form = page.getByRole("dialog", { name: "插入链接" });
+  const open = async () => {
+    await page.evaluate(() =>
+      window
+        .__semloRequireFixture("linkPlaceholderTest")
+        .editor.chain()
+        .focus()
+        .setTextSelection({ from: 3, to: 8 })
+        .run(),
+    );
+    await expect(prose).toBeFocused();
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(form.getByLabel("文本")).toHaveValue("甲乙丙丁");
+  };
+  const url = "https://example.com/soft-break";
+  const confirm = async () => {
+    await form.getByLabel("链接", { exact: true }).fill(url);
+    await form.getByRole("button", { name: "确定" }).click();
+    await expect(form).toHaveCount(0);
+  };
+  await open();
+  await expect(first.locator("br")).toHaveCount(2);
+  const placeholder = await snapshot();
+  await confirm();
+
+  const edited = await snapshot();
+  expect(edited.json.content?.[0]?.content?.filter((node) => node.type === "hardBreak")).toHaveLength(1);
+  const link = first.getByRole("link", { name: "甲乙丙丁", exact: true });
+  await expect(link).toHaveAttribute("href", url);
+  await expect(first.locator("a strong, strong a")).toHaveText("甲乙丙丁");
+  await expect(first.locator("em")).toHaveCount(0);
+  await expect(first.locator("br")).toHaveCount(1);
+  await expect(paragraphs).toHaveText(["段首甲乙丙丁段尾段外", "保留后文"]);
+  await expect(prose).toBeFocused();
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(placeholder);
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await snapshot()).toEqual(original);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expect(await snapshot()).toEqual(edited);
+  await mount(page, edited.html);
+  expect(await snapshot()).toEqual(edited);
+  await mount(page, placeholder.html);
+  await open();
+  await expect(first.locator("br")).toHaveCount(2);
+  await confirm();
+  expect(await snapshot()).toEqual(edited);
+});
+
 test("the visible cancel action preserves the existing placeholder and returns focus", async ({ page }) => {
   await mount(page, "<p>正文</p>");
   const prose = page.locator("#link-placeholder-test .semlo-editor-prose");
