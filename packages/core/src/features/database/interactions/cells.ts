@@ -90,8 +90,7 @@ export function createDatabaseCellInteractions({
             : selected
               ? ""
               : entry.id;
-        applyCell(record.id, field.id, next);
-        closePopup();
+        if (applyCell(record.id, field.id, next)) closePopup();
       });
       control.style.backgroundColor = optionColors[entry.color] ?? optionColors[0];
       control.setAttribute("aria-pressed", String(selected));
@@ -135,12 +134,14 @@ export function createDatabaseCellInteractions({
       if (!person) continue;
       dialog.append(
         button(`移除 ${person.label}`, `${person.label} ×`, () => {
-          applyCell(
-            record.id,
-            field.id,
-            selected.filter((entry) => entry !== id),
-          );
-          closePopup();
+          if (
+            applyCell(
+              record.id,
+              field.id,
+              selected.filter((entry) => entry !== id),
+            )
+          )
+            closePopup();
         }),
       );
     }
@@ -148,7 +149,7 @@ export function createDatabaseCellInteractions({
     picker.className = "semlo-editor-database-person-picker";
     dialog.append(picker);
     personSearch(picker, (person) => {
-      change((data) => {
+      const changed = change((data) => {
         const target = data.fields.find((entry) => entry.id === field.id && entry.type === "person");
         const row = data.records.find((entry) => entry.id === record.id);
         if (!target || !row) return;
@@ -160,7 +161,13 @@ export function createDatabaseCellInteractions({
         const current = Array.isArray(row.values[field.id]) ? (row.values[field.id] as string[]) : [];
         if (!current.includes(entry.id)) row.values[field.id] = [...current, entry.id];
       });
-      closePopup();
+      const latest = getData();
+      const latestField = latest.fields.find((entry) => entry.id === field.id && entry.type === "person");
+      const latestEntry = latestField?.options.find((item) => item.externalId === person.id);
+      const latestRow = latest.records.find((entry) => entry.id === record.id);
+      const latestIds = Array.isArray(latestRow?.values[field.id]) ? (latestRow.values[field.id] as string[]) : [];
+      if (changed || (latestEntry && latestEntry.label === person.label && latestIds.includes(latestEntry.id)))
+        closePopup();
     });
   };
   const editFiles = (anchor: HTMLElement, field: DatabaseField, record: DatabaseRecord) => {
@@ -180,12 +187,14 @@ export function createDatabaseCellInteractions({
       if (editor.isEditable)
         row.append(
           button(`删除文件 ${file.name}`, "×", () => {
-            applyCell(
-              record.id,
-              field.id,
-              files.filter((entry) => entry.id !== file.id),
-            );
-            closePopup();
+            if (
+              applyCell(
+                record.id,
+                field.id,
+                files.filter((entry) => entry.id !== file.id),
+              )
+            )
+              closePopup();
           }),
         );
       dialog.append(row);
@@ -286,12 +295,15 @@ export function createDatabaseCellInteractions({
       input.checked = value === true;
       input.disabled = !editor.isEditable;
       input.setAttribute("aria-label", accessible);
+      const restoreChecked = () => {
+        if (dom.contains(input))
+          input.checked = getData().records.find((item) => item.id === record.id)?.values[field.id] === true;
+      };
       input.addEventListener("change", () => {
         try {
-          applyCell(record.id, field.id, input.checked, true, input);
+          if (!applyCell(record.id, field.id, input.checked, true, input)) restoreChecked();
         } catch (error) {
-          if (dom.contains(input))
-            input.checked = getData().records.find((item) => item.id === record.id)?.values[field.id] === true;
+          restoreChecked();
           throw error;
         }
       });

@@ -77,15 +77,19 @@ export function createDatabaseViewSettings({
       input.type = "checkbox";
       input.checked = active.showFieldNames;
       input.setAttribute("aria-label", "显示字段名");
-      input.addEventListener("change", () =>
-        change(
-          (_data, view) => {
-            view.showFieldNames = input.checked;
-          },
-          true,
-          input,
-        ),
-      );
+      input.addEventListener("change", () => {
+        if (
+          !change(
+            (_data, view) => {
+              view.showFieldNames = input.checked;
+            },
+            true,
+            input,
+          ) &&
+          dom.contains(input)
+        )
+          input.checked = getView(getData()).showFieldNames;
+      });
       const name = doc.createElement("span");
       name.textContent = "显示字段名";
       row.append(input, name);
@@ -98,17 +102,21 @@ export function createDatabaseViewSettings({
       input.type = "checkbox";
       input.checked = !active.hiddenFields.includes(field.id);
       input.setAttribute("aria-label", `显示${field.name}`);
-      input.addEventListener("change", () =>
-        change(
-          (_data, view) => {
-            view.hiddenFields = input.checked
-              ? view.hiddenFields.filter((id) => id !== field.id)
-              : [...view.hiddenFields, field.id];
-          },
-          true,
-          input,
-        ),
-      );
+      input.addEventListener("change", () => {
+        if (
+          !change(
+            (_data, view) => {
+              view.hiddenFields = input.checked
+                ? view.hiddenFields.filter((id) => id !== field.id)
+                : [...view.hiddenFields, field.id];
+            },
+            true,
+            input,
+          ) &&
+          dom.contains(input)
+        )
+          input.checked = !getView(getData()).hiddenFields.includes(field.id);
+      });
       const name = doc.createElement("span");
       name.textContent = `${fieldIcons[field.type]}  ${field.name}`;
       row.append(input, name);
@@ -146,6 +154,7 @@ export function createDatabaseViewSettings({
           select,
         );
         if (changed) repaintBody();
+        else select.value = getView(getData()).calendar[key];
       });
       dialog.append(label(caption, select));
     };
@@ -191,6 +200,7 @@ export function createDatabaseViewSettings({
     }
     dialog.append(palette);
     colorMode.addEventListener("change", () => {
+      if (!dom.contains(colorMode)) return;
       const fieldId = colorMode.value === "field" ? colorField.value : "";
       const changed = change(
         (_next, active) => {
@@ -199,11 +209,14 @@ export function createDatabaseViewSettings({
         false,
         colorMode,
       );
-      colorFieldLabel.hidden = !fieldId;
-      palette.hidden = !!fieldId;
+      const activeColorFieldId = getView(getData()).calendar.colorFieldId;
+      colorMode.value = activeColorFieldId ? "field" : "custom";
+      colorFieldLabel.hidden = !activeColorFieldId;
+      palette.hidden = !!activeColorFieldId;
       if (changed) repaintBody();
     });
     colorField.addEventListener("change", () => {
+      if (!dom.contains(colorField)) return;
       if (
         change(
           (_next, active) => {
@@ -214,6 +227,10 @@ export function createDatabaseViewSettings({
         )
       )
         repaintBody();
+      else {
+        const activeColorFieldId = getView(getData()).calendar.colorFieldId;
+        colorField.value = activeColorFieldId || colorFields[0]?.id || "";
+      }
     });
     addSelect("开始日期", "startFieldId", ["date", "createdTime", "modifiedTime"]);
     addSelect("结束日期", "endFieldId", ["date", "createdTime", "modifiedTime"]);
@@ -227,6 +244,7 @@ export function createDatabaseViewSettings({
       input.disabled = !editor.isEditable;
       input.setAttribute("aria-label", caption);
       input.addEventListener("change", () => {
+        if (!dom.contains(input)) return;
         if (
           change(
             (_next, active) => {
@@ -237,6 +255,7 @@ export function createDatabaseViewSettings({
           )
         )
           repaintBody();
+        else input.checked = getView(getData()).calendar[key];
       });
       dialog.append(label(caption, input));
     }
@@ -255,21 +274,23 @@ export function createDatabaseViewSettings({
     for (const [name, kind] of entries) {
       const control = button(name, name, () => {
         if (!kind) return;
-        change((data) => {
-          const newView = createDatabaseView(`${name}视图`, kind);
-          if (kind === "gallery" || kind === "kanban")
-            newView.hiddenFields = data.fields.slice(3).map((field) => field.id);
-          if (kind === "kanban")
-            newView.groupFieldId = data.fields.find((field) => field.type === "singleSelect")?.id ?? "";
-          if (kind === "calendar") {
-            newView.calendar.titleFieldId = data.fields.find((field) => field.type === "text")?.id ?? "";
-            newView.calendar.startFieldId = data.fields.find((field) => field.type === "date")?.id ?? "";
-            newView.calendar.endFieldId = newView.calendar.startFieldId;
-          }
-          data.views.push(newView);
-          data.activeViewId = newView.id;
-        });
-        closePopup();
+        if (
+          change((data) => {
+            const newView = createDatabaseView(`${name}视图`, kind);
+            if (kind === "gallery" || kind === "kanban")
+              newView.hiddenFields = data.fields.slice(3).map((field) => field.id);
+            if (kind === "kanban")
+              newView.groupFieldId = data.fields.find((field) => field.type === "singleSelect")?.id ?? "";
+            if (kind === "calendar") {
+              newView.calendar.titleFieldId = data.fields.find((field) => field.type === "text")?.id ?? "";
+              newView.calendar.startFieldId = data.fields.find((field) => field.type === "date")?.id ?? "";
+              newView.calendar.endFieldId = newView.calendar.startFieldId;
+            }
+            data.views.push(newView);
+            data.activeViewId = newView.id;
+          })
+        )
+          closePopup();
       });
       if (!kind) {
         control.disabled = true;
@@ -295,12 +316,12 @@ export function createDatabaseViewSettings({
         entry.name,
         () => {
           const hadFocus = dialog.matches(":focus-within");
-          if (editor.isEditable)
-            change((next) => {
-              next.activeViewId = entry.id;
-            });
-          else switchReadonlyView(entry.id);
-          closeViewPanel(hadFocus);
+          const changed = editor.isEditable
+            ? change((next) => {
+                next.activeViewId = entry.id;
+              })
+            : (switchReadonlyView(entry.id), true);
+          if (changed || getView(getData()).id === entry.id) closeViewPanel(hadFocus);
         },
         "",
         true,
@@ -313,11 +334,13 @@ export function createDatabaseViewSettings({
       dialog.append(
         button("删除当前视图", "删除当前视图", () => {
           const hadFocus = dialog.matches(":focus-within");
-          change((next) => {
-            next.views = next.views.filter((entry) => entry.id !== next.activeViewId);
-            next.activeViewId = next.views[0].id;
-          });
-          closeViewPanel(hadFocus);
+          if (
+            change((next) => {
+              next.views = next.views.filter((entry) => entry.id !== next.activeViewId);
+              next.activeViewId = next.views[0].id;
+            })
+          )
+            closeViewPanel(hadFocus);
         }),
       );
     }
@@ -340,10 +363,13 @@ export function createDatabaseViewSettings({
     ] as const) {
       dialog.append(
         button(name, name, () => {
-          change((_data, active) => {
-            active.rowHeight = value;
-          });
-          closePopup();
+          if (
+            change((_data, active) => {
+              active.rowHeight = value;
+            }) ||
+            getView(getData()).rowHeight === value
+          )
+            closePopup();
         }),
       );
     }

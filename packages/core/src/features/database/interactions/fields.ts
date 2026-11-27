@@ -33,6 +33,7 @@ interface DatabaseFieldInteractionsContext {
   doc: Document;
   optionColors: readonly string[];
   getData(): DatabaseData;
+  getView(data: DatabaseData): DatabaseView;
   change(
     mutate: (data: DatabaseData, view: DatabaseView) => void,
     repaint?: boolean,
@@ -50,7 +51,7 @@ interface DatabaseFieldInteractionsContext {
   ): HTMLButtonElement;
   option(value: string, label: string): HTMLOptionElement;
   label(text: string, control: HTMLElement): HTMLLabelElement;
-  addFilter(fieldId: string): void;
+  addFilter(fieldId: string): boolean;
   startAiFill(fieldId: string): void;
   cancelPersonSearch(): void;
   personSearch(container: HTMLElement, onPick: (item: { id: string; label: string }) => void): void;
@@ -87,6 +88,7 @@ export function createDatabaseFieldInteractions({
   doc,
   optionColors,
   getData,
+  getView,
   change,
   panel,
   closePopup,
@@ -681,24 +683,26 @@ export function createDatabaseFieldInteractions({
         startAiFill(field.id);
       });
     item("复制列", () => {
-      change((data) => {
-        const source = data.fields.find((entry) => entry.id === field.id);
-        if (!source) return;
-        const copy = structuredClone(source);
-        copy.id = createDatabaseId("field");
-        copy.name = `${source.name} 副本`;
-        for (const view of data.views) {
-          if (!view.fieldOrder.length) continue;
-          const order = orderedDatabaseFields(data, view).map((entry) => entry.id);
-          const index = order.indexOf(source.id);
-          order.splice(index < 0 ? order.length : index + 1, 0, copy.id);
-          view.fieldOrder = order;
-        }
-        data.fields.splice(data.fields.indexOf(source) + 1, 0, copy);
-        for (const record of data.records)
-          record.values[copy.id] = structuredClone(record.values[source.id] ?? copy.defaultValue);
-      });
-      closePopup();
+      if (
+        change((data) => {
+          const source = data.fields.find((entry) => entry.id === field.id);
+          if (!source) return;
+          const copy = structuredClone(source);
+          copy.id = createDatabaseId("field");
+          copy.name = `${source.name} 副本`;
+          for (const view of data.views) {
+            if (!view.fieldOrder.length) continue;
+            const order = orderedDatabaseFields(data, view).map((entry) => entry.id);
+            const index = order.indexOf(source.id);
+            order.splice(index < 0 ? order.length : index + 1, 0, copy.id);
+            view.fieldOrder = order;
+          }
+          data.fields.splice(data.fields.indexOf(source) + 1, 0, copy);
+          for (const record of data.records)
+            record.values[copy.id] = structuredClone(record.values[source.id] ?? copy.defaultValue);
+        })
+      )
+        closePopup();
     });
     item("向左插入列", () =>
       editField(
@@ -715,47 +719,62 @@ export function createDatabaseFieldInteractions({
       }),
     );
     item("按本列分组", () => {
-      change((_data, active) => {
-        active.groupFieldId = field.id;
-      });
-      closePopup();
+      if (
+        change((_data, active) => {
+          active.groupFieldId = field.id;
+        }) ||
+        getView(getData()).groupFieldId === field.id
+      )
+        closePopup();
     });
     item("按本列筛选", () => {
-      addFilter(field.id);
-      closePopup();
+      if (addFilter(field.id)) closePopup();
     });
     for (const [name, direction] of [
       ["升序", "asc"],
       ["降序", "desc"],
     ] as const) {
       item(name, () => {
-        change((data, active) => {
+        let unchanged = false;
+        const committed = change((data, active) => {
           if (active.kind === "table") {
             const sortedView = { ...active, filters: [], filterGroups: [], sorts: [{ fieldId: field.id, direction }] };
-            active.recordOrder = visibleDatabaseRecords(data, sortedView).map((record) => record.id);
+            const order = visibleDatabaseRecords(data, sortedView).map((record) => record.id);
+            unchanged =
+              !active.sorts.length &&
+              order.length === active.recordOrder.length &&
+              order.every((id, index) => active.recordOrder[index] === id);
+            active.recordOrder = order;
             active.sorts = [];
           } else {
+            unchanged =
+              active.sorts.length === 1 &&
+              active.sorts[0].fieldId === field.id &&
+              active.sorts[0].direction === direction;
             active.sorts = [{ fieldId: field.id, direction }];
           }
         });
-        closePopup();
+        if (committed || unchanged) closePopup();
       });
     }
     item("删除列", () => {
-      change((data) => {
-        data.fields = data.fields.filter((item) => item.id !== field.id);
-        for (const record of data.records) delete record.values[field.id];
-        for (const entry of data.views) {
-          for (const set of databaseFilterSets(entry))
-            set.filters = set.filters.filter((item) => item.fieldId !== field.id);
-          entry.sorts = entry.sorts.filter((item) => item.fieldId !== field.id);
-          entry.hiddenFields = entry.hiddenFields.filter((id) => id !== field.id);
-          entry.fieldOrder = entry.fieldOrder.filter((id) => id !== field.id);
-          if (entry.groupFieldId === field.id) entry.groupFieldId = "";
-          delete entry.statistics[field.id];
-        }
-      });
-      closePopup();
+      if (
+        change((data) => {
+          data.fields = data.fields.filter((item) => item.id !== field.id);
+          for (const record of data.records) delete record.values[field.id];
+          for (const entry of data.views) {
+            for (const set of databaseFilterSets(entry))
+              set.filters = set.filters.filter((item) => item.fieldId !== field.id);
+            entry.sorts = entry.sorts.filter((item) => item.fieldId !== field.id);
+            entry.hiddenFields = entry.hiddenFields.filter((id) => id !== field.id);
+            entry.fieldOrder = entry.fieldOrder.filter((id) => id !== field.id);
+            if (entry.groupFieldId === field.id) entry.groupFieldId = "";
+            delete entry.statistics[field.id];
+          }
+        }) ||
+        !getData().fields.some((item) => item.id === field.id)
+      )
+        closePopup();
     });
   };
 

@@ -172,10 +172,12 @@ export function createTableView({
       actions.className = "semlo-editor-database-row-actions";
       actions.append(
         button(`删除第 ${index + 1} 条记录`, "×", () => {
-          change((next) => {
-            next.records = next.records.filter((item) => item.id !== record.id);
-          });
-          getSelected().delete(record.id);
+          if (
+            change((next) => {
+              next.records = next.records.filter((item) => item.id !== record.id);
+            })
+          )
+            getSelected().delete(record.id);
         }),
       );
       row.append(actions);
