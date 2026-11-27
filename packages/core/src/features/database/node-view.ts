@@ -491,6 +491,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       doc,
       optionColors,
       getData,
+      getView,
       change,
       panel,
       closePopup,
@@ -622,10 +623,13 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       if (editor.isEditable)
         dialog.append(
           button("删除记录", "删除记录", () => {
-            change((data) => {
-              data.records = data.records.filter((entry) => entry.id !== record.id);
-            });
-            closePopup();
+            if (
+              change((data) => {
+                data.records = data.records.filter((entry) => entry.id !== record.id);
+              }) ||
+              !getData().records.some((entry) => entry.id === record.id)
+            )
+              closePopup();
           }),
         );
     };
@@ -817,10 +821,13 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       for (const [value, name] of choices)
         dialog.append(
           button(name, name, () => {
-            change((_data, active) => {
-              active.statistics[field.id] = value;
-            });
-            closePopup();
+            if (
+              change((_data, active) => {
+                active.statistics[field.id] = value;
+              }) ||
+              (getView(getData()).statistics[field.id] ?? "none") === value
+            )
+              closePopup();
           }),
         );
     };
@@ -870,7 +877,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
             pendingBodyRefresh = false;
             repaintBody();
           }
-          change(
+          const deleted = change(
             (next, active) => {
               if (active.kind !== "table") return;
               // 编辑收尾可能还没刷新，删除前仍需核对视图和可见字段的搜索词。
@@ -890,6 +897,7 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
             false,
             action,
           );
+          if (!deleted) return;
           selected.clear();
           paint();
         },
@@ -979,18 +987,24 @@ export function createDatabaseNodeView(getOptions: () => DatabaseOptions): NodeV
       name.addEventListener("focus", () => {
         lastEditingElement = null;
       });
-      name.addEventListener("input", () =>
-        change(
-          (_data, view) => {
-            view.name = name.value;
-          },
-          false,
-          name,
-          () => {
-            name.value = getView(getData()).name;
-          },
-        ),
-      );
+      name.addEventListener("input", () => {
+        if (
+          !change(
+            (_data, view) => {
+              view.name = name.value;
+            },
+            false,
+            name,
+            () => {
+              name.value = getView(getData()).name;
+            },
+          ) &&
+          dom.contains(name)
+        ) {
+          const committedName = getView(getData()).name;
+          if (name.value !== committedName) name.value = committedName;
+        }
+      });
       name.addEventListener("change", () => finishEditing(name));
       const addView = button(
         "新建视图",
